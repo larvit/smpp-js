@@ -679,8 +679,8 @@ one wins. They do not override the hard rules below.
 
 Who depends on this library, and what they may rely on.
 
-- **The public npm audience, not only larvit's own applications.** Only what `src/index.ts` exports
-  is public; everything behind it is reshaped freely.
+- **The public npm audience.** Only what `src/index.ts` exports is public; everything behind it is
+  reshaped freely.
 - **Node 18 and newer, ESM only, no runtime dependencies.** The floor is verified in CI rather than
   asserted, so the library drops into a service or a container without pulling a tree behind it.
 - **Real SMSCs and ESMEs as operators actually run them**, not a reference implementation. Jasmin,
