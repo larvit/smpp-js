@@ -22,7 +22,8 @@ window, long messages and delivery receipts. TypeScript, ESM, no dependencies.
 [Send options](#send-options) · [Session](#session) · [Receiving in depth](#receiving-in-depth) ·
 [Server in depth](#server-in-depth) · [Logging](#logging) ·
 [PDUs and the low-level API](#pdus-and-the-low-level-api) ·
-[Migrating from 0.4.0](#migrating-from-larvitsmpp-040) · [Development](#development)
+[Migrating from 0.4.0](#migrating-from-larvitsmpp-040) · [Goals](#goals) ·
+[Audience](#audience) · [Development](#development)
 
 ## Install
 
@@ -631,6 +632,72 @@ if (isCommand(pduObj, 'submit_sm')) {
 ## Migrating from larvitsmpp 0.4.0
 
 See [MIGRATION.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/MIGRATION.md).
+
+## Goals
+
+In priority order, and the order is the point: where two of them pull against each other, the earlier
+one wins. They do not override the hard rules below.
+
+1. **Correct on the wire.** SMPP 3.4 as SMSCs actually run it. Every other goal yields to this one;
+   the defect table below is what the alternative costs.
+2. **Never give the application a wrong answer about what happened.** An outcome we cannot determine
+   is reported as undetermined rather than guessed; a report the peer marked as not final settles
+   nothing, so nothing the library concludes may rest on one; a request the peer may already have
+   taken is never re-sent on the library's own initiative; work the peer has no reason to send again
+   is not dropped.
+3. **Strict in what we send, generous in what we read.** The library's own senders follow 3.4, and
+   the codec parses whatever arrives. Where the letter of the spec would discard traffic a real SMSC
+   sends, keep the traffic.
+4. **A peer an operator never has to complain about.** No bind flooding, nothing a bind direction
+   forbids, no optional parameters to a peer that declared none, nothing held without a bound.
+5. **The session layer is in here, and its defaults are what most applications should run.**
+   Keepalive, reconnect, the send window, reassembly and receipt correlation. What the network says
+   about a message the application sent reaches it as a report rather than as an inbound message, and
+   says whether it is final, so nothing has to read the PDU to tell those apart. An option retunes a
+   default or opts out of it; an option does not switch on the thing the caller obviously wanted.
+6. **Configurable and extendable, never at the defaults' expense.** Where an application needs other
+   than the default and cannot build it from what is exported — a rate limit counted per PDU, an
+   alphabet, a receipt format — it gets an option or a hook rather than a fork. A call that passes no
+   options stays exactly as easy and as safe, and a hook is a seam the library calls, never a way into
+   its internals.
+7. **A small, stable public surface over reshapeable internals.** Only what `src/index.ts` exports is
+   published. A new option has to beat "the application can do this itself", and has to keep a
+   promise this library can verify. The low-level surface is a passthrough: policy binds what the
+   library composes, never what the caller wrote.
+8. **State wider than one session goes through one store.** A pool of sessions, a limit shared
+   between processes, and what has to survive a restart — receipts still awaited, a message half
+   reassembled — are held through a store interface and never beside it. Without a store the
+   application supplies, that state is in memory and ends with the process, and the defaults need
+   none. The interface carries the library's own versioned records, never an internal shape handed
+   to the application to persist. Coordinating processes any other way is declined without a fresh
+   argument each time.
+9. **It builds, tests and runs the same everywhere.** Container-only toolchain, no runtime
+   dependencies, the Node 18 floor verified in CI rather than asserted, every README example executed
+   by the suite.
+
+## Audience
+
+Who depends on this library, and what they may rely on.
+
+- **The public npm audience, not only larvit's own applications.** Only what `src/index.ts` exports
+  is public; everything behind it is reshaped freely.
+- **Node 18 and newer, ESM only, no runtime dependencies.** The floor is verified in CI rather than
+  asserted, so the library drops into a service or a container without pulling a tree behind it.
+- **Real SMSCs and ESMEs as operators actually run them**, not a reference implementation. Jasmin,
+  SMPPSim, Kannel, jsmpp, Cloudhopper, python-smpplib and php-smpp are the interop targets, and what
+  they do in practice outranks what the specification says they should do.
+- **The SMSC operator on the far end**, who never sees this API but carries what it does to their
+  link. A peer they have to complain about is a defect however well the library reads.
+- **Pre-1.0, so the minor is the breaking unit** and a patch never breaks. What a 0.4.0 consumer has
+  to change is in [MIGRATION.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/MIGRATION.md).
+
+Personas this README serves, in order:
+
+1. The application developer sending or receiving SMS on the defaults, who should need no options.
+2. The application developer who needs one thing retuned — an alphabet, a rate limit, a receipt
+   format — through an option or a hook rather than a fork.
+3. The operator coordinating sessions across processes through a store.
+4. The developer migrating from `larvitsmpp` 0.4.0.
 
 ## Development
 

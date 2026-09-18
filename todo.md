@@ -1,7 +1,7 @@
 # todo.md
 
-Remaining work for `@larvit/smpp`. Read [AGENTS.md](AGENTS.md) first — the goals and hard rules
-there constrain every item below.
+Remaining work for `@larvit/smpp`. Read [README.md](README.md)'s goals and [AGENTS.md](AGENTS.md)'s
+hard rules first — they constrain every item below.
 
 This is a working file that sets its own rules. The documentation conventions in AGENTS.md do not
 govern it, and nothing here is a source anything else may cite.
@@ -262,7 +262,7 @@ the rewrite, for a dependency added later. Maintainer's call, 2026-09-14.
 
 From comparing 0.5.0 with `smpp`, `@semyonf/smpp`, `@leissner/node-red-smpp`, `node-smpp-next`,
 `smpp-js-sdk`, `smppjs`, cloudhopper-smpp, jsmpp, go-smpp, Kannel, Jasmin and php-smpp, 2026-09-14.
-Each lands under AGENTS.md goal 6: an option or a hook, with the call that passes none unchanged.
+Each lands under goal 6: an option or a hook, with the call that passes none unchanged.
 
 ### Sending
 
@@ -424,7 +424,7 @@ Each lands under AGENTS.md goal 6: an option or a hook, with the call that passe
 
 - [ ] **Pooling, and state that survives a restart, through an optional store.** Maintainer's call,
       2026-09-14. It replaces two declines — merge state surviving a restart, and a pool of sessions —
-      and AGENTS.md goal 8 was rewritten for it. Big: design before code.
+      and goal 8 was rewritten for it. Big: design before code.
       - **What it holds.** Receipts still awaited and the groups `DlrMerger` collects. Segments of a
         message already answered but not yet whole, which the peer will not send again (goal 2). The
         concatenation reference, so a restart does not reuse one. For a pool, the ids every session

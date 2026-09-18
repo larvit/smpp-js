@@ -12,45 +12,11 @@ not for structure or style.
 
 ## Goals
 
-In priority order, and the order is the point: where two of them pull against each other, the earlier
-one wins. They do not override the hard rules below.
+The nine goals, in priority order, live in
+[README.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/README.md#goals) — they say where this library is heading, which an outside
+reader judges it by. The README states the audience alongside them. Everything below cites a goal by
+number.
 
-1. **Correct on the wire.** SMPP 3.4 as SMSCs actually run it. Every other goal yields to this one;
-   the defect table below is what the alternative costs.
-2. **Never give the application a wrong answer about what happened.** An outcome we cannot determine
-   is reported as undetermined rather than guessed; a report the peer marked as not final settles
-   nothing, so nothing the library concludes may rest on one; a request the peer may already have
-   taken is never re-sent on the library's own initiative; work the peer has no reason to send again
-   is not dropped.
-3. **Strict in what we send, generous in what we read.** The library's own senders follow 3.4, and
-   the codec parses whatever arrives. Where the letter of the spec would discard traffic a real SMSC
-   sends, keep the traffic.
-4. **A peer an operator never has to complain about.** No bind flooding, nothing a bind direction
-   forbids, no optional parameters to a peer that declared none, nothing held without a bound.
-5. **The session layer is in here, and its defaults are what most applications should run.**
-   Keepalive, reconnect, the send window, reassembly and receipt correlation. What the network says
-   about a message the application sent reaches it as a report rather than as an inbound message, and
-   says whether it is final, so nothing has to read the PDU to tell those apart. An option retunes a
-   default or opts out of it; an option does not switch on the thing the caller obviously wanted.
-6. **Configurable and extendable, never at the defaults' expense.** Where an application needs other
-   than the default and cannot build it from what is exported — a rate limit counted per PDU, an
-   alphabet, a receipt format — it gets an option or a hook rather than a fork. A call that passes no
-   options stays exactly as easy and as safe, and a hook is a seam the library calls, never a way into
-   its internals.
-7. **A small, stable public surface over reshapeable internals.** Only what `src/index.ts` exports is
-   published. A new option has to beat "the application can do this itself", and has to keep a
-   promise this library can verify. The low-level surface is a passthrough: policy binds what the
-   library composes, never what the caller wrote.
-8. **State wider than one session goes through one store.** A pool of sessions, a limit shared
-   between processes, and what has to survive a restart — receipts still awaited, a message half
-   reassembled — are held through a store interface and never beside it. Without a store the
-   application supplies, that state is in memory and ends with the process, and the defaults need
-   none. The interface carries the library's own versioned records, never an internal shape handed
-   to the application to persist. Coordinating processes any other way is declined without a fresh
-   argument each time.
-9. **It builds, tests and runs the same everywhere.** Container-only toolchain, no runtime
-   dependencies, the Node 18 floor verified in CI rather than asserted, every README example executed
-   by the suite.
 
 ## Hard rules
 
@@ -245,12 +211,13 @@ decision under [The wire](#the-wire).
 
 Each file answers one question, and a fact belongs to the file whose question it answers:
 
-- **README.md — what you can rely on.** Observable behaviour, for someone using the package. It
-  carries a reason only where the reason changes how you would call the thing.
+- **README.md — what you can rely on, and where this is heading.** Observable behaviour, for
+  someone using the package, plus the goals and the audience. It carries a reason only where the
+  reason changes how you would call the thing.
 - **MIGRATION.md — what a 0.4.0 consumer has to change.** Renamed and removed surface, and the
   behaviour that changed on the wire.
-- **AGENTS.md — what may not change, and why.** Goals, hard rules, architecture, conventions, and the
-  decisions the goals do not already settle. It does not restate behaviour README states.
+- **AGENTS.md — what may not change, and why.** Hard rules, architecture, conventions, and the
+  decisions the goals do not already settle. It does not restate behaviour or goals README states.
 - **todo.md** is a working file that sets its own rules; nothing here governs it.
 
 A sentence living in two of them is a defect: delete the copy in the file whose question it does not
