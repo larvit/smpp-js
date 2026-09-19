@@ -84,6 +84,21 @@ function within<T>(ms: number, promise: Promise<T>): Promise<T | undefined> {
 	return Promise.race([promise, delay(ms).then((): undefined => undefined)]);
 }
 
+/** A client still retrying holds a socket and a timer nothing else releases. */
+function abortAfter(
+	t: TestContext,
+	controller: AbortController,
+	connecting: ReturnType<typeof client>,
+): void {
+	t.after(async () => {
+		controller.abort();
+
+		const { session } = await connecting;
+
+		await session?.close({ signal: AbortSignal.abort() });
+	});
+}
+
 function submitPdu(seqNr: number, cmdStatus: ErrorName = 'ESME_ROK'): PduObject {
 	return {
 		cmdId: 0x00000004,
@@ -798,21 +813,6 @@ describe('reconnect from the first bind', () => {
 		return port;
 	}
 
-	/** A client still retrying holds a socket and a timer nothing else releases. */
-	function abortAfter(
-		t: TestContext,
-		controller: AbortController,
-		connecting: ReturnType<typeof client>,
-	): void {
-		t.after(async () => {
-			controller.abort();
-
-			const { session } = await connecting;
-
-			await session?.close({ signal: AbortSignal.abort() });
-		});
-	}
-
 	test('gives up on the first attempt where reconnect alone is asked for', async () => {
 		const port = await closedPort();
 		const spy = logSpy();
@@ -1015,6 +1015,86 @@ describe('reconnect from the first bind', () => {
 		assert.equal(refused.session, undefined);
 		assert.match(checkSessionOptions({ reconnect: { fromStart: 'yes' } }).err?.message ?? '', /fromStart/);
 		assert.equal(checkSessionOptions({ reconnect: { fromStart: true, minDelay: 10 } }).err, undefined);
+	});
+});
+
+describe('connectTimeout', () => {
+	/** Accepts and then says nothing, so a TLS handshake started on it never completes. */
+	async function stalledListener(t: TestContext): Promise<{ accepted: net.Socket[]; port: number }> {
+		const accepted: net.Socket[] = [];
+		const listener = net.createServer(sock => { accepted.push(sock); });
+
+		closeListenerAfter(t, listener, accepted);
+		await new Promise<void>(resolve => { listener.listen(0, '127.0.0.1', resolve); });
+
+		const address = listener.address();
+
+		return { accepted, port: typeof address === 'object' && address !== null ? address.port : 0 };
+	}
+
+	test('gives up on a connect the peer never completes', async t => {
+		const { port } = await stalledListener(t);
+		const started = Date.now();
+		const settled = await within(2000, client({
+			connectTimeout: 150,
+			host: '127.0.0.1',
+			port,
+			reconnect: false,
+			tls: true,
+		}));
+
+		assert.ok(settled, 'a handshake nothing answers is what the OS wait would swallow for minutes');
+		assert.ok(settled.err instanceof Error);
+		assert.match(settled.err.message, /Timed out connecting/);
+		assert.equal(settled.session, undefined);
+		assert.ok(Date.now() - started >= 150, 'the timeout is what settles it, not a socket error');
+	});
+
+	test('retries a connect it timed out on, like any other failed attempt', async t => {
+		const { accepted, port } = await stalledListener(t);
+		const controller = new AbortController();
+		const connecting = client({
+			connectTimeout: 60,
+			host: '127.0.0.1',
+			port,
+			reconnect: { fromStart: true, maxDelay: 40, minDelay: 10 },
+			signal: controller.signal,
+			tls: true,
+		});
+
+		abortAfter(t, controller, connecting);
+		await delay(400);
+
+		assert.ok(accepted.length >= 3, `the loop retried what timed out, got ${String(accepted.length)} attempts`);
+	});
+
+	test('disarms on the connect that completed, rather than on the socket that follows it', async t => {
+		const smpp = await startServer(t);
+		const { session } = await connect(t, smpp, { connectTimeout: 50 });
+
+		assert.ok(session);
+		await delay(150);
+
+		const probe = await session.send({ cmdName: 'enquire_link' });
+
+		assert.equal(probe.err, undefined);
+		assert.equal(session.sock.destroyed, false);
+	});
+
+	test('refuses a connect timeout that would turn itself off', async () => {
+		assert.match(
+			checkSessionOptions({ connectTimeout: 0 }).err?.message ?? '',
+			/omit it/,
+			'off is spelled by leaving it out, so 0 may not stand in for it',
+		);
+		assert.match(checkSessionOptions({ connectTimeout: -1 }).err?.message ?? '', /connectTimeout/);
+		assert.match(checkSessionOptions({ connectTimeout: 1.5 }).err?.message ?? '', /connectTimeout/);
+		assert.equal(checkSessionOptions({ connectTimeout: 1000 }).err, undefined);
+
+		const refused = await client({ connectTimeout: 0, port: 1 });
+
+		assert.ok(refused.err instanceof Error);
+		assert.equal(refused.session, undefined);
 	});
 });
 

@@ -214,6 +214,8 @@ Each file answers one question, and a fact belongs to the file whose question it
 - **README.md — what you can rely on, and where this is heading.** Observable behaviour, for
   someone using the package, plus the goals and the audience. It carries a reason only where the
   reason changes how you would call the thing.
+- **CHANGELOG.md — what changed for a consumer, per release.** Written for whoever takes the package
+  off npm, never for the next agent, and a line lands there as the work ships rather than at release.
 - **MIGRATION.md — what a 0.4.0 consumer has to change.** Renamed and removed surface, and the
   behaviour that changed on the wire.
 - **AGENTS.md — what may not change, and why.** Hard rules, architecture, conventions, and an index
@@ -299,6 +301,8 @@ the file.
 - Coming up is not proof a link works, so only one that outlasted `maxDelay` resets the backoff.
 - `reconnect: { fromStart: true }` puts the first connect and bind through that same loop, and
   `client()` then resolves only once it is bound.
+- `connectTimeout` is absent by default, bounds the whole connect including the TLS handshake, and
+  `0` is refused.
 - A stream this library cannot frame is a dead link; one PDU it cannot parse is not.
 - A deliberate shutdown drains; an unusable link and an abort do not.
 - Every segment of a concatenated message is answered as it arrives, so `sendResp()` on one is the

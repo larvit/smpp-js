@@ -144,20 +144,39 @@ export function checkSessionOptions(options: CheckableOptions): VoidResult {
 		return { err: new Error('fromStart is part of the reconnect policy, spell it reconnect: { fromStart: true }') };
 	}
 
-	const checked = checkLimits([
-		['idleTimeout', options.idleTimeout ?? 0, 0],
-		['maxOutstanding', options.maxOutstanding ?? defaults.maxOutstanding, 1],
-		['maxReassembly', options.maxReassembly ?? defaults.maxReassembly, 1],
-		['reassemblyTimeout', options.reassemblyTimeout ?? defaults.reassemblyTimeout, 0],
-		['responseTimeout', options.responseTimeout ?? defaults.responseTimeout, 0],
-		['shutdownTimeout', options.shutdownTimeout ?? defaults.shutdownTimeout, 0],
-	]);
+	const connect = checkConnectTimeout(options.connectTimeout);
+
+	if (connect.err) return connect;
+
+	const checked = checkLimits(limitsOf(options));
 
 	if (checked.err) return checked;
 
 	const backoff = checkReconnect(options.reconnect);
 
 	return backoff.err ? backoff : checkSmsIdFormat(options.smsIdFormat);
+}
+
+function limitsOf(options: CheckableOptions): [string, number, number][] {
+	return [
+		['idleTimeout', options.idleTimeout ?? 0, 0],
+		['maxOutstanding', options.maxOutstanding ?? defaults.maxOutstanding, 1],
+		['maxReassembly', options.maxReassembly ?? defaults.maxReassembly, 1],
+		['reassemblyTimeout', options.reassemblyTimeout ?? defaults.reassemblyTimeout, 0],
+		['responseTimeout', options.responseTimeout ?? defaults.responseTimeout, 0],
+		['shutdownTimeout', options.shutdownTimeout ?? defaults.shutdownTimeout, 0],
+	];
+}
+
+/** Leaving it out is how the wait stays the OS's, so 0 would be a second spelling for that. */
+function checkConnectTimeout(connectTimeout: number | undefined): VoidResult {
+	if (connectTimeout === undefined) return {};
+
+	if (Number.isInteger(connectTimeout) && connectTimeout >= 1) return {};
+
+	const got = String(connectTimeout);
+
+	return { err: new Error(`connectTimeout must be 1 or more, got ${got}; omit it to wait the OS out`) };
 }
 
 function checkLimits(limits: [string, number, number][]): VoidResult {
@@ -238,6 +257,7 @@ function checkSmsIdFormat(smsIdFormat: unknown): VoidResult {
 
 /** What the checker reads, as it arrives: a caller without types can put anything in it. */
 export type CheckableOptions = {
+	connectTimeout?: number | undefined;
 	/** Not an option: the one spelling is inside reconnect, and this is where the other is refused. */
 	fromStart?: unknown;
 	idleTimeout?: number | undefined;

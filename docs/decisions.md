@@ -524,6 +524,19 @@ rule and an index of the titles below.
   `LinkGate`'s hold is not — it is awaited with no other handle, so a process whose only work is
   `client()` would exit unbound.
 
+- **`connectTimeout` is absent by default, bounds the whole connect including the TLS handshake, and
+  `0` is refused.** Maintainer's call, 2026-09-20, serving goal 6: a connect that never returns is
+  one `reconnect` cannot retry, because the operating system holds the attempt for around 130 s at
+  Linux's default `tcp_syn_retries` and nothing above it is counting. Absent is how that wait stays
+  the operating system's, so a call passing no options is unchanged, and `0` would be a second
+  spelling for absent — refused at the call, naming the spelling that turns it off. What expires is
+  reported as the ordinary connect failure, so the loop retries it like any other. It settles on
+  `secureConnect` for a TLS socket, so a peer that accepts and then says nothing is bounded the same
+  way a black-holed SYN is. Rejected: `socket.setTimeout()`, an idle timeout that goes on arming
+  once the link is up. Rejected: bounding it with `responseTimeout`, which names the wait for an
+  answer on a link that already exists and would retune both at once. Open while it has no default:
+  whether a later major gives it one.
+
 - **A stream this library cannot frame is a dead link; one PDU it cannot parse is not.**
   Maintainer's call, 2026-08-31, narrowed 2026-09-05 via the interop plan: a `command_length` below
   16 or above `maxPduLength` leaves nothing that can say where the next PDU starts, so it tears the

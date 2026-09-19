@@ -22,6 +22,7 @@ export type ClientOptions = {
 	addrNpi?: number;
 	addrTon?: number;
 	bindType?: BindType;
+	connectTimeout?: number;
 	enquireLinkInterval?: number;
 	host?: string;
 	idleTimeout?: number;
@@ -52,7 +53,22 @@ const defaults = {
 	username: 'user',
 } as const;
 
+function armConnectTimeout(
+	sock: Socket,
+	connectTimeout: number | undefined,
+	settle: (result: Result<{ sock: Socket }>) => void,
+): NodeJS.Timeout | undefined {
+	if (connectTimeout === undefined) return undefined;
+
+	// The connecting socket is what holds the process, so this wait never has to.
+	return setTimeout(() => {
+		sock.destroy();
+		settle({ err: new Error(`Timed out connecting after ${String(connectTimeout)} ms`) });
+	}, connectTimeout).unref();
+}
+
 function openSocket(options: ClientOptions): Promise<Result<{ sock: Socket }>> {
+	const connectTimeout = options.connectTimeout;
 	const host = options.host ?? defaults.host;
 	const port = options.port ?? defaults.port;
 	const secure = options.tls !== undefined && options.tls !== false;
@@ -78,6 +94,8 @@ function openSocket(options: ClientOptions): Promise<Result<{ sock: Socket }>> {
 		}
 
 		const settle = (result: Result<{ sock: Socket }>): void => {
+			if (timer) clearTimeout(timer);
+
 			sock.removeListener('error', onError);
 			signal?.removeEventListener('abort', onAbort);
 			resolve(result);
@@ -97,6 +115,8 @@ function openSocket(options: ClientOptions): Promise<Result<{ sock: Socket }>> {
 		sock.once(secure ? 'secureConnect' : 'connect', () => {
 			settle({ sock });
 		});
+
+		const timer = armConnectTimeout(sock, connectTimeout, settle);
 	});
 }
 
