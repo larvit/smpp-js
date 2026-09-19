@@ -179,6 +179,17 @@ the rewrite, for a dependency added later. Maintainer's call, 2026-09-14.
 
 ## Worth doing, not blocking
 
+- [ ] **Give up a connect after `connectTimeout` instead of waiting the OS out.** `openSocket()` in
+      `client.ts` settles only on `connect`/`secureConnect`, a socket `error`, or the caller's
+      `signal`, and `reconnect-loop.ts` times nothing but its backoff — so a host that drops SYNs
+      stalls every attempt for the OS TCP timeout, around 130 s on Linux at the default
+      `tcp_syn_retries`, and `reconnect.fromStart` cannot retry what never returns. The option aborts
+      the socket and returns the ordinary connect failure; absent, the wait stays exactly 0.5.0's, so
+      a call passing no options is unchanged (goal 6). Whether a later major makes it a default is
+      the open half. Found comparing 0.5.0 with the seven `larvitsmpp` forks, 2026-09-20 —
+      [SwiftHero/larvitsmpp](https://github.com/SwiftHero/larvitsmpp) added a 10 s connect timeout in
+      2017, and it is the one fork change with no equivalent here.
+
 - [ ] **A send the codec will refuse waits for a link and a window slot first.** `refuse()` in
       `outgoing-requests.ts` runs `misuse()` and the abort check before the wait, precisely so a call
       that can never go out does not queue for what it will never use; a body `objToPdu()` refuses on
