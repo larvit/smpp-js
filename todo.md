@@ -9,8 +9,9 @@ govern it, and nothing here is a source anything else may cite.
 ## Status
 
 The rewrite is **feature complete and green**: the suite, lint and typecheck are clean on Node 18
-to 26, and 0.5.0 is on npm. What is left is housekeeping around the release, a few things worth
-adding, and the gaps a comparison with other SMPP libraries found.
+to 26, and 0.5.0 is on npm. 0.6.0 is next, and it is a quality cut rather than a feature one — the
+comprehension gate and the defects under [0.6.0](#060) come first, then the gaps a comparison with
+other SMPP libraries found.
 
 ## The agreed API
 
@@ -177,6 +178,191 @@ the rewrite, for a dependency added later. Maintainer's call, 2026-09-14.
 - [x] [#8](https://github.com/larvit/larvitsmpp/issues/8) The socket's remote host and port on log
       messages: under Worth doing, not blocking. Maintainer's call, 2026-09-14.
 
+## 0.6.0
+
+A nine-reader comprehension panel read the whole project on 2026-09-20 and scored it 7 overall,
+mean 6.8. Navigation (7–8) capped nobody. **Locality capped every unit reader at 5–6 and Shape
+capped both architects at 6**, and those two are what this release lifts. The gate is 7 on all four
+dimensions, higher where it is cheap. Maintainer's call, 2026-09-20. A systems-architect review the
+same day returned ALIGN with one blocking-severity finding, which is the first item under Locality
+and is also what the panel ranked hardest — two methods, one answer.
+
+### Correctness, ahead of everything below
+
+- [ ] **Read C-Octet Strings as `latin1`, so an address survives the wire.** `defs/types.ts` reads
+      with `toString('ascii')` at four sites and writes with `write(text, 'ascii')` at three. Node
+      masks bit 7 when decoding and not when encoding, so the codec writes `0xE9` and reads back
+      `0x69`: an inbound `source_addr` of `Kaffeé` reaches the application as `Kaffei`, with no raw
+      escape hatch as `short_message` has in `shortMessageOctets`. Affects `source_addr`,
+      `destination_addr`, `system_id`, `message_id`, `service_type` and the cstring TLVs, and makes
+      `objToPdu(pduToObj(x))` non-idempotent for them. Goals 1 and 3. Verified in the container:
+      `Buffer.from([0xE9]).toString('ascii')` is `'i'`.
+
+- [ ] **Answer `alert_notification` and `outbind` by not answering them.** Both are response-less in
+      SMPP 3.4, both fall through `route()`'s default into `unhandled()`, which calls
+      `sendReturn(pduObj, 'ESME_RINVCMDID')`; `pduReturn()` then finds no response command, and the
+      failure reaches the application as `sessionError` on every occurrence. `alert_notification`
+      appears nowhere in `src/` but `defs/commands.ts`. One case arm each: log and return.
+
+- [ ] **Range-check `maxOctets` with its five siblings.** `limitsOf()` in `session-options.ts`
+      covers `idleTimeout`, `maxOutstanding`, `maxReassembly`, `reassemblyTimeout`, `responseTimeout`
+      and `shutdownTimeout`; `maxOctets` is documented, consumed by `Reassembler`, and absent from
+      both that list and `CheckableOptions`. `server({ maxOctets: 0 })` starts, then refuses every
+      multipart message and reports each as lost traffic.
+
+- [ ] **Read `multiple` in `parseTlvs()` and `writeTlvs()`, or delete it and `tlvMap`.** Five TLVs
+      declare `multiple: true` (`callback_num`, `callback_num_atag`, `callback_num_pres_ind`,
+      `broadcast_area_identifier`, `broadcast_error_status`) and nothing reads it; `parseTlvs()` keys
+      by tag name, so a peer sending two `callback_num` TLVs silently keeps the last. `tlvMap` on
+      `broadcast_sm_resp` is declared, set once and read nowhere. This is the "Dormant filters" row
+      of the 0.4.0 defect table in a new spelling — metadata that reads as a guarantee.
+
+- [ ] **Arm the merge for the segments the SMSC did take, or say why not.** `collectSent()` sets
+      `failure` if any segment errored, including the `UnansweredError` a mid-send drop produces, and
+      `session.ts` only calls `dlrMerger.expect(sent.smsIds)` when `!sent.err`. So a link drop during
+      a multipart send leaves per-segment `dlr` events firing while `messageDlr` never can, traced
+      only by one `debug` line. `session-extras.test.ts` has the adjacent case — a drop *after* the
+      send — and not this one. If goal 2 forbids reporting on a message we cannot fully account for,
+      that is the answer; it is stated in no file today either way.
+
+### Locality — 5–6 today, and the gate is 7
+
+- [ ] **Give `IncomingRequests` a port instead of the `Session` it drives.** It holds its owner and
+      calls eight members of it 18 times, including `this.session.close()` on an inbound `unbind` —
+      a collaborator ending its owner's life. `OutgoingRequests` is the mirror half of the same
+      boundary and takes no session at all. AGENTS.md's "Nothing reaches back up" is false because of
+      this, and `docs/decisions.md` already states the rule under The session's life: "a collaborator
+      that has to ask does not own its decision". It is also the missing test seam — inbound routing,
+      reassembly dispatch, `onRequest` ordering and bind-direction refusal have no unit test because
+      the class cannot be built without a live socket. Carry the eight members as `IncomingDeps`,
+      exactly as `sendPastDrain` is carried now. No public surface changes. **Do this before the
+      store (goal 8), or the back-edge is baked into the store's published interface.**
+
+- [ ] **Route `sms.ts` through its handlers, all of it.** `createSms()` already injects
+      `handlers.send`, and then reaches `sms.session.sendReturn()`, `sms.session.bindAllows()` and
+      `sms.session.acceptsOptionalParams()` anyway — two channels to one collaborator. `Sms.session`
+      stays public as data the application reads. The cheaper half of the item above, and the one
+      that shows the shape.
+
+- [ ] **Give the held-message protocol one name and one home.** `emitSms()` is the unit 8 of 9
+      readers named and 4 would least want to modify, and every one proposed the same fix. It runs
+      five mechanisms in one scope: a hold keyed by array identity, a `working` counter seeded from
+      `listenerCount('sms')`, a `WeakMap` keyed by the `Sms` object, a `setImmediate`-deferred
+      release, and a captured `linkGeneration` — with the counter decremented from `session.ts`'s
+      `captureRejectionSymbol` in another file. A `MessageHold` owning `hold/release/listenerGaveUp`
+      collapses three files into one readable object. Every way of getting it wrong is silent: a hung
+      shutdown, or a receipt refused.
+
+- [ ] **Derive `Reassembler`'s octet total instead of maintaining it at five sites.** `this.octets`
+      and each `group.octets` must agree, adjusted in `collect`, `trim`, `takeOldest`, `sweep` and
+      `clear`, and `collect()` discovers its own eviction by re-reading the map by identity. Push the
+      budget into `ExpiringGroups` as a weighed capacity, and have `trim()` report whether the
+      current group survived. Named by 6 of 9 readers.
+
+- [ ] **Split the two questions `OutgoingRequests.linkDown()` answers.** `Session.drain()` calls it
+      twice for opposite conclusions — "nothing to drain, success" and "the link died under us,
+      failure" — and `outgoing-requests.ts` reads it a third way. Two named predicates. Named by 7
+      of 9 readers, who each reconstructed the ordering by hand.
+
+- [ ] **Name `pastDrain()`'s retry condition and what makes the loop end.** The exit is a
+      three-term disjunction over two collaborators, whose comment covers the first term only, and
+      the method is named for what it bypasses. Do not change what it asks: `gate.isUp()` rather than
+      `linkDown()` is deliberate and recorded.
+
+- [ ] **Replace `resolveBody`'s `settles` boolean with the decision it stands for.** One boolean
+      chooses both whether to overwrite `data_coding` and which params to read it from, across four
+      helpers all named some abstraction of "body". Return a named source — `'short_message' |
+      'payload' | 'caller'` — and branch once. Ranked hardest by three readers and picked by one as
+      the unit they would least want to touch, because a mistake here does not throw, does not fail
+      the types, and reaches the peer as somebody's message rendered wrong.
+
+### Shape — 6 today, and the gate is 7
+
+- [ ] **Group `src/` into a second level, and retire whichever record loses.** 34 files on one
+      plane, where `src/defs/` at 7 proves the shape is known one level down. `docs/decisions.md`
+      says "`src/` stays flat until a module has to move for another reason. Valid while that map is
+      what a reader navigates by" — and both architects reported that the map is now AGENTS.md rather
+      than the tree, which is that premise failing. `todo.md` already carries the opposite
+      instruction under Worth doing. Two records, opposite answers; one has to go. Do it in the same
+      change as the `IncomingRequests` port or the imports are rewritten twice.
+
+- [ ] **Split `test/session-extras.test.ts` by the question each block answers.** 3,010 lines, 19
+      unrelated `describe` blocks whose names are already the file names they should be. With
+      `session.test.ts` it is 54% of all test code and 84% the size of `src/`. "extras" names neither
+      a question nor a module — it names the rest — and AGENTS.md's own convention forbids exactly
+      that. `max-lines` covers `src/**` only, so nothing has stopped it growing.
+
+- [ ] **Collapse the three objects named `defaults`.** `client.ts`, `server.ts` and
+      `session-options.ts` each export or hold one; `port: 2775` is written twice and the idle
+      timeout is derived two ways to the same 40 000. "What is the default for X" has three answers
+      depending on the entrypoint, and nothing fails when they drift. Named by both architects as the
+      most likely first bug a new contributor ships.
+
+- [ ] **Rename `EncodingName`'s `ASCII` to `GSM7`, with `ASCII` a deprecated alias for one minor.**
+      It is GSM 03.38, where `$` is 0x02 and `@` is 0x00, and `segmentUnits.ASCII = 153` is a septet
+      budget under a name that says octets. The 2026-09-09 decision removed `consts.ENCODING.ASCII`
+      for exactly this reason and left the option's own vocabulary carrying it. Pre-1.0 the minor is
+      the breaking unit, so this is as cheap as it will ever be, and `todo.md` already requires the
+      `consts.ENCODING` names settled before the custom-encoding registry — this is the other half.
+
+- [ ] **Split `session-options.ts` into the things it is.** Option types and their validator, the
+      `SessionEvents` map, and the bind-direction rules (`bindCommands`, `bindTypeFromCommand`,
+      `standsInFor`, `bindCarries`) are three questions in one file, and the `defaults` table mixes
+      option defaults with four hard bounds that are not options. Both architects named it as where
+      the codebase rots first: at 34-wide it is where anything session-shaped lands.
+
+- [ ] **Name the base-versus-segment distinction in the message id types.** `Sms.smsId` is a base,
+      `sendSms().smsIds[]` are segment ids, `Dlr.smsId` is a segment id and `MessageDlr.smsId` is a
+      base again — four fields, one type, `string`. The whole multipart receipt mechanism turns on
+      telling them apart and only `parseSegmentId()` knows.
+
+### Self-sufficiency — 6–7 today, and the gate is 7
+
+- [ ] **Move the one-line facts out of the decision log and back to the code.** Five of nine readers
+      independently reported being sent to `docs/decisions.md` for a question they hit while reading,
+      with no link from the code; one counted roughly fifty index redirects. The four worth inlining
+      as one line each: that `segmentUnits`' three numbers are in two units (septets and octets),
+      which body settles `data_coding`, that a receipt's body is read as octets whatever its
+      `data_coding` says, and the `<base>-<n>` id notation. The reasoning stays in the log; the
+      definition belongs at the code.
+
+- [ ] **Document the two delivery-receipt merge bounds.** `maxDlrMerges` (1000) and
+      `dlrMergeTimeout` (24 h) are hardcoded, are not options, and appear in no README and no test —
+      while README states the equivalent held-message bounds explicitly ("Neither bound is an
+      option"). A sender with more than 1000 concurrent multipart `dlr: true` messages silently
+      evicts the oldest at `warn`. The inherited architect hit this on the 3am walk.
+
+- [ ] **Add a ten-line SMPP glossary to the README.** Both juniors and the no-domain mid reported
+      the same largest cost: nothing in the repo says what a PDU, `esm_class`, `data_coding`, TON/NPI
+      or `submit_sm`-versus-`deliver_sm` are, and the inline spec citations mark a rule without
+      stating it. One of them put it at a third of their reading time. Four commands, three octets,
+      one sentence each.
+
+### Doc claims this review falsified
+
+- [ ] **Make "every README example is executed by the suite" true, or stop claiming it.** Goal 9 and
+      the Done table both promise it; `test/readme.test.ts` transcribes the examples by hand and has
+      drifted — 15 fenced `javascript` blocks in the README against 10 tests, and the test named "the
+      documented sending options" passes none of the five options the README's example passes. Read
+      the fenced blocks at test time and assert each appears verbatim in the executed source, so an
+      edit to either fails the gate.
+
+- [ ] **Correct AGENTS.md's "Nothing reaches back up".** False while `IncomingRequests` holds a
+      `Session`: either the first Locality item makes it true, or the sentence names the exception
+      until it does.
+
+- [ ] **Narrow the `src/defs/*` lint exemption to the four table files.** Its stated reason — "the
+      spec tables are data: their length tracks the specification, not any complexity" — is false for
+      `defs/types.ts`, which is 595 lines of wire codec with 25 functions and is the file that parses
+      hostile input from the network. It carries more over-budget methods than any other file in the
+      repo, under a suppression written for something else.
+
+- [ ] **Run the interop suite before cutting a minor, and date the claim.** README states
+      "Interoperable. Tested as a client against Jasmin and SMPPSim, and as a server against Kannel,
+      jsmpp, Cloudhopper, python-smpplib and php-smpp" in the present tense; `interop-tests/README.md`
+      is honest that the run was 2026-09-08. Nothing runs the peers on a schedule or before a tag, so
+      the claim rots silently. Goals 1 and 9.
+
 ## Worth doing, not blocking
 
 - [ ] **Cut the three teardown sentences `test/teardown.ts` already says.** Under AGENTS.md's
@@ -227,12 +413,6 @@ the rewrite, for a dependency added later. Maintainer's call, 2026-09-14.
 - [ ] **CodeRabbit reviews through the GitHub mirror.** CodeRabbit does not support Gitea, so mirror
       each Gitea pull request to GitHub for it to review there. Maintainer's ask, 2026-09-14; not
       started until asked.
-
-- [ ] **Group the session's collaborators under `src/session/`.** `session.ts` imports
-      `dlr-merger`, `incoming-requests`, `link-timers`, `outgoing-requests`, `pdu-transport`,
-      `reconnect-loop` and `send-sms`, and nothing else does, so the directory would make that
-      boundary visible. The `OutgoingRequests` extraction this was to be done with landed on
-      2026-09-01, so it is the remaining half. Raised by review, 2026-09-01.
 
 - [ ] **`leftOf()` and the link gate's own budget are one concept counted twice.**
       `idle-waiters.ts` reads what is left of a budget as `Math.max(1, deadline - now)`, because 0

@@ -125,7 +125,7 @@ rule and an index of the titles below.
   phase: SMPP 3.4 5.3.2.32 makes the TLV the alternative for a body the mandatory field cannot
   carry, several SMSCs use it, and Jasmin relays one faithfully — reading `short_message` alone
   handed the application an empty message
-  ([interop-tests/findings/03-jasmin.md](interop-tests/findings/03-jasmin.md)). `messageOctets()` is
+  ([interop-tests/findings/03-jasmin.md](../interop-tests/findings/03-jasmin.md)). `messageOctets()` is
   the single answer to where a body is, so the message path, the reassembler and `dlrFromPdu()`
   cannot disagree about it, and `esm_class` still says whether that body starts with a UDH wherever
   it was carried, which leaves concatenation reading exactly as before. Filling both contradicts the
@@ -142,7 +142,7 @@ rule and an index of the titles below.
   `sar_msg_ref_num`/`sar_total_segments`/`sar_segment_seqnum` the other way to say what a UDH says,
   Jasmin documents it as its own segmentation and jsmpp writes it, and reading the UDH alone handed
   the application one `sms` per fragment
-  ([interop-tests/findings/05-java-clients.md](interop-tests/findings/05-java-clients.md)).
+  ([interop-tests/findings/05-java-clients.md](../interop-tests/findings/05-java-clients.md)).
   `concatOf()` is the single answer to how a PDU says it is a segment, as `messageOctets()` is to
   where a body is, and both are exported for the same reason: an application on the low-level
   surfaces would otherwise rewrite the read this fixed. It carries the spelling beside the
@@ -224,7 +224,7 @@ rule and an index of the titles below.
   ME-, SIM- and TE-specific classes immediate display and missed the 0xF0 group entirely — the only
   one SMPP 3.4 5.2.19 names, since it marks 0x0F to 0xBF reserved and hands 0xF0 to 0xFF to GSM
   03.38, and the one SMPPSim demonstrated
-  ([interop-tests/findings/02-smppsim.md](interop-tests/findings/02-smppsim.md), C17).
+  ([interop-tests/findings/02-smppsim.md](../interop-tests/findings/02-smppsim.md), C17).
   `messageClassOf()` is the single answer to whether a `data_coding` carries a class and which, as
   `concatOf()` is to how a PDU says it is a segment: 03.38 section 4 puts the class in bits 1-0,
   carried where bit 4 says so in every group below 0x80 and always in the 0xF0 group, and
@@ -326,7 +326,7 @@ rule and an index of the titles below.
   Java-client interoperability phase: accepting any parse that merely did not error answered
   `ESME_ROK` to a `deliver_sm` whose three trailing octets were never read, dropping the
   `receipted_message_id` that makes a receipt a receipt
-  ([interop-tests/findings/05-java-clients.md](interop-tests/findings/05-java-clients.md)). Goal 2
+  ([interop-tests/findings/05-java-clients.md](../interop-tests/findings/05-java-clients.md)). Goal 2
   settles it against goal 3: octets this codec cannot name are a PDU it did not read, so a region
   that does not end on `command_length` — the padded read included — is refused with the `tlvs`
   reason and `ESME_RINVTLVSTREAM` a truncated TLV value already gets. What the rule costs is paid
@@ -574,7 +574,7 @@ rule and an index of the titles below.
   Jasmin interoperability phase: Jasmin dispatches one `submit_sm` per connector at a time and will
   not send segment 2 until segment 1 is answered, so holding a group unanswered until it was whole
   deadlocked every multi-segment message against a production gateway
-  ([interop-tests/findings/03-jasmin.md](interop-tests/findings/03-jasmin.md)). Goal 1 has the answer
+  ([interop-tests/findings/03-jasmin.md](../interop-tests/findings/03-jasmin.md)). Goal 1 has the answer
   a real SMSC gives — one `message_id` per `submit_sm`, immediately — so the group's id base is
   generated when it opens and each segment is answered `<base>-<n>`, the notation `sms-id.ts` owns
   and `DlrMerger` reads back. The id is therefore fixed by the first segment, which is why an `smsId`
