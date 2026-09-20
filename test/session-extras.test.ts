@@ -25,7 +25,7 @@ import { DlrMerger } from '../src/dlr-merger.ts';
 import { PduRefusedError } from '../src/pdu-refusal.ts';
 import { objToPdu } from '../src/pdu.ts';
 import { checkSessionOptions, standsInFor } from '../src/session-options.ts';
-import { client } from '../src/client.ts';
+import { client, defaults as clientDefaults } from '../src/client.ts';
 import { closeAfter, closeListenerAfter } from './teardown.ts';
 import { concatOf } from '../src/concat.ts';
 import { consts } from '../src/defs/constants.ts';
@@ -1087,11 +1087,13 @@ describe('connectTimeout', () => {
 	});
 
 	test('refuses a connect timeout that would turn itself off', async () => {
+		assert.equal(clientDefaults.connectTimeout, 10_000, 'the number the README documents');
 		assert.match(
 			checkSessionOptions({ connectTimeout: 0 }).err?.message ?? '',
-			/omit it/,
-			'off is spelled by leaving it out, so 0 may not stand in for it',
+			/false waits the OS out/,
+			'off is spelled false, so 0 may not stand in for it',
 		);
+		assert.equal(checkSessionOptions({ connectTimeout: false }).err, undefined);
 		assert.match(checkSessionOptions({ connectTimeout: -1 }).err?.message ?? '', /connectTimeout/);
 		assert.match(checkSessionOptions({ connectTimeout: 1.5 }).err?.message ?? '', /whole number/);
 		assert.match(
@@ -1110,8 +1112,13 @@ describe('connectTimeout', () => {
 		const refused = await client({ connectTimeout: 0, port: 1 });
 
 		assert.ok(refused.err instanceof Error);
-		assert.match(refused.err.message, /omit it/, 'the socket may not be opened before the option is refused');
+		assert.match(refused.err.message, /false waits/, 'the socket may not be opened before the option is refused');
 		assert.equal(refused.session, undefined);
+
+		const off = await client({ connectTimeout: false, port: 1 });
+
+		assert.ok(off.err instanceof Error);
+		assert.match(off.err.message, /ECONNREFUSED/, 'false opts out of the bound without breaking the connect');
 	});
 });
 

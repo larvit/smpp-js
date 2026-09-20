@@ -179,12 +179,6 @@ the rewrite, for a dependency added later. Maintainer's call, 2026-09-14.
 
 ## Worth doing, not blocking
 
-- [ ] **Decide whether a later major gives `connectTimeout` a default.** The option ships absent, so
-      a call passing none waits the OS out as 0.5.0 did — the half the option deliberately left open.
-      A default is a breaking change for anyone relying on that wait, and the minor is the breaking
-      unit until 1.0.0. Needs a number an operator would recognise, where SwiftHero's fork picked
-      10 s.
-
 - [ ] **Cut the three teardown sentences `test/teardown.ts` already says.** Under AGENTS.md's
       Conventions, "`test/teardown.ts` covers a session, a server and a listener" restates its two
       exported names, "Its close aborts rather than drains" restates `closeAfter`'s own doc comment,

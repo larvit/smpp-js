@@ -22,7 +22,7 @@ export type ClientOptions = {
 	addrNpi?: number;
 	addrTon?: number;
 	bindType?: BindType;
-	connectTimeout?: number;
+	connectTimeout?: number | false;
 	enquireLinkInterval?: number;
 	host?: string;
 	idleTimeout?: number;
@@ -41,8 +41,9 @@ export type ClientOptions = {
 	username?: string;
 };
 
-const defaults = {
+export const defaults = {
 	bindType: 'transceiver',
+	connectTimeout: 10_000,
 	enquireLinkInterval: 20_000,
 	host: 'localhost',
 	/** The idle timeout is what notices a dead link, so it has to outlast one silent probe. */
@@ -55,11 +56,11 @@ const defaults = {
 
 function armConnectTimeout(
 	sock: Socket,
-	connectTimeout: number | undefined,
+	connectTimeout: number | false,
 	peer: string,
 	settle: (result: Result<{ sock: Socket }>) => void,
 ): NodeJS.Timeout | undefined {
-	if (connectTimeout === undefined) return undefined;
+	if (connectTimeout === false) return undefined;
 
 	// A firewall and a stalled handshake need different answers, and only the phase tells them apart.
 	let phase = `connecting to ${peer}`;
@@ -73,7 +74,7 @@ function armConnectTimeout(
 }
 
 function openSocket(options: ClientOptions): Promise<Result<{ sock: Socket }>> {
-	const connectTimeout = options.connectTimeout;
+	const connectTimeout = options.connectTimeout ?? defaults.connectTimeout;
 	const host = options.host ?? defaults.host;
 	const port = options.port ?? defaults.port;
 	const secure = options.tls !== undefined && options.tls !== false;

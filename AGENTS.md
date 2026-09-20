@@ -302,8 +302,8 @@ the file.
 - Coming up is not proof a link works, so only one that outlasted `maxDelay` resets the backoff.
 - `reconnect: { fromStart: true }` puts the first connect and bind through that same loop, and
   `client()` then resolves only once it is bound.
-- `connectTimeout` is absent by default, bounds the whole connect including the TLS handshake, and
-  `0` is refused.
+- `connectTimeout` defaults to 10 s, bounds the whole connect including the TLS handshake, and
+  `false` is the one way to turn it off.
 - A stream this library cannot frame is a dead link; one PDU it cannot parse is not.
 - A deliberate shutdown drains; an unusable link and an abort do not.
 - Every segment of a concatenated message is answered as it arrives, so `sendResp()` on one is the
