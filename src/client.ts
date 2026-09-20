@@ -41,7 +41,7 @@ export type ClientOptions = {
 	username?: string;
 };
 
-export const defaults = {
+const defaults = {
 	bindType: 'transceiver',
 	connectTimeout: 10_000,
 	enquireLinkInterval: 20_000,
@@ -57,19 +57,22 @@ export const defaults = {
 function armConnectTimeout(
 	sock: Socket,
 	connectTimeout: number | false,
-	peer: string,
+	target: { peer: string; secure: boolean },
 	settle: (result: Result<{ sock: Socket }>) => void,
 ): NodeJS.Timeout | undefined {
 	if (connectTimeout === false) return undefined;
 
-	// A firewall and a stalled handshake need different answers, and only the phase tells them apart.
-	let phase = `connecting to ${peer}`;
+	let phase = `connecting to ${target.peer}`;
 
-	sock.once('connect', () => { phase = `completing the TLS handshake with ${peer}`; });
+	if (target.secure) {
+		sock.once('connect', () => { phase = `completing the TLS handshake with ${target.peer}`; });
+	}
 
 	return setTimeout(() => {
 		sock.destroy();
-		settle({ err: new Error(`Timed out ${phase} after ${String(connectTimeout)} ms`) });
+		settle({
+			err: new Error(`Timed out ${phase} after ${String(connectTimeout)} ms; raise connectTimeout or set it to false`),
+		});
 	}, connectTimeout).unref();
 }
 
@@ -99,12 +102,14 @@ function openSocket(options: ClientOptions): Promise<Result<{ sock: Socket }>> {
 			return;
 		}
 
-		const settle = (result: Result<{ sock: Socket }>): void => {
+		const timer = armConnectTimeout(sock, connectTimeout, { peer: `${host}:${String(port)}`, secure }, settle);
+
+		function settle(result: Result<{ sock: Socket }>): void {
 			clearTimeout(timer);
 			sock.removeListener('error', onError);
 			signal?.removeEventListener('abort', onAbort);
 			resolve(result);
-		};
+		}
 
 		function onError(err: Error): void {
 			settle({ err });
@@ -120,8 +125,6 @@ function openSocket(options: ClientOptions): Promise<Result<{ sock: Socket }>> {
 		sock.once(secure ? 'secureConnect' : 'connect', () => {
 			settle({ sock });
 		});
-
-		const timer = armConnectTimeout(sock, connectTimeout, `${host}:${String(port)}`, settle);
 	});
 }
 

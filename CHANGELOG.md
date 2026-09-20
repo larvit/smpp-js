@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 (unreleased)
 
 - `client()` now bounds each connect attempt at 10 seconds, the TLS handshake included, and reports
   one that expires as an ordinary connect failure, so `reconnect` retries it on its usual backoff.

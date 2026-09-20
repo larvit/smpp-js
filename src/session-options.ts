@@ -180,7 +180,7 @@ function checkConnectTimeout(connectTimeout: unknown): VoidResult {
 	}
 
 	if (connectTimeout > maxTimerDelay) {
-		return { err: new Error(`connectTimeout must be ${String(maxTimerDelay)} ms or less (about 24 days), got ${got}`) };
+		return { err: new Error(`connectTimeout must be ${String(maxTimerDelay)} ms or less (about 24 days), got ${got}; false waits the OS out instead`) };
 	}
 
 	return {};

@@ -25,7 +25,7 @@ import { DlrMerger } from '../src/dlr-merger.ts';
 import { PduRefusedError } from '../src/pdu-refusal.ts';
 import { objToPdu } from '../src/pdu.ts';
 import { checkSessionOptions, standsInFor } from '../src/session-options.ts';
-import { client, defaults as clientDefaults } from '../src/client.ts';
+import { client } from '../src/client.ts';
 import { closeAfter, closeListenerAfter } from './teardown.ts';
 import { concatOf } from '../src/concat.ts';
 import { consts } from '../src/defs/constants.ts';
@@ -1049,10 +1049,33 @@ describe('connectTimeout', () => {
 		assert.ok(settled.err instanceof Error);
 		assert.match(
 			settled.err.message,
-			new RegExp(`Timed out completing the TLS handshake with 127\\.0\\.0\\.1:${String(port)} after 150 ms`),
-			'a firewall and a peer that accepts then stalls need different answers from the operator',
+			new RegExp(`Timed out completing the TLS handshake with 127\\.0\\.0\\.1:${String(port)} after 150 ms; raise connectTimeout`),
+			'a firewall and a peer that accepts then stalls need different answers, and whoever reads this has never heard of the option',
 		);
 		assert.equal(settled.session, undefined);
+	});
+
+	// The fallback is what every call that names no timeout gets, and localhost settles too fast to see it.
+	test('bounds a connect nobody asked to bound, at the default', async t => {
+		const { accepted, port } = await stalledListener(t);
+
+		t.mock.timers.enable({ apis: ['setTimeout'] });
+
+		const connecting = client({ host: '127.0.0.1', port, reconnect: false, tls: true });
+
+		while (accepted.length === 0) {
+			await new Promise(resolve => setImmediate(resolve));
+		}
+
+		await new Promise(resolve => setImmediate(resolve));
+		t.mock.timers.tick(10_000);
+		t.mock.timers.reset();
+
+		const settled = await within(2000, connecting);
+
+		assert.ok(settled, 'no bound was armed, so nothing ever settled this connect');
+		assert.ok(settled.err instanceof Error);
+		assert.match(settled.err.message, /after 10000 ms/);
 	});
 
 	test('retries a connect it timed out on, like any other failed attempt', async t => {
@@ -1087,7 +1110,6 @@ describe('connectTimeout', () => {
 	});
 
 	test('refuses a connect timeout that would turn itself off', async () => {
-		assert.equal(clientDefaults.connectTimeout, 10_000, 'the number the README documents');
 		assert.match(
 			checkSessionOptions({ connectTimeout: 0 }).err?.message ?? '',
 			/false waits the OS out/,

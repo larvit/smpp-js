@@ -9,7 +9,9 @@ export function errorFrom(reason: unknown): Error {
 	}
 }
 
-/** String() throws on a null-prototype object or a symbol, so only a string or number is printed. */
+const printable: readonly string[] = ['boolean', 'number', 'string'];
+
+/** String() throws on a null-prototype object or a symbol, so those are named by type instead. */
 export function namedValue(value: unknown): string {
-	return typeof value === 'string' || typeof value === 'number' ? String(value) : typeof value;
+	return printable.includes(typeof value) ? String(value) : typeof value;
 }
