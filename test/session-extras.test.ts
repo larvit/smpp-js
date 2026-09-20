@@ -1055,17 +1055,11 @@ describe('connectTimeout', () => {
 		assert.equal(settled.session, undefined);
 	});
 
-	test('bounds a connect nobody asked to bound, at the default', async t => {
+	// Waits the default out for real: node:test mock timers land in Node 20.4, and the floor is 18.
+	test('bounds a connect nobody asked to bound, at the default ten seconds', async t => {
 		const { port } = await stalledListener(t);
-
-		t.mock.timers.enable({ apis: ['setTimeout'] });
-
 		const connecting = client({ host: '127.0.0.1', port, reconnect: false, tls: true });
-
-		t.mock.timers.tick(10_000);
-		t.mock.timers.reset();
-
-		const settled = await within(2000, connecting);
+		const settled = await within(13_000, connecting);
 
 		assert.ok(settled, 'no bound was armed, so nothing ever settled this connect');
 		assert.ok(settled.err instanceof Error);
