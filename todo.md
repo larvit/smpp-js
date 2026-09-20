@@ -236,7 +236,7 @@ and is also what the panel ranked hardest — two methods, one answer.
       reassembly dispatch, `onRequest` ordering and bind-direction refusal have no unit test because
       the class cannot be built without a live socket. Carry the eight members as `IncomingDeps`,
       exactly as `sendPastDrain` is carried now. No public surface changes. **Do this before the
-      store (goal 8), or the back-edge is baked into the store's published interface.**
+      store (goal 9), or the back-edge is baked into the store's published interface.**
 
 - [ ] **Route `sms.ts` through its handlers, all of it.** `createSms()` already injects
       `handlers.send`, and then reaches `sms.session.sendReturn()`, `sms.session.bindAllows()` and
@@ -340,7 +340,7 @@ and is also what the panel ranked hardest — two methods, one answer.
 
 ### Doc claims this review falsified
 
-- [ ] **Make "every README example is executed by the suite" true, or stop claiming it.** Goal 9 and
+- [ ] **Make "every README example is executed by the suite" true, or stop claiming it.** Goal 10 and
       the Done table both promise it; `test/readme.test.ts` transcribes the examples by hand and has
       drifted — 15 fenced `javascript` blocks in the README against 10 tests, and the test named "the
       documented sending options" passes none of the five options the README's example passes. Read
@@ -459,7 +459,7 @@ and is also what the panel ranked hardest — two methods, one answer.
 
 From comparing 0.5.0 with `smpp`, `@semyonf/smpp`, `@leissner/node-red-smpp`, `node-smpp-next`,
 `smpp-js-sdk`, `smppjs`, cloudhopper-smpp, jsmpp, go-smpp, Kannel, Jasmin and php-smpp, 2026-09-14.
-Each lands under goal 6: an option or a hook, with the call that passes none unchanged.
+Each lands under goal 7: an option or a hook, with the call that passes none unchanged.
 
 ### Sending
 
@@ -621,7 +621,7 @@ Each lands under goal 6: an option or a hook, with the call that passes none unc
 
 - [ ] **Pooling, and state that survives a restart, through an optional store.** Maintainer's call,
       2026-09-14. It replaces two declines — merge state surviving a restart, and a pool of sessions —
-      and goal 8 was rewritten for it. Big: design before code.
+      and goal 9 was rewritten for it. Big: design before code.
       - **What it holds.** Receipts still awaited and the groups `DlrMerger` collects. Segments of a
         message already answered but not yet whole, which the peer will not send again (goal 2). The
         concatenation reference, so a restart does not reuse one. For a pool, the ids every session
@@ -634,10 +634,10 @@ Each lands under goal 6: an option or a hook, with the call that passes none unc
         in-memory store is enough; across processes the application supplies one.
       - **The interface.** Narrow, with keys and records of the library's own making, versioned, with
         expiry: a record from an older version is read or refused, never misread, and `DlrMerger`'s
-        group shape is never published (goal 7). What processes share needs an atomic operation —
+        group shape is never published (goal 8). What processes share needs an atomic operation —
         compare-and-set or increment — since get-then-set races.
       - **Adapters live elsewhere.** Redis, Postgres or SQLite stores are packages of their own; this
-        one ships the interface and the in-memory store, and no runtime dependency (goal 9).
+        one ships the interface and the in-memory store, and no runtime dependency (goal 10).
       - **When the store fails.** Open: a send whose awaited receipt cannot be recorded is refused, or
         sent and reported as undetermined (goal 2); a pool whose store is down stops, or falls back to
         memory. Either way, an application that supplied no store never waits on one.

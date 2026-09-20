@@ -660,23 +660,29 @@ one wins. They do not override the hard rules below.
    about a message the application sent reaches it as a report rather than as an inbound message, and
    says whether it is final, so nothing has to read the PDU to tell those apart. An option retunes a
    default or opts out of it; an option does not switch on the thing the caller obviously wanted.
-6. **Configurable and extendable, never at the defaults' expense.** Where an application needs other
+6. **Fast enough that this library is never the bottleneck.** Throughput over a few sessions rather
+   than many idle ones, which is why this exists on Node at all. On four cores or more, one bound
+   session sustains at least 5,000 `submit_sm`/s at a send window of 1, 20,000 at the default window
+   of 10, and 30,000 at 50 or above, and asking for delivery receipts costs nothing measurable.
+   Memory is bounded per session, never per process. [benchmarks/](benchmarks/README.md) is how those
+   floors are checked; every release re-measures them and asks what it would take to go faster.
+7. **Configurable and extendable, never at the defaults' expense.** Where an application needs other
    than the default and cannot build it from what is exported — a rate limit counted per PDU, an
    alphabet, a receipt format — it gets an option or a hook rather than a fork. A call that passes no
    options stays exactly as easy and as safe, and a hook is a seam the library calls, never a way into
    its internals.
-7. **A small, stable public surface over reshapeable internals.** Only what `src/index.ts` exports is
+8. **A small, stable public surface over reshapeable internals.** Only what `src/index.ts` exports is
    published. A new option has to beat "the application can do this itself", and has to keep a
    promise this library can verify. The low-level surface is a passthrough: policy binds what the
    library composes, never what the caller wrote.
-8. **State wider than one session goes through one store.** A pool of sessions, a limit shared
+9. **State wider than one session goes through one store.** A pool of sessions, a limit shared
    between processes, and what has to survive a restart — receipts still awaited, a message half
    reassembled — are held through a store interface and never beside it. Without a store the
    application supplies, that state is in memory and ends with the process, and the defaults need
    none. The interface carries the library's own versioned records, never an internal shape handed
    to the application to persist. Coordinating processes any other way is declined without a fresh
    argument each time.
-9. **It builds, tests and runs the same everywhere.** Container-only toolchain, no runtime
+10. **It builds, tests and runs the same everywhere.** Container-only toolchain, no runtime
    dependencies, the Node 18 floor verified in CI rather than asserted, every README example executed
    by the suite.
 
@@ -693,6 +699,11 @@ Who depends on this library, and what they may rely on.
   they do in practice outranks what the specification says they should do.
 - **The SMSC operator on the far end**, who never sees this API but carries what it does to their
   link. A peer they have to complain about is a defect however well the library reads.
+- **The developer building the SMPP edge of something else.** What binds to `server()` in practice is
+  an aggregator's customer-facing edge, a bridge putting SMPP in front of a modern transport, or a
+  test double standing in for an SMSC. This is not a store-and-forward SMSC and will not become one:
+  spooling, scheduling, retry policy and billing belong to whatever this is the edge of, and state
+  shared between instances goes through the store in goal 9.
 - **Pre-1.0, so the minor is the breaking unit** and a patch never breaks. What a 0.4.0 consumer has
   to change is in [MIGRATION.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/MIGRATION.md).
 

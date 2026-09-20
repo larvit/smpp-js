@@ -17,8 +17,25 @@ docker compose -f compose.yaml -f interop-tests/compose.jasmin.yaml run --rm nod
 	--count=20000 --concurrency=50
 ```
 
+`GATE=1` fails the run when a window falls under goal 6's floor, and refuses to judge at all on
+fewer than four cores.
+
 **A short run measures the JIT, not the library.** At 2,000 messages per point the same build
 reported 16k/s where 100,000 messages reported 40k/s. Give each point several seconds.
+
+**Cores matter, though the library is single-threaded.** The run is two Node processes, and past
+them V8 marks and compiles on threads of its own while the kernel carries loopback TCP. Window 200,
+100,000 messages:
+
+| Cores | msgs/s |
+| --- | --- |
+| 1 | 20,476 |
+| 2 | 29,603 |
+| 4 | 32,869 |
+| 8 | 40,046 |
+
+A window of 1 is unmoved by any of it (7,280–8,659 throughout) because it waits on the round trip
+rather than the CPU. The windowed figures are for the pair: one process alone reaches about half.
 
 ## Results, 2026-09-20
 
