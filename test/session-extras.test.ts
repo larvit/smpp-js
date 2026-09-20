@@ -1055,19 +1055,13 @@ describe('connectTimeout', () => {
 		assert.equal(settled.session, undefined);
 	});
 
-	// The fallback is what every call that names no timeout gets, and localhost settles too fast to see it.
 	test('bounds a connect nobody asked to bound, at the default', async t => {
-		const { accepted, port } = await stalledListener(t);
+		const { port } = await stalledListener(t);
 
 		t.mock.timers.enable({ apis: ['setTimeout'] });
 
 		const connecting = client({ host: '127.0.0.1', port, reconnect: false, tls: true });
 
-		while (accepted.length === 0) {
-			await new Promise(resolve => setImmediate(resolve));
-		}
-
-		await new Promise(resolve => setImmediate(resolve));
 		t.mock.timers.tick(10_000);
 		t.mock.timers.reset();
 
@@ -1123,9 +1117,10 @@ describe('connectTimeout', () => {
 			/got "5000"/,
 			'an env var read without Number() is the commonest untyped value, and it is a correct number',
 		);
+		assert.match(checkSessionOptions({ connectTimeout: true }).err?.message ?? '', /got true/);
 		assert.match(
 			checkSessionOptions({ connectTimeout: 2_147_483_648 }).err?.message ?? '',
-			/2147483647 ms or less/,
+			/2147483647 ms or less \(about 24 days\), got 2147483648; false waits the OS out instead/,
 			'a delay Node cannot hold in 32 bits fires after 1 ms, the inverse of what it asked for',
 		);
 		assert.equal(checkSessionOptions({ connectTimeout: 2_147_483_647 }).err, undefined);

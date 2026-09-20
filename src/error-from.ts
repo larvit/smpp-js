@@ -11,7 +11,7 @@ export function errorFrom(reason: unknown): Error {
 
 const printable: readonly string[] = ['boolean', 'number', 'string'];
 
-/** String() throws on a null-prototype object or a symbol, so those are named by type instead. */
+/** String() throws on a null-prototype object, so anything but these is named by its type. */
 export function namedValue(value: unknown): string {
 	return printable.includes(typeof value) ? String(value) : typeof value;
 }

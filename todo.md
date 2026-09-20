@@ -192,7 +192,9 @@ the rewrite, for a dependency added later. Maintainer's call, 2026-09-14.
       of what it asked for, explained only by a warning on stderr. `connectTimeout` refuses one
       already, which is the asymmetry to close. The same four print an untyped value bare, so
       `idleTimeout: '5000'` is refused with `got 5000` — a value the reader reads as correct — where
-      `connectTimeout` quotes it. Raised by review, 2026-09-20.
+      `connectTimeout` quotes it. `namedValue()`'s four sites — `messagingMode`, `encoding`, the time
+      options and `smsIdFormat` — are the same defect once more: there `true` and `'true'` both print
+      as `true`. One fix closes all three. Raised by review, 2026-09-20.
 
 - [ ] **A send the codec will refuse waits for a link and a window slot first.** `refuse()` in
       `outgoing-requests.ts` runs `misuse()` and the abort check before the wait, precisely so a call
