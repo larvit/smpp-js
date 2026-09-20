@@ -193,8 +193,9 @@ decision under [The wire](docs/decisions.md#the-wire).
   `message-class.test.ts` and `unsendable.test.ts` is one `SendSmsDeps.send` that answers nothing,
   and a field added to that type fails to compile in every copy at once.
 - `message_id` values the library generates are UUID v7.
-- A test that needs a dummy peer must `resume()` its sockets. An unread socket never processes the
-  peer's FIN, so `server.close()` hangs forever — that is a test bug, not a library one.
+- A socket a test opens and never reads must be `resume()`d, and a `data` listener counts. An unread
+  socket never processes the peer's FIN, so `server.close()` hangs forever — that is a test bug, not
+  a library one.
 - Everything a test opens gets its teardown registered as it is opened, never closed on the test's
   last line: an assertion that throws skips that line, and the listener it leaves behind keeps
   `node --test` alive until CI's ten-minute cap. `test/teardown.ts` covers a session, a server and a

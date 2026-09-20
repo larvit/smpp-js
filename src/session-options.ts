@@ -168,20 +168,19 @@ function limitsOf(options: CheckableOptions): [string, number, number][] {
 	];
 }
 
-/** Node's timers are 32-bit, and a delay above this one fires after 1 ms instead of never. */
 const maxTimerDelay = 2_147_483_647;
 
-function checkConnectTimeout(connectTimeout: number | undefined): VoidResult {
+function checkConnectTimeout(connectTimeout: unknown): VoidResult {
 	if (connectTimeout === undefined) return {};
 
-	const got = String(connectTimeout);
+	const got = typeof connectTimeout === 'string' ? `"${connectTimeout}"` : namedValue(connectTimeout);
 
-	if (!Number.isInteger(connectTimeout) || connectTimeout < 1) {
-		return { err: new Error(`connectTimeout must be a whole number of milliseconds, 1 or more, got ${got}; omit it to wait the OS out`) };
+	if (typeof connectTimeout !== 'number' || !Number.isInteger(connectTimeout) || connectTimeout < 1) {
+		return { err: new Error(`connectTimeout must be a whole number of milliseconds, 1 or more, got ${got}; omit it or pass undefined to wait the OS out`) };
 	}
 
 	if (connectTimeout > maxTimerDelay) {
-		return { err: new Error(`connectTimeout must be ${String(maxTimerDelay)} or less, got ${got}`) };
+		return { err: new Error(`connectTimeout must be ${String(maxTimerDelay)} ms or less (about 24 days), got ${got}`) };
 	}
 
 	return {};
@@ -265,7 +264,7 @@ function checkSmsIdFormat(smsIdFormat: unknown): VoidResult {
 
 /** What the checker reads, as it arrives: a caller without types can put anything in it. */
 export type CheckableOptions = {
-	connectTimeout?: number | undefined;
+	connectTimeout?: unknown;
 	/** Not an option: the one spelling is inside reconnect, and this is where the other is refused. */
 	fromStart?: unknown;
 	idleTimeout?: number | undefined;

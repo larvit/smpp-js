@@ -1047,7 +1047,11 @@ describe('connectTimeout', () => {
 
 		assert.ok(settled, 'a handshake nothing answers is what the OS wait would swallow for minutes');
 		assert.ok(settled.err instanceof Error);
-		assert.match(settled.err.message, /Timed out connecting/);
+		assert.match(
+			settled.err.message,
+			new RegExp(`Timed out completing the TLS handshake with 127\\.0\\.0\\.1:${String(port)} after 150 ms`),
+			'a firewall and a peer that accepts then stalls need different answers from the operator',
+		);
 		assert.equal(settled.session, undefined);
 	});
 
@@ -1091,8 +1095,13 @@ describe('connectTimeout', () => {
 		assert.match(checkSessionOptions({ connectTimeout: -1 }).err?.message ?? '', /connectTimeout/);
 		assert.match(checkSessionOptions({ connectTimeout: 1.5 }).err?.message ?? '', /whole number/);
 		assert.match(
+			checkSessionOptions({ connectTimeout: '5000' }).err?.message ?? '',
+			/got "5000"/,
+			'an env var read without Number() is the commonest untyped value, and it is a correct number',
+		);
+		assert.match(
 			checkSessionOptions({ connectTimeout: 2_147_483_648 }).err?.message ?? '',
-			/2147483647 or less/,
+			/2147483647 ms or less/,
 			'a delay Node cannot hold in 32 bits fires after 1 ms, the inverse of what it asked for',
 		);
 		assert.equal(checkSessionOptions({ connectTimeout: 2_147_483_647 }).err, undefined);

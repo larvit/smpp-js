@@ -185,6 +185,13 @@ the rewrite, for a dependency added later. Maintainer's call, 2026-09-14.
       unit until 1.0.0. Needs a number an operator would recognise, where SwiftHero's fork picked
       10 s.
 
+- [ ] **Cut the three teardown sentences `test/teardown.ts` already says.** Under AGENTS.md's
+      Conventions, "`test/teardown.ts` covers a session, a server and a listener" restates its two
+      exported names, "Its close aborts rather than drains" restates `closeAfter`'s own doc comment,
+      and the `net.Server.close()` sentence restates `closeListenerAfter`'s. Keep the registered-at-
+      creation rule and the FIFO one, which nothing else states, and drop "CI's ten-minute cap" —
+      that number lives in `.gitea/workflows/test.yaml`. Raised by the prose pass, 2026-09-20.
+
 - [ ] **Refuse a delay Node's timers cannot hold, in `checkLimits`.** `idleTimeout`,
       `reassemblyTimeout`, `responseTimeout` and `shutdownTimeout` take any integer, and `setTimeout`
       fires after 1 ms for anything above 2147483647 — so a value in the wrong unit gets the inverse

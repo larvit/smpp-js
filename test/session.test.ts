@@ -1493,7 +1493,6 @@ describe('robustness', () => {
 	// 0.4.0 registered a listener per sequence number and waited forever, leaking one per call.
 	test('gives up on a peer that never answers', async t => {
 		const accepted: net.Socket[] = [];
-		// resume() so the socket drains; an unread socket never notices the peer hanging up.
 		const silent = net.createServer(sock => { accepted.push(sock); sock.resume(); });
 
 		await new Promise<void>(resolve => silent.listen(0, resolve));

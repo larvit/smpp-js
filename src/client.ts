@@ -56,14 +56,19 @@ const defaults = {
 function armConnectTimeout(
 	sock: Socket,
 	connectTimeout: number | undefined,
+	peer: string,
 	settle: (result: Result<{ sock: Socket }>) => void,
 ): NodeJS.Timeout | undefined {
 	if (connectTimeout === undefined) return undefined;
 
-	// The connecting socket is what holds the process, so this wait never has to.
+	// A firewall and a stalled handshake need different answers, and only the phase tells them apart.
+	let phase = `connecting to ${peer}`;
+
+	sock.once('connect', () => { phase = `completing the TLS handshake with ${peer}`; });
+
 	return setTimeout(() => {
 		sock.destroy();
-		settle({ err: new Error(`Timed out connecting after ${String(connectTimeout)} ms`) });
+		settle({ err: new Error(`Timed out ${phase} after ${String(connectTimeout)} ms`) });
 	}, connectTimeout).unref();
 }
 
@@ -115,7 +120,7 @@ function openSocket(options: ClientOptions): Promise<Result<{ sock: Socket }>> {
 			settle({ sock });
 		});
 
-		const timer = armConnectTimeout(sock, connectTimeout, settle);
+		const timer = armConnectTimeout(sock, connectTimeout, `${host}:${String(port)}`, settle);
 	});
 }
 

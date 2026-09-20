@@ -227,7 +227,7 @@ All optional. Timeouts and delays are milliseconds.
 | `interfaceVersion` | `0x34` | The SMPP version declared at bind. `0x50` for an SMSC that requires SMPP 5.0. |
 | `systemType`, `addressRange`, `addrTon`, `addrNpi` | `''`, `''`, `0`, `0` | The remaining bind fields, for operators that require them. |
 | `tls` | `false` | `true` for defaults, or a `tls.ConnectionOptions` object for a private CA or a client certificate. |
-| `connectTimeout` | — | Give up on a connect the SMSC never completes, the TLS handshake included, and report it as an ordinary connect failure, which `reconnect` then retries. Absent, the wait is the operating system's, around 130 s on Linux. |
+| `connectTimeout` | — | Give up on **each connect attempt** the SMSC never completes, the TLS handshake included, and report it as an ordinary connect failure, which `reconnect` then retries. It bounds one attempt, never the `client()` call. Absent, each attempt waits the operating system out, around 130 s on Linux. |
 | `enquireLinkInterval` | `20000` | Interval between `enquire_link` on a quiet link. |
 | `idleTimeout` | `2 × enquireLinkInterval` | Give up on a link the peer has stopped answering, and re-bind unless `reconnect` is `false`. |
 | `responseTimeout` | `30000` | How long to wait for a response, and how long a send with no link waits for the next one. `0` waits forever. |
@@ -629,6 +629,10 @@ if (isCommand(pduObj, 'submit_sm')) {
 | Time and ids | `smppDate`, `smppTime`, `uuidv7` |
 | Spec tables | `cmds`, `consts`, `encodings`, `errors`, `tlvs`, `types`, the `cmdsById`, `constsById`, `errorsById` and `tlvsById` maps, and all of them grouped as `defs`. `isCommandName`, `isErrorName`, `isEncodingName`, `commandNameById` and `errorNameById` narrow a value into them. |
 | Types | Every option, result, event payload and table entry has a named type: `ClientOptions`, `ServerOptions`, `SendSmsOptions`, `SendSmsResult`, `Sms`, `Dlr`, `MessageDlr`, `Receipt`, `PduObject`, `PduHeader`, `SmppLog`, `Result` and the rest in `dist/index.d.ts`. |
+
+## What changed per release
+
+See [CHANGELOG.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/CHANGELOG.md).
 
 ## Migrating from larvitsmpp 0.4.0
 
