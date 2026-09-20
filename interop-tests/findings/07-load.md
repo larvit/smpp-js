@@ -39,7 +39,28 @@ Traced as far as `oserl`'s `smpp_pdu_syntax:pack/2` (the `trx_deadlock_fix_1` br
 `rebar.config` pins), which builds the header as plain 32-bit bit-syntax
 (`<<Len:32, CmdId:32, 0:32, SeqNum:32>>`) - correct on inspection, so the corruption happens
 somewhere between that call and the socket write, not chased further given the time-box. Reproduced
-identically on three separate runs (byte-for-byte). Recorded as **blocked**; `smppload.test.ts`
+Re-examined 2026-09-20 to see whether it could be unblocked for the throughput comparison in
+`benchmarks/`. Four things are now established, and one earlier suspicion is ruled out:
+
+- **It is one write, not a split one.** A raw listener that accumulates every chunk rather than
+  reading the first receives `40 octets across 1 chunks`, byte-identical to the 2026-09-06 capture,
+  with `command_length` reading 2,752,512. So the two leading zero octets are absent from the socket
+  write itself; nothing about our framing or the capture is involved.
+- **The compiled `pack/2` is correct**, checked in the built tree rather than the repository:
+  `Len = size(BodyBin) + 16` written as `<<Len:32, CmdId:32, 0:32, SeqNum:32>>`, returned as the
+  iolist `[Header, BodyBin]`. For this bind that is 16 + 26 = 42.
+- **The remaining suspect is `smpp_session.erl:158`**, which writes with `erlang:port_command/2`
+  rather than `gen_tcp:send/2` — an undocumented fast path in oserl code that predates OTP 27.
+- **That suspect is untested.** Two attempts to swap it were both invalidated by rebar3 dep caching:
+  editing a fetched dependency's source does not rebuild its beam, and the `_checkouts/` route
+  re-verifies every dependency, which needs network and git in the build container. Whoever picks
+  this up should patch before the first compile, or force the dep to rebuild, and confirm the beam
+  actually changed before believing a result.
+
+Enough for an upstream report — a reproducer needing no SMSC, the exact octets, and a named
+suspect — but not enough for a patch, since the one-line candidate has never actually run.
+
+Recorded as **blocked**; `smppload.test.ts`
 keeps a live reproducer asserting what our server does when it receives it (refuses the stream as
 unframeable - see Scenarios) rather than removing the peer. `smpp-dumb-client` covers S9, and
 substitutes for S6 and (partially) S8 - see below.
