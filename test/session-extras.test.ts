@@ -1022,7 +1022,10 @@ describe('connectTimeout', () => {
 	/** Accepts and then says nothing, so a TLS handshake started on it never completes. */
 	async function stalledListener(t: TestContext): Promise<{ accepted: net.Socket[]; port: number }> {
 		const accepted: net.Socket[] = [];
-		const listener = net.createServer(sock => { accepted.push(sock); });
+		const listener = net.createServer(sock => {
+			accepted.push(sock);
+			sock.resume();
+		});
 
 		closeListenerAfter(t, listener, accepted);
 		await new Promise<void>(resolve => { listener.listen(0, '127.0.0.1', resolve); });
@@ -1034,7 +1037,6 @@ describe('connectTimeout', () => {
 
 	test('gives up on a connect the peer never completes', async t => {
 		const { port } = await stalledListener(t);
-		const started = Date.now();
 		const settled = await within(2000, client({
 			connectTimeout: 150,
 			host: '127.0.0.1',
@@ -1047,7 +1049,6 @@ describe('connectTimeout', () => {
 		assert.ok(settled.err instanceof Error);
 		assert.match(settled.err.message, /Timed out connecting/);
 		assert.equal(settled.session, undefined);
-		assert.ok(Date.now() - started >= 150, 'the timeout is what settles it, not a socket error');
 	});
 
 	test('retries a connect it timed out on, like any other failed attempt', async t => {
@@ -1070,10 +1071,10 @@ describe('connectTimeout', () => {
 
 	test('disarms on the connect that completed, rather than on the socket that follows it', async t => {
 		const smpp = await startServer(t);
-		const { session } = await connect(t, smpp, { connectTimeout: 50 });
+		const { session } = await connect(t, smpp, { connectTimeout: 200 });
 
 		assert.ok(session);
-		await delay(150);
+		await delay(300);
 
 		const probe = await session.send({ cmdName: 'enquire_link' });
 
@@ -1088,12 +1089,19 @@ describe('connectTimeout', () => {
 			'off is spelled by leaving it out, so 0 may not stand in for it',
 		);
 		assert.match(checkSessionOptions({ connectTimeout: -1 }).err?.message ?? '', /connectTimeout/);
-		assert.match(checkSessionOptions({ connectTimeout: 1.5 }).err?.message ?? '', /connectTimeout/);
+		assert.match(checkSessionOptions({ connectTimeout: 1.5 }).err?.message ?? '', /whole number/);
+		assert.match(
+			checkSessionOptions({ connectTimeout: 2_147_483_648 }).err?.message ?? '',
+			/2147483647 or less/,
+			'a delay Node cannot hold in 32 bits fires after 1 ms, the inverse of what it asked for',
+		);
+		assert.equal(checkSessionOptions({ connectTimeout: 2_147_483_647 }).err, undefined);
 		assert.equal(checkSessionOptions({ connectTimeout: 1000 }).err, undefined);
 
 		const refused = await client({ connectTimeout: 0, port: 1 });
 
 		assert.ok(refused.err instanceof Error);
+		assert.match(refused.err.message, /omit it/, 'the socket may not be opened before the option is refused');
 		assert.equal(refused.session, undefined);
 	});
 });

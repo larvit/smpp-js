@@ -168,15 +168,23 @@ function limitsOf(options: CheckableOptions): [string, number, number][] {
 	];
 }
 
-/** Leaving it out is how the wait stays the OS's, so 0 would be a second spelling for that. */
+/** Node's timers are 32-bit, and a delay above this one fires after 1 ms instead of never. */
+const maxTimerDelay = 2_147_483_647;
+
 function checkConnectTimeout(connectTimeout: number | undefined): VoidResult {
 	if (connectTimeout === undefined) return {};
 
-	if (Number.isInteger(connectTimeout) && connectTimeout >= 1) return {};
-
 	const got = String(connectTimeout);
 
-	return { err: new Error(`connectTimeout must be 1 or more, got ${got}; omit it to wait the OS out`) };
+	if (!Number.isInteger(connectTimeout) || connectTimeout < 1) {
+		return { err: new Error(`connectTimeout must be a whole number of milliseconds, 1 or more, got ${got}; omit it to wait the OS out`) };
+	}
+
+	if (connectTimeout > maxTimerDelay) {
+		return { err: new Error(`connectTimeout must be ${String(maxTimerDelay)} or less, got ${got}`) };
+	}
+
+	return {};
 }
 
 function checkLimits(limits: [string, number, number][]): VoidResult {

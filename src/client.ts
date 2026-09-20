@@ -94,8 +94,7 @@ function openSocket(options: ClientOptions): Promise<Result<{ sock: Socket }>> {
 		}
 
 		const settle = (result: Result<{ sock: Socket }>): void => {
-			if (timer) clearTimeout(timer);
-
+			clearTimeout(timer);
 			sock.removeListener('error', onError);
 			signal?.removeEventListener('abort', onAbort);
 			resolve(result);

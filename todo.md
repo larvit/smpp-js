@@ -185,6 +185,12 @@ the rewrite, for a dependency added later. Maintainer's call, 2026-09-14.
       unit until 1.0.0. Needs a number an operator would recognise, where SwiftHero's fork picked
       10 s.
 
+- [ ] **Refuse a delay Node's timers cannot hold, in `checkLimits`.** `idleTimeout`,
+      `reassemblyTimeout`, `responseTimeout` and `shutdownTimeout` take any integer, and `setTimeout`
+      fires after 1 ms for anything above 2147483647 — so a value in the wrong unit gets the inverse
+      of what it asked for, explained only by a warning on stderr. `connectTimeout` refuses one
+      already, which is the asymmetry to close. Raised by review, 2026-09-20.
+
 - [ ] **A send the codec will refuse waits for a link and a window slot first.** `refuse()` in
       `outgoing-requests.ts` runs `misuse()` and the abort check before the wait, precisely so a call
       that can never go out does not queue for what it will never use; a body `objToPdu()` refuses on

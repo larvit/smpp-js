@@ -534,8 +534,9 @@ rule and an index of the titles below.
   `secureConnect` for a TLS socket, so a peer that accepts and then says nothing is bounded the same
   way a black-holed SYN is. Rejected: `socket.setTimeout()`, an idle timeout that goes on arming
   once the link is up. Rejected: bounding it with `responseTimeout`, which names the wait for an
-  answer on a link that already exists and would retune both at once. Open while it has no default:
-  whether a later major gives it one.
+  answer on a link that already exists and would retune both at once. `server()` shares the checker
+  and ignores the option, as it already ignores `reconnect` — nothing at that end connects out. Open
+  while it has no default: whether a later major gives it one.
 
 - **A stream this library cannot frame is a dead link; one PDU it cannot parse is not.**
   Maintainer's call, 2026-08-31, narrowed 2026-09-05 via the interop plan: a `command_length` below
