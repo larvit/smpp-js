@@ -225,6 +225,15 @@ and is also what the panel ranked hardest — two methods, one answer.
       send — and not this one. If goal 2 forbids reporting on a message we cannot fully account for,
       that is the answer; it is stated in no file today either way.
 
+### Throughput — goal 6, and the default window is where we are slowest
+
+- [ ] **Close the gap to jsmpp at `maxOutstanding: 10`.** Measured 2026-09-20 against the same sink,
+      100,000 messages each: this library 25,358/s, jsmpp 30,771/s, Cloudhopper 27,945/s — we are
+      last at the one window most callers will ever run, while leading Cloudhopper and trailing jsmpp
+      by only 5% at 50 and 200. So the cost is not the codec, which the higher windows exercise just
+      as hard; it is something per-request that the window hides once enough requests overlap.
+      `benchmarks/` reproduces all three. Goal 6.
+
 ### Locality — 5–6 today, and the gate is 7
 
 - [ ] **Give `IncomingRequests` a port instead of the `Session` it drives.** It holds its owner and

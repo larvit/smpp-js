@@ -1,0 +1,25 @@
+x-log-limits: &log-limits
+  logging:
+    driver: json-file
+    options:
+      max-file: "3"
+      max-size: 20m
+
+# The peer dials the host it was given at build time, "node", so the sink answers under that name.
+services:
+  cloudhopper:
+    build: ./interop-tests/peers/cloudhopper
+    image: interop-cloudhopper-load:5.0.10-ae6485a
+    command: ["node", "2775"]
+    <<: *log-limits
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080'"]
+      interval: 1s
+      retries: 30
+      timeout: 2s
+
+  node:
+    command: ["node", "benchmarks/smsc-sink.ts"]
+    environment:
+      NPM_CONFIG_CACHE: /tmp/npm-cache
+      PORT: "2775"

@@ -38,6 +38,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * An HTTP-driven jsmpp ESME: each request binds (if needed), performs one scenario action against
@@ -64,6 +68,7 @@ public final class Driver {
 		server.createContext("/unbind", Driver::handleUnbind);
 		server.createContext("/enquireLink", Driver::handleEnquireLink);
 		server.createContext("/submit", Driver::handleSubmit);
+		server.createContext("/load", Driver::handleLoad);
 		server.createContext("/querySm", exchange -> handleUnhandledCommand(exchange, "query"));
 		server.createContext("/cancelSm", exchange -> handleUnhandledCommand(exchange, "cancel"));
 		server.createContext("/replaceSm", exchange -> handleUnhandledCommand(exchange, "replace"));
@@ -265,6 +270,70 @@ public final class Driver {
 		} catch (Exception e) {
 			respondErr(exchange, e);
 		}
+	}
+
+	/**
+	 * Pushes count messages over an already-bound session and reports the rate. jsmpp's submit is
+	 * blocking, so threads are what put requests in flight here — the window is the pool size.
+	 */
+	private static void handleLoad(HttpExchange exchange) {
+		Map<String, String> p = queryParams(exchange);
+		SMPPSession session = sessions.get(p.getOrDefault("session", "default"));
+
+		if (session == null) {
+			Map<String, Object> missing = new LinkedHashMap<>();
+			missing.put("ok", false);
+			missing.put("error", "no such session");
+			respondOk(exchange, missing);
+
+			return;
+		}
+
+		int count = Integer.parseInt(p.getOrDefault("count", "20000"));
+		int concurrency = Integer.parseInt(p.getOrDefault("concurrency", "50"));
+		String from = p.getOrDefault("from", "BENCH");
+		String to = p.getOrDefault("to", "46709771337");
+		String text = p.getOrDefault("text", "benchmark");
+		AtomicInteger issued = new AtomicInteger();
+		AtomicInteger failed = new AtomicInteger();
+		ExecutorService pool = Executors.newFixedThreadPool(concurrency);
+		long started = System.nanoTime();
+
+		for (int worker = 0; worker < concurrency; worker++) {
+			pool.execute(() -> {
+				while (issued.getAndIncrement() < count) {
+					try {
+						session.submitShortMessage("CMT",
+							TypeOfNumber.INTERNATIONAL, NumberingPlanIndicator.UNKNOWN, from,
+							TypeOfNumber.INTERNATIONAL, NumberingPlanIndicator.UNKNOWN, to,
+							new ESMClass(), (byte) 0, (byte) 1, null, null,
+							new RegisteredDelivery(SMSCDeliveryReceipt.DEFAULT), (byte) 0,
+							dataCoding("ascii"), (byte) 0, encode(text, "ascii"));
+					} catch (Exception e) {
+						failed.incrementAndGet();
+					}
+				}
+			});
+		}
+
+		pool.shutdown();
+
+		try {
+			if (!pool.awaitTermination(10, TimeUnit.MINUTES)) pool.shutdownNow();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+
+		double seconds = (System.nanoTime() - started) / 1e9;
+		Map<String, Object> result = new LinkedHashMap<>();
+
+		result.put("ok", true);
+		result.put("count", count);
+		result.put("concurrency", concurrency);
+		result.put("failed", failed.get());
+		result.put("seconds", Math.round(seconds * 1000d) / 1000d);
+		result.put("perSecond", Math.round(count / seconds));
+		respondOk(exchange, result);
 	}
 
 	private static void submitPlain(SMPPSession session, String from, String to, String text, String encoding,

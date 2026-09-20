@@ -62,6 +62,36 @@ Against real peers, same driver, window 50, 20,000 messages:
 | Jasmin 0.10 | 2,207 | 0 |
 | SMPPSim 3.0.0 | — | 19,000 of 20,000 |
 
+## Against the other client libraries
+
+Same sink, same 100,000 single-segment messages, same host. This is the comparison that means
+something: every client is measured pushing into *our* server, so the server's work is common to all
+three and only the client differs.
+
+```bash
+docker compose -f compose.yaml -f benchmarks/compose.jsmpp.yaml up -d --build
+docker compose -f compose.yaml -f benchmarks/compose.jsmpp.yaml run --rm node \
+	node benchmarks/peer-load.ts --driver=http://jsmpp:8080 --count=100000 --concurrency=50
+```
+
+| Window | this library | jsmpp 3.0.3 | Cloudhopper 5.0.10 |
+| --- | --- | --- | --- |
+| 10 | 25,358 | 30,771 | 27,945 |
+| 50 | 38,675 | 40,934 | 32,384 |
+| 200 | 40,046 | 42,105 | 25,497 |
+
+**We are slowest at the default window**, which is the setting most callers will ever run — 25,358
+against jsmpp's 30,771. That is the throughput work worth doing, and it is worth doing there.
+
+Two things the table does not show. This library does it on one event loop where both Java peers
+spend one OS thread per in-flight request, which is why Cloudhopper falls off at 200 threads and we
+do not. And all three are pushing into the same Node sink, whose own cost is in every number, so the
+differences between clients are compressed rather than exaggerated here.
+
+Kannel is absent deliberately: it is a gateway rather than a client library, wired here as an ESME
+that forwards from its own spool, so loading it would measure its HTTP frontend and queue rather
+than an SMPP client. The number would not belong in this table.
+
 Jasmin routes and persists where the sink does neither, so the gap is not an efficiency ratio
 between two comparable things — what it establishes is that this library is not the bottleneck
 against a production SMSC, by more than an order of magnitude. SMPPSim's store fills at roughly a

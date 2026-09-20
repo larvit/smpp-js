@@ -64,6 +64,7 @@ public final class Driver {
 		server.createContext("/bind", Driver::handleBind);
 		server.createContext("/unbind", Driver::handleUnbind);
 		server.createContext("/submit", Driver::handleSubmit);
+		server.createContext("/load", Driver::handleLoad);
 		server.createContext("/windowBurst", Driver::handleWindowBurst);
 		server.createContext("/sendWindowSize", Driver::handleSendWindowSize);
 		server.setExecutor(null);
@@ -222,6 +223,62 @@ public final class Driver {
 		} catch (Exception e) {
 			respondErr(exchange, e);
 		}
+	}
+
+	/**
+	 * Pushes count messages and reports only the rate. Cloudhopper's submit blocks on the response,
+	 * so the pool size is what puts requests in flight — the same shape as the other peers' load.
+	 */
+	private static void handleLoad(HttpExchange exchange) {
+		Map<String, String> p = queryParams(exchange);
+		SmppSession session = sessions.get(p.getOrDefault("session", "default"));
+
+		if (session == null) {
+			respond(exchange, 200, Json.write(Map.of("ok", false, "error", "no such session")));
+
+			return;
+		}
+
+		int count = Integer.parseInt(p.getOrDefault("count", "20000"));
+		int concurrency = Integer.parseInt(p.getOrDefault("concurrency", "50"));
+		long timeoutMs = Long.parseLong(p.getOrDefault("timeoutMs", "60000"));
+		String from = p.getOrDefault("from", "1000");
+		String to = p.getOrDefault("to", "2000");
+		AtomicInteger issued = new AtomicInteger();
+		AtomicInteger failed = new AtomicInteger();
+		ExecutorService pool = Executors.newFixedThreadPool(concurrency);
+		long started = System.nanoTime();
+
+		for (int worker = 0; worker < concurrency; worker++) {
+			pool.execute(() -> {
+				while (issued.getAndIncrement() < count) {
+					try {
+						session.submit(buildSubmit(from, to, "benchmark"), timeoutMs);
+					} catch (Exception e) {
+						failed.incrementAndGet();
+					}
+				}
+			});
+		}
+
+		pool.shutdown();
+
+		try {
+			if (!pool.awaitTermination(10, java.util.concurrent.TimeUnit.MINUTES)) pool.shutdownNow();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+
+		double seconds = (System.nanoTime() - started) / 1e9;
+		Map<String, Object> result = new LinkedHashMap<>();
+
+		result.put("ok", true);
+		result.put("count", count);
+		result.put("concurrency", concurrency);
+		result.put("failed", failed.get());
+		result.put("seconds", Math.round(seconds * 1000d) / 1000d);
+		result.put("perSecond", Math.round(count / seconds));
+		respond(exchange, 200, Json.write(result));
 	}
 
 	/** Fires `count` submits at once, each tagged by index in its text, to probe window pressure. */
