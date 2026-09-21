@@ -99,6 +99,10 @@ function wantText(value: ParamValue): Result<{ text: string }> {
 		return { err: new Error(`Expected a string or a number, got ${typeof value}`) };
 	}
 
+	if (typeof value === 'number' && !Number.isFinite(value)) {
+		return { err: new Error(`Expected a finite number, got ${String(value)}`) };
+	}
+
 	const text = String(value);
 
 	return pastLatin1(text) ?? { text };

@@ -112,13 +112,20 @@ describe('cstring (C-Octet String)', () => {
 		assert.deepEqual(target, encoded);
 	});
 
-	test('coerces a numeric value to its decimal string', () => {
+	test('coerces a numeric value to its decimal string, and refuses one with no decimals', () => {
 		const target = Buffer.alloc(4);
 
 		types.cstring.write(123, target, 0);
 
 		assert.deepEqual(target, Buffer.from([0x31, 0x32, 0x33, 0x00]));
 		assert.deepEqual(types.cstring.size(123), { size: 4 });
+
+		for (const value of [NaN, Infinity, -Infinity]) {
+			assert.ok(types.cstring.size(value).err instanceof Error, String(value));
+			assert.ok(types.cstring.write(value, Buffer.alloc(9), 0).err instanceof Error, String(value));
+			assert.ok(types.string.write(value, Buffer.alloc(9), 0).err instanceof Error, String(value));
+			assert.ok(types.tlv.string.write(value, Buffer.alloc(9), 0).err instanceof Error, String(value));
+		}
 	});
 
 	test('carries every latin1 octet, and refuses a character past it', () => {

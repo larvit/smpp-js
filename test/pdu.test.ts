@@ -153,6 +153,10 @@ describe('parsing real PDUs', () => {
 		assert.ok(smuggled.err instanceof Error);
 		assert.equal(smuggled.buffer, undefined);
 		assert.ok(objToPdu({ cmdName: 'deliver_sm', params: { source_addr: '一' } }).err instanceof Error);
+
+		// String(NaN) is a sender the peer reads as the three letters, and the send reports success.
+		assert.ok(objToPdu({ cmdName: 'deliver_sm', params: { source_addr: NaN } }).err instanceof Error);
+		assert.ok(objToPdu({ cmdName: 'deliver_sm', params: { source_addr: Infinity } }).err instanceof Error);
 	});
 });
 

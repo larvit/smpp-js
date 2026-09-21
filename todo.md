@@ -189,12 +189,6 @@ and is also what the panel ranked hardest — two methods, one answer.
 
 ### Correctness, ahead of everything below
 
-- [ ] **Refuse a non-finite number where a text field coerces one.** `wantText()` in `defs/types.ts`
-      stringifies a number so `message_id: 123` writes `"123"`, which is deliberate and tested. It
-      takes `NaN` and `Infinity` on the same path, so `sendSms({ from: NaN })` puts the literal sender
-      `NaN` on the wire and reports success — goal 2. Gate the numeric branch on `Number.isFinite`.
-      Predates the latin1 guard; found by the stability review of #16.
-
 - [ ] **Answer `alert_notification` and `outbind` by not answering them.** Both are response-less in
       SMPP 3.4, both fall through `route()`'s default into `unhandled()`, which calls
       `sendReturn(pduObj, 'ESME_RINVCMDID')`; `pduReturn()` then finds no response command, and the
