@@ -7,10 +7,10 @@ import type { SmppLog } from './log.ts';
 import type { SmsIdNotation } from './sms-id.ts';
 import { UnansweredError } from './unanswered-error.ts';
 import { consts, defaultMessagingMode, isMessagingMode, isSubmitMessagingMode, submitMessagingModes } from './defs/constants.ts';
+import { cstring, paramText } from './defs/types.ts';
 import { dataCodingByEncoding, detect, encodingNames, isEncodingName, unencodable, unencodableText } from './defs/encodings.ts';
 import { namedValue } from './error-from.ts';
 import { normaliseSmsId } from './sms-id.ts';
-import { paramText } from './defs/types.ts';
 import { maxSegments, smppTime, splitMessage } from './message.ts';
 
 export type SendSmsOptions = {
@@ -211,8 +211,23 @@ function checkFlash(encoding: EncodingName, flash: boolean): Error | undefined {
 	return new Error('flash has no Latin-1 spelling: a message class carries GSM 7-bit, 8-bit data or UCS2, and 8-bit data is not text a handset will display, so send it as UCS2 or drop flash');
 }
 
+/** Asked of the wire type itself, so the codec cannot refuse an address this let through. */
+function checkAddresses(sms: SendSmsInput): Error | undefined {
+	for (const option of ['from', 'to'] as const) {
+		const { err } = cstring.size(sms[option]);
+
+		if (err) return new Error(`${option}: ${err.message}`);
+	}
+
+	return undefined;
+}
+
 /** Every option a send can be refused for, so nothing is built for a message that will not go. */
 function checkOptions(sms: SendSmsInput): Result<CheckedOptions> {
+	const unwritable = checkAddresses(sms);
+
+	if (unwritable) return { err: unwritable };
+
 	const mode = checkMessagingMode(sms.messagingMode, sms.dlr === true);
 
 	if (mode.err) return { err: mode.err };

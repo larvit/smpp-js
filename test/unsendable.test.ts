@@ -352,15 +352,15 @@ describe('an address the field cannot carry', () => {
 
 		const refusals: [string, RegExp][] = [
 			['46701113311\u0000EVIL', /U\+0000 at index 11/],
-			['Kaffe一', /U\+4E00 at index 5/],
-			['😀', /U\+1F600 at index 0/],
+			['Kaffe一', /"一" \(U\+4E00\) at index 5/],
+			['😀', /"😀" \(U\+1F600\) at index 0/],
 		];
 
 		for (const [sender, names] of refusals) {
 			const sent = await session.sendSms({ from: sender, message: 'Hello world', to });
 
 			assert.ok(sent.err instanceof Error, sender);
-			assert.match(sent.err.message, /source_addr/);
+			assert.match(sent.err.message, /^from: /, 'names the option the caller wrote, not the wire field');
 			assert.match(sent.err.message, names);
 			assert.deepEqual(sent.smsIds, [], sender);
 		}

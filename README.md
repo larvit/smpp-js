@@ -288,9 +288,11 @@ await session.sendSms({
 ```
 
 **Addresses.** `sourceAddrTon` and `destinationAddrTon` default to 5 for an alphanumeric address
-and 1 for a numeric one; the NPI fields default to 0. An address is latin1, so `Kaffeé` reaches the
-peer as its own octets; a character past `U+00FF`, or a `U+0000`, is refused rather than sent
-truncated.
+and 1 for a numeric one; the NPI fields default to 0. An address is latin1: `Kaffeé` goes out as the
+six octets that spell it, `4B 61 66 66 65 E9`, and an address you received always sends back. One
+outside `/^[\u0001-ÿ]*$/` is refused, naming the character and its index — strip or
+transliterate it first. An SMSC may still refuse a non-ASCII sender of its own accord, which reaches
+you as `ESME_RINVSRCADR`.
 
 **Encoding.**
 
@@ -344,8 +346,8 @@ you formatted. Refused before anything goes out: an invalid `Date`, `NaN`, `Infi
 count, and a count past 99 days 23:59:59, since a count in seconds is spelled in days and below.
 Name a later instant as a `Date`, which goes out absolute.
 
-**What gets checked.** The library checks what it composes: an alphabet or a time you named, a string
-body under a `data_coding` you named. What you formed yourself, a `Buffer` body or a stamp you
+**What gets checked.** The library checks what it composes: an address you gave as `from` or `to`, an
+alphabet or a time you named, a string body under a `data_coding` you named. What you formed yourself, a `Buffer` body or a stamp you
 formatted, passes through as written. The same rule holds for `session.send()`.
 
 ## Session
@@ -610,6 +612,9 @@ if (isCommand(pduObj, 'submit_sm')) {
 - A string `short_message` or `message_payload` is encoded in the alphabet the PDU's `data_coding`
   names, detected from the text where you name none. One that alphabet cannot carry is refused,
   naming the character, its code point and where it is.
+- Every text field is latin1: addresses, `system_id`, `message_id`, `service_type` and the C-Octet
+  String TLVs. A character past `U+00FF` is refused, as is a `U+0000` in a C-Octet String, which the
+  peer reads as the end of the field.
 - A `Buffer` goes out exactly as given under any `data_coding`: binary payloads, hand-built user
   data headers, deliberately malformed bodies.
 - `session.send()` and `session.sendReturn()` build through the same codec and refuse the same bodies.
@@ -707,7 +712,9 @@ Who depends on this library, and what they may rely on.
   spooling, scheduling, retry policy and billing belong to whatever this is the edge of, and state
   shared between instances goes through the store in goal 9.
 - **Pre-1.0, so the minor is the breaking unit** and a patch never breaks. What a 0.4.0 consumer has
-  to change is in [MIGRATION.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/MIGRATION.md).
+  to change is in [MIGRATION.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/MIGRATION.md);
+  what each later minor changes is in
+  [CHANGELOG.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/CHANGELOG.md).
 
 Personas this README serves, in order:
 

@@ -1,4 +1,5 @@
 import type { Result, VoidResult } from '../result.ts';
+import { unencodableText } from './encodings.ts';
 
 export type DestAddress =
 	| { dest_addr_npi: number; dest_addr_ton: number; destination_addr: string }
@@ -84,11 +85,11 @@ function pastLatin1(text: string): { err: Error } | undefined {
 
 	if (index === -1) return undefined;
 
-	const code = (text.codePointAt(index) ?? 0).toString(16).toUpperCase().padStart(4, '0');
+	const char = String.fromCodePoint(text.codePointAt(index) ?? 0);
 
 	return {
 		err: new Error(
-			`Character U+${code} at index ${String(index)} is past latin1, which every text field on the wire is written in`,
+			`latin1 cannot carry ${unencodableText({ char, index })}, and every text field on the wire is written in it; strip or transliterate it`,
 		),
 	};
 }
@@ -113,7 +114,9 @@ function wantCstringText(value: ParamValue): Result<{ text: string }> {
 	if (index === -1) return { text };
 
 	return {
-		err: new Error(`U+0000 at index ${String(index)} would end the C-Octet String there`),
+		err: new Error(
+			`U+0000 at index ${String(index)} would end the C-Octet String there, so the peer would read every field behind it shifted`,
+		),
 	};
 }
 
