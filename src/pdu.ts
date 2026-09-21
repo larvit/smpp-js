@@ -9,7 +9,7 @@ import { cmds, commandNameById, respNameFor } from './defs/commands.ts';
 import { hasUdh } from './defs/constants.ts';
 import { decodeMessage, encodeBody } from './message.ts';
 import { errorNameById, errors, isErrorName } from './defs/errors.ts';
-import { paramNumber } from './defs/types.ts';
+import { paramNumber, valueText } from './defs/types.ts';
 import { tagIdOf, tlvDefault, tlvs, tlvsById, writeTlvs } from './defs/tlvs.ts';
 
 /** The highest sequence number this library hands out; SMPP 3.4 4.7.1 reserves 0x7fffffff. */
@@ -234,7 +234,7 @@ function buildPdu(
 	}
 
 	if (!Number.isInteger(seqNr) || seqNr < 0 || seqNr > maxWireSeqNr) {
-		return { err: new Error(`Invalid seqNr: ${JSON.stringify(seqNr)}`) };
+		return { err: new Error(`Invalid seqNr: ${valueText(seqNr)}`) };
 	}
 
 	const built = buildBody(definition, cmdName, cmdStatus, params, tlvs);

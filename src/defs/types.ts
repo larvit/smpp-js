@@ -38,6 +38,11 @@ export function paramNumber(value: ParamValue | undefined, fallback: number): nu
 	return typeof value === 'number' ? value : fallback;
 }
 
+/** Spells a refused value for the caller who wrote it; JSON spells NaN and the infinities `null`. */
+export function valueText(value: unknown): string {
+	return typeof value === 'number' ? String(value) : JSON.stringify(value);
+}
+
 function outOfRange(buffer: Buffer, offset: number, needed: number): Error | undefined {
 	if (offset < 0 || needed < 0 || offset + needed > buffer.length) {
 		return new Error(
@@ -50,7 +55,7 @@ function outOfRange(buffer: Buffer, offset: number, needed: number): Error | und
 
 function wantInt(value: ParamValue, max: number): Result<{ int: number }> {
 	if (typeof value !== 'number' || !Number.isInteger(value)) {
-		return { err: new Error(`Expected an integer, got ${JSON.stringify(value)}`) };
+		return { err: new Error(`Expected an integer, got ${valueText(value)}`) };
 	}
 
 	if (value < 0 || value > max) {
