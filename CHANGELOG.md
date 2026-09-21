@@ -11,6 +11,10 @@
   the octet and then masked bit 7 reading it back; `destination_addr`, `system_id`, `message_id`,
   `service_type` and the C-Octet String TLVs were affected the same way. A character past `U+00FF`
   in one of those fields is now refused, where it used to go out as its low octet.
+- A `U+0000` inside a C-Octet String — `source_addr`, `message_id`, `system_id` and the rest — is
+  refused. The peer reads such a field to its first NULL, so one sent inside the value shifted every
+  mandatory field behind it while `command_length` still counted the whole string. An Octet String
+  carries a NULL as before; its length octet is what ends it.
 
 ## 0.5.0
 

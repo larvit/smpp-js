@@ -83,6 +83,14 @@ describe('string (Octet String)', () => {
 		assert.ok(types.string.size('一').err instanceof Error);
 		assert.ok(types.string.write('一', Buffer.alloc(4), 0).err instanceof Error);
 	});
+
+	// Its length octet is what ends it, so unlike a C-Octet String it carries a NULL like any other.
+	test('carries a NULL octet, which its length octet already bounds', () => {
+		const target = Buffer.alloc(4);
+
+		assert.deepEqual(types.string.write('a\u0000b', target, 0), {});
+		assert.deepEqual(target, Buffer.from([3, 0x61, 0x00, 0x62]));
+	});
 });
 
 describe('cstring (C-Octet String)', () => {
@@ -126,6 +134,14 @@ describe('cstring (C-Octet String)', () => {
 
 		assert.ok(types.cstring.size('一').err instanceof Error);
 		assert.ok(types.cstring.write('一', Buffer.alloc(4), 0).err instanceof Error);
+	});
+
+	// The field ends at its first NULL, so writing one smuggles a field boundary into the peer's
+	// parse: every mandatory field behind it shifts, under a command_length that counted the whole
+	// string.
+	test('refuses a NULL of its own rather than ending the field early', () => {
+		assert.ok(types.cstring.size('46701113311\u0000EVIL').err instanceof Error);
+		assert.ok(types.cstring.write('46701113311\u0000EVIL', Buffer.alloc(17), 0).err instanceof Error);
 	});
 
 	test('refuses a string with no terminator rather than running off the end', () => {
@@ -193,6 +209,7 @@ describe('text TLVs', () => {
 
 		assert.ok(types.tlv.cstring.size('一').err instanceof Error);
 		assert.ok(types.tlv.cstring.write('一', Buffer.alloc(4), 0).err instanceof Error);
+		assert.ok(types.tlv.cstring.write('a\u0000b', Buffer.alloc(4), 0).err instanceof Error);
 	});
 });
 

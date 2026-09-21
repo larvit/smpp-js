@@ -94,10 +94,30 @@ function pastLatin1(text: string): { err: Error } | undefined {
 }
 
 function wantText(value: ParamValue): Result<{ text: string }> {
-	if (typeof value === 'number') return { text: value.toString() };
-	if (typeof value !== 'string') return { err: new Error(`Expected a string, got ${typeof value}`) };
+	if (typeof value !== 'number' && typeof value !== 'string') {
+		return { err: new Error(`Expected a string, got ${typeof value}`) };
+	}
 
-	return pastLatin1(value) ?? { text: value };
+	const text = String(value);
+
+	return pastLatin1(text) ?? { text };
+}
+
+/** A C-Octet String ends at its first NULL, so one inside the value truncates the field on the peer. */
+function wantCstringText(value: ParamValue): Result<{ text: string }> {
+	const { err, text } = wantText(value);
+
+	if (err) return { err };
+
+	const index = text.indexOf('\u0000');
+
+	if (index === -1) return { text };
+
+	return {
+		err: new Error(
+			`U+0000 at index ${String(index)} would end the C-Octet String there, ${String(text.length - index - 1)} characters early`,
+		),
+	};
 }
 
 function wantBytes(value: ParamValue): Result<{ bytes: Buffer }> {
@@ -302,12 +322,12 @@ export const cstring: WireType<string> = {
 	default: '',
 	read: readCstring,
 	size(value) {
-		const { err, text } = wantText(value);
+		const { err, text } = wantCstringText(value);
 
 		return err ? { err } : { size: text.length + 1 };
 	},
 	write(value, buffer, offset) {
-		const { err, text } = wantText(value);
+		const { err, text } = wantCstringText(value);
 
 		return err ? { err } : writeCstring(text, buffer, offset);
 	},
@@ -555,12 +575,12 @@ export const tlv = {
 			return { bytesRead: length, value: buf.toString('latin1', offset, end) };
 		},
 		size(value: ParamValue) {
-			const { err, text } = wantText(value);
+			const { err, text } = wantCstringText(value);
 
 			return err ? { err } : { size: text.length + 1 };
 		},
 		write(value: ParamValue, buf: Buffer, offset: number) {
-			const { err, text } = wantText(value);
+			const { err, text } = wantCstringText(value);
 
 			return err ? { err } : writeCstring(text, buf, offset);
 		},

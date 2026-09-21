@@ -145,6 +145,18 @@ describe('parsing real PDUs', () => {
 		assert.equal(decode(pdu).params.source_addr, 'Kaffeé');
 		assert.ok(objToPdu({ cmdName: 'deliver_sm', params: { source_addr: '一' } }).err instanceof Error);
 	});
+
+	// The peer reads source_addr to the first NULL and every mandatory field behind it shifts, so an
+	// application forwarding a customer's sender id could have a PDU rewritten under it.
+	test('refuses an address carrying its own terminator', () => {
+		const smuggled = objToPdu({
+			cmdName: 'submit_sm',
+			params: { destination_addr: '46709771337', source_addr: '46701113311\u0000EVIL' },
+		});
+
+		assert.ok(smuggled.err instanceof Error);
+		assert.equal(smuggled.buffer, undefined);
+	});
 });
 
 describe('encoding submit_sm', () => {

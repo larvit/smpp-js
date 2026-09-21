@@ -292,7 +292,8 @@ the file.
 - A string body is written in the alphabet its own `data_coding` names, and one that alphabet cannot
   carry is refused by the codec — `message_payload` on the same terms as `short_message`.
 - A GSM 03.38 message declares `data_coding` 0x00, and an inbound 0x01 is still read as GSM.
-- Every text field on the wire is latin1, and a character past `U+00FF` is refused.
+- Every text field on the wire is latin1, and what the field cannot carry is refused rather than
+  truncated.
 
 ### [The session's life](docs/decisions.md#the-sessions-life)
 

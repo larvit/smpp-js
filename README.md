@@ -289,7 +289,8 @@ await session.sendSms({
 
 **Addresses.** `sourceAddrTon` and `destinationAddrTon` default to 5 for an alphanumeric address
 and 1 for a numeric one; the NPI fields default to 0. An address is latin1, so `Kaffeé` goes out and
-comes back as its own octets; a character past `U+00FF` is refused rather than sent truncated.
+comes back as its own octets; a character past `U+00FF`, or a `U+0000` that would end the field
+early, is refused rather than sent truncated.
 
 **Encoding.**
 

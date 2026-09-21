@@ -478,8 +478,9 @@ rule and an index of the titles below.
   concatenation reference rather than on `data_coding` — so a receipt or a segment that crossed the
   change reads exactly as it did.
 
-- **Every text field on the wire is latin1, and a character past `U+00FF` is refused.** Maintainer's
-  call, 2026-09-21, from the 0.6.0 correctness list: the codec read these fields with
+- **Every text field on the wire is latin1, and what the field cannot carry is refused rather than
+  truncated.** Maintainer's call, 2026-09-21, from the 0.6.0 correctness list: the codec read these
+  fields with
   `toString('ascii')`, which masks bit 7, and wrote them with `write(text, 'ascii')`, which does not,
   so an inbound `source_addr` of `Kaffeé` reached the application as `Kaffei` and
   `objToPdu(pduToObj(x))` was idempotent for none of `source_addr`, `destination_addr`, `system_id`,
@@ -494,7 +495,13 @@ rule and an index of the titles below.
   alphabet that cannot carry a message body is already handled. Rejected: reading latin1 and leaving
   the write spelled ASCII, which leaves two halves agreeing only by accident. Rejected: refusing the
   upper half on send to stay strict to 3.4's ASCII, which would drop exactly the traffic the read
-  keeps.
+  keeps. The security pass over this chunk found the field's other end open the same way: a caller's
+  own `U+0000` was written verbatim, and since the peer reads a C-Octet String to its first NULL,
+  every mandatory field behind it shifted under a `command_length` that had counted the whole string
+  — so an application forwarding a customer's sender id could have a PDU rewritten from inside one.
+  `wantCstringText()` refuses that where `wantText()` refuses the upper end. Rejected: refusing NULL
+  in every text field, which would buy one spelling by taking a legitimate octet away from the
+  length-prefixed Octet String, whose length octet is what ends it.
 
 ## The session's life
 
