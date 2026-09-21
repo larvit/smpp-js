@@ -348,8 +348,9 @@ Name a later instant as a `Date`, which goes out absolute.
 
 **What gets checked.** The library checks what it composes: an address you gave as `from` or `to`,
 an alphabet or a time you named, a string body under a `data_coding` you named. What you formed
-yourself, a `Buffer` body or a stamp you formatted, passes through as written. The same rule holds
-for `session.send()`.
+yourself, a `Buffer` body or a stamp you formatted, passes through as written, except that a text
+field is still checked: [PDUs and the low-level API](#pdus-and-the-low-level-api). The same rule
+holds for `session.send()`.
 
 ## Session
 

@@ -189,6 +189,17 @@ and is also what the panel ranked hardest — two methods, one answer.
 
 ### Correctness, ahead of everything below
 
+- [ ] **Take the maintainer's call on whether goal 2 covers a value we could not send as given.**
+      Goal 2's four clauses are one family — an undeterminable outcome, a non-final report, a
+      re-send, dropped work — and none of them covers *the wire carried a value the caller did not
+      write, and the call reported success*, which is the `NaN` sender, the `sm_length: 0` body and
+      `1e+21`. Items below cite goal 2 for exactly that, and the DLR-merge item concedes it "is
+      stated in no file today either way". Proposed clause, after "…is not dropped": "; a call that
+      reports a message as sent asserts that the wire carried what the caller wrote, so a value we
+      cannot send as given is refused before anything goes out rather than coerced into one the
+      caller never wrote." A goal is the maintainer's, so nothing edits README until that is
+      answered. From the prose pass of #18.
+
 - [ ] **Answer `alert_notification` and `outbind` by not answering them.** Both are response-less in
       SMPP 3.4, both fall through `route()`'s default into `unhandled()`, which calls
       `sendReturn(pduObj, 'ESME_RINVCMDID')`; `pduReturn()` then finds no response command, and the
@@ -410,6 +421,18 @@ and is also what the panel ranked hardest — two methods, one answer.
       and the `net.Server.close()` sentence restates `closeListenerAfter`'s. Keep the registered-at-
       creation rule and the FIFO one, which nothing else states, and drop "CI's ten-minute cap" —
       that number lives in `.gitea/workflows/test.yaml`. Raised by the prose pass, 2026-09-20.
+
+- [ ] **Leave AGENTS.md hard rule 1 the rule, and the decision log its reasoning.** Rule 1's fourth
+      sentence — "a function whose argument types are a closed set is guarded by the compiler and
+      stays total, which is why the encoding helpers return plainly, and the check belongs at
+      whichever boundary the argument arrives untyped at" — is the reasoning of the
+      `bitCount()`/`encodeMessage()`/`splitMessage()` entry in `docs/decisions.md`, which AGENTS.md's
+      own Documentation section makes a defect: it scopes AGENTS.md to an index of the decisions. It
+      also reads two ways — "wherever the types admit one" as an exemption for a typed field,
+      "the check belongs at whichever boundary the argument arrives untyped at" as a requirement at
+      `sendSms()` — and the `message` `TypeError` item sits exactly between them, so one rewrite
+      settles both. Maintainer's call, since it changes what a hard rule asks. From the prose pass
+      of #18.
 
 - [ ] **Refuse a delay Node's timers cannot hold, in `checkLimits`.** `idleTimeout`,
       `reassemblyTimeout`, `responseTimeout` and `shutdownTimeout` take any integer, and `setTimeout`

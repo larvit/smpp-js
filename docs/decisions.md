@@ -65,8 +65,8 @@ rule and an index of the titles below.
   which serve their own tables that way. Rejected: a `Result` signature on all three, which costs
   every typed consumer a narrow forever — goal 8, and the tag is the last cheap chance to spend it —
   to guard a state the compiler refuses. Where the domain really is open the check is already there:
-  `sendSms()` takes its options as `unknown` and refuses `encoding` by name, which is what a caller
-  without types gets. `smppTime.encode()` is where that reasoning lands the other way and is recorded
+  `sendSms()` widens `encoding`, `messagingMode` and the two time options to `unknown` and refuses
+  each by name, which is what a caller without types gets. `smppTime.encode()` is where that reasoning lands the other way and is recorded
   under [The wire](#the-wire): `Date | number | string` is not a closed set, so it is a `Result`.
 
 - **A segment the SMSC took and named no id for is `undefined` in `smsIds`, not an empty string.**
@@ -485,12 +485,12 @@ rule and an index of the titles below.
   Goal 1 settles the write, being 3.4 as SMSCs actually run it: an operator routing an alphanumeric
   sender through the upper half is traffic to keep, and Node's `ascii` write already put those octets
   on the wire, so naming the write latin1 makes the round trip idempotent and no peer sees a change.
-  Goal 2 settles the refusals, both of them a `size()` that would have agreed with a `write()` that
-  put something else on the wire: a character past `U+00FF` written as its low octet, and a caller's
+  Goal 2 settles the two latin1 refusals, each a `size()` that would have agreed with a `write()`
+  that put something else on the wire: a character past `U+00FF` written as its low octet, and a caller's
   own `U+0000`, which a mandatory field's reader takes as the end of the field. Goal 4 settles them
   twice over: for one character in every 256 that low octet is `0x00`, and the PDU went out malformed
-  on the operator's parser. `wantText()` and `wantCstringText()` are the only two places that decide
-  it. Rejected: reading latin1 and leaving the write spelled ASCII, which leaves two halves agreeing
+  on the operator's parser. `wantText()` and `wantCstringText()` are the two places that decide the
+  refusals; every read and write spells `latin1` itself. Rejected: reading latin1 and leaving the write spelled ASCII, which leaves two halves agreeing
   only by accident. Rejected: refusing the upper half on send
   to stay strict to 3.4's ASCII, which would be a new restriction taking away traffic this library
   already sends and operators already accept, on no defect. Rejected: refusing `U+0000` in every
