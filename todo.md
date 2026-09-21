@@ -216,6 +216,28 @@ and is also what the panel ranked hardest — two methods, one answer.
       send — and not this one. If goal 2 forbids reporting on a message we cannot fully account for,
       that is the answer; it is stated in no file today either way.
 
+- [ ] **Return an `err` where `message` is not a string, rather than throwing.**
+      `sendSms({ message: undefined })` — a forgotten property — reaches `value.replace()` in
+      `defs/encodings.ts` through the alphabet detection `checkOptions()` runs, and the `TypeError`
+      escapes `submitSms()` into the caller's process; `NaN` and `12345` do the same. README promises
+      "Never throws. Every fallible call resolves to `{ err?, … }`" and AGENTS.md hard rule 1 says it
+      again, so the docs are false for the likeliest caller mistake there is. From the stability
+      review of #18.
+
+- [ ] **Derive `sm_length` for a numeric body, or refuse one.** `resolveBody()` in `pdu.ts` reads the
+      length only where the body is a Buffer or a string, so
+      `objToPdu({ cmdName: 'submit_sm', params: { short_message: 12345 } })` writes `sm_length: 0`,
+      then five octets after it, and reports success — and this library's own parser refuses what it
+      built, as "TLV 12594 runs past the end of the PDU". Goals 1 and 2. From the stability review
+      of #18.
+
+- [ ] **Settle which numbers may spell a text field, and refuse the rest.** `wantText()` takes every
+      finite number through `String()`, so `message_id: 1e21` writes `1e+21` and `from: 0.1 + 0.2`
+      writes `0.30000000000000004` — neither is the id or the address the caller meant, and both are
+      reported as sent. The numeric branch exists for a digit sequence (`message_id: 123`): either
+      narrow it to one, or record why exponential notation may go on the wire. Goal 3, and the open
+      half of the non-finite guard #18 shipped. From the stability review of #18.
+
 ### Throughput — goal 6, and the default window is where we are slowest
 
 - [ ] **Close the gap to jsmpp at `maxOutstanding: 10`.** Measured 2026-09-20 against the same sink,
