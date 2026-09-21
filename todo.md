@@ -238,8 +238,10 @@ and is also what the panel ranked hardest — two methods, one answer.
       sent. The numeric branch exists for a digit sequence (`message_id: 123`); the product-owner
       review of #18 recommends `Number.isSafeInteger(value) && value >= 0` with the refusal naming
       the fix, since a 64-bit SMSC id loses digits to a JS number before this library ever sees it.
-      Goal 3. That a number is accepted at all reaches a consumer in no sentence either: only the
-      type comment at `defs/commands.ts:239`, and one CHANGELOG line that stops being visible when
+      Goals 2 then 3: `from: 1e21` is reported as sent to an address that reaches nobody, which is
+      the wrong answer about what happened before it is laxness in what we send. That a number is
+      accepted at all reaches a consumer in no sentence either: only the type comment at
+      `defs/commands.ts:239`, and one CHANGELOG line that stops being visible when
       0.7.0 is cut, while README's Building bullet reads as the whole rule for a text field. Whether
       this is a supported spelling or 0.4.0 tolerance decides whether that sentence lands in
       README.md or in MIGRATION.md — write it in the same change as the rule, so it is worded once.
