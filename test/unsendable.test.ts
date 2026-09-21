@@ -350,19 +350,20 @@ describe('an address the field cannot carry', () => {
 		const smsc = await dummySmsc(t);
 		const session = await bindToSmsc(t, smsc.port, { reconnect: false });
 
-		const refusals: [string, RegExp][] = [
-			['46701113311\u0000EVIL', /U\+0000 at index 11/],
-			['Kaffe一', /"一" \(U\+4E00\) at index 5/],
-			['😀', /"😀" \(U\+1F600\) at index 0/],
+		const refusals: ['from' | 'to', string, RegExp][] = [
+			['from', '46701113311\u0000EVIL', /U\+0000 at index 11/],
+			['from', 'Kaffe一', /"一" \(U\+4E00\) at index 5/],
+			['from', '😀', /"😀" \(U\+1F600\) at index 0/],
+			['to', 'Kaffe一', /"一" \(U\+4E00\) at index 5/],
 		];
 
-		for (const [sender, names] of refusals) {
-			const sent = await session.sendSms({ from: sender, message: 'Hello world', to });
+		for (const [option, address, names] of refusals) {
+			const sent = await session.sendSms({ from, message: 'Hello world', to, [option]: address });
 
-			assert.ok(sent.err instanceof Error, sender);
-			assert.match(sent.err.message, /^from: /, 'names the option the caller wrote, not the wire field');
+			assert.ok(sent.err instanceof Error, address);
+			assert.match(sent.err.message, new RegExp(`^${option}: `), 'names the option the caller wrote');
 			assert.match(sent.err.message, names);
-			assert.deepEqual(sent.smsIds, [], sender);
+			assert.deepEqual(sent.smsIds, [], address);
 		}
 
 		assert.deepEqual(smsc.octets, [], 'an address the field cannot carry never reaches the socket');

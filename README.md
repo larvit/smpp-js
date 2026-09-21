@@ -288,11 +288,11 @@ await session.sendSms({
 ```
 
 **Addresses.** `sourceAddrTon` and `destinationAddrTon` default to 5 for an alphanumeric address
-and 1 for a numeric one; the NPI fields default to 0. An address is latin1: `Kaffeé` goes out as the
-six octets that spell it, `4B 61 66 66 65 E9`, and an address you received always sends back. One
-outside `/^[\u0001-ÿ]*$/` is refused, naming the character and its index — strip or
-transliterate it first. An SMSC may still refuse a non-ASCII sender of its own accord, which reaches
-you as `ESME_RINVSRCADR`.
+and 1 for a numeric one; the NPI fields default to 0. An address is latin1: `Kaffeé` goes out as
+the six octets that spell it, `4B 61 66 66 65 E9`, and an address you received always sends back.
+One outside `/^[\u0001-\u00FF]*$/` is refused, naming the character and its index — strip or
+transliterate it first. An SMSC may still refuse a non-ASCII sender of its own accord, which
+reaches you as a refusal such as `ESME_RINVSRCADR`.
 
 **Encoding.**
 
@@ -346,9 +346,10 @@ you formatted. Refused before anything goes out: an invalid `Date`, `NaN`, `Infi
 count, and a count past 99 days 23:59:59, since a count in seconds is spelled in days and below.
 Name a later instant as a `Date`, which goes out absolute.
 
-**What gets checked.** The library checks what it composes: an address you gave as `from` or `to`, an
-alphabet or a time you named, a string body under a `data_coding` you named. What you formed yourself, a `Buffer` body or a stamp you
-formatted, passes through as written. The same rule holds for `session.send()`.
+**What gets checked.** The library checks what it composes: an address you gave as `from` or `to`,
+an alphabet or a time you named, a string body under a `data_coding` you named. What you formed
+yourself, a `Buffer` body or a stamp you formatted, passes through as written. The same rule holds
+for `session.send()`.
 
 ## Session
 

@@ -96,7 +96,7 @@ function pastLatin1(text: string): { err: Error } | undefined {
 
 function wantText(value: ParamValue): Result<{ text: string }> {
 	if (typeof value !== 'number' && typeof value !== 'string') {
-		return { err: new Error(`Expected a string, got ${typeof value}`) };
+		return { err: new Error(`Expected a string or a number, got ${typeof value}`) };
 	}
 
 	const text = String(value);
@@ -114,9 +114,7 @@ function wantCstringText(value: ParamValue): Result<{ text: string }> {
 	if (index === -1) return { text };
 
 	return {
-		err: new Error(
-			`U+0000 at index ${String(index)} would end the C-Octet String there, so the peer would read every field behind it shifted`,
-		),
+		err: new Error(`U+0000 at index ${String(index)} would end the C-Octet String there`),
 	};
 }
 
