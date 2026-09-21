@@ -25,10 +25,10 @@
   will not match the sender it came from. Ids most SMSCs issue are digits or hex and are unaffected.
 - A `U+0000` inside a C-Octet String — `source_addr`, `message_id`, `system_id` and the rest — is
   refused. An Octet String carries a NULL as before.
-- A number with no decimal spelling — `NaN`, `Infinity`, `-Infinity` — is refused where a text field
-  takes one. `sendSms({ from: NaN })` put the literal sender `NaN` on the wire and reported the send
-  as successful; `message_id`, `source_addr` and every other text field took such a number the same
-  way. A finite number still writes its decimals, so `message_id: 123` is unchanged.
+- A non-finite number — `NaN`, `Infinity`, `-Infinity` — is refused where a text field takes one.
+  `sendSms({ from: NaN })` put the literal sender `NaN` on the wire and reported the send as
+  successful; `message_id`, `source_addr` and every other text field took such a number the same way.
+  Any other number goes out as `String()` spells it, so `message_id: 123` is unchanged.
 
 ## 0.5.0
 

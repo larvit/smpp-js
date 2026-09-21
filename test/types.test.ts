@@ -39,6 +39,12 @@ describe('integers', () => {
 		assert.ok(types.int8.write(-1, Buffer.alloc(1), 0).err instanceof Error);
 		assert.ok(types.int16.write(1.5, Buffer.alloc(2), 0).err instanceof Error);
 		assert.ok(types.int8.write('nope', Buffer.alloc(1), 0).err instanceof Error);
+
+		const notANumber = types.int8.write(NaN, Buffer.alloc(1), 0);
+
+		// JSON spells NaN and the infinities `null`, which is a value the caller never wrote.
+		assert.ok(notANumber.err instanceof Error);
+		assert.match(notANumber.err.message, /NaN/);
 	});
 });
 
@@ -112,7 +118,7 @@ describe('cstring (C-Octet String)', () => {
 		assert.deepEqual(target, encoded);
 	});
 
-	test('coerces a numeric value to its decimal string, and refuses one with no decimals', () => {
+	test('coerces a numeric value to its decimal string, and refuses a non-finite one', () => {
 		const target = Buffer.alloc(4);
 
 		types.cstring.write(123, target, 0);
@@ -124,7 +130,9 @@ describe('cstring (C-Octet String)', () => {
 			assert.ok(types.cstring.size(value).err instanceof Error, String(value));
 			assert.ok(types.cstring.write(value, Buffer.alloc(9), 0).err instanceof Error, String(value));
 			assert.ok(types.string.write(value, Buffer.alloc(9), 0).err instanceof Error, String(value));
+			assert.ok(types.buffer.write(value, Buffer.alloc(9), 0).err instanceof Error, String(value));
 			assert.ok(types.tlv.string.write(value, Buffer.alloc(9), 0).err instanceof Error, String(value));
+			assert.ok(types.tlv.cstring.write(value, Buffer.alloc(9), 0).err instanceof Error, String(value));
 		}
 	});
 

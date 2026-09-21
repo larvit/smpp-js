@@ -51,6 +51,11 @@ describe('header', () => {
 		assert.equal(decode(encode({ cmdName: 'enquire_link', seqNr: 0x80000001 })).seqNr, 0x80000001);
 		assert.equal(decode(encode({ cmdName: 'enquire_link', seqNr: 0xFFFFFFFF })).seqNr, 0xFFFFFFFF);
 		assert.ok(objToPdu({ cmdName: 'submit_sm', seqNr: 0x100000000 }).err instanceof Error);
+
+		const notANumber = objToPdu({ cmdName: 'submit_sm', seqNr: NaN });
+
+		assert.ok(notANumber.err instanceof Error);
+		assert.match(notANumber.err.message, /NaN/);
 	});
 });
 
@@ -144,7 +149,7 @@ describe('parsing real PDUs', () => {
 		assert.equal(decode(pdu).params.source_addr, 'Kaffeé');
 	});
 
-	test('refuses an address the field cannot carry rather than truncating it', () => {
+	test('refuses an address the field cannot carry rather than truncating or coercing it', () => {
 		const smuggled = objToPdu({
 			cmdName: 'submit_sm',
 			params: { destination_addr: '46709771337', source_addr: '46701113311\u0000EVIL' },
@@ -154,7 +159,6 @@ describe('parsing real PDUs', () => {
 		assert.equal(smuggled.buffer, undefined);
 		assert.ok(objToPdu({ cmdName: 'deliver_sm', params: { source_addr: '一' } }).err instanceof Error);
 
-		// Coercing these spells the senders "NaN" and "Infinity", which a peer reads as those letters.
 		assert.ok(objToPdu({ cmdName: 'deliver_sm', params: { source_addr: NaN } }).err instanceof Error);
 		assert.ok(objToPdu({ cmdName: 'deliver_sm', params: { source_addr: Infinity } }).err instanceof Error);
 	});
