@@ -39,7 +39,7 @@ export function paramNumber(value: ParamValue | undefined, fallback: number): nu
 }
 
 /** Spells a refused value for the caller who wrote it; JSON spells NaN and the infinities `null`. */
-export function valueText(value: unknown): string {
+export function valueText(value: ParamValue): string {
 	return typeof value === 'number' ? String(value) : JSON.stringify(value);
 }
 

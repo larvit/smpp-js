@@ -419,7 +419,8 @@ and is also what the panel ranked hardest — two methods, one answer.
       `idleTimeout: '5000'` is refused with `got 5000` — a value the reader reads as correct — where
       `connectTimeout` quotes it. `namedValue()`'s four sites — `messagingMode`, `encoding`, the time
       options and `smsIdFormat` — are the same defect once more: there `true` and `'true'` both print
-      as `true`. One fix closes all three. Raised by review, 2026-09-20.
+      as `true`. One fix closes all three, and `valueText()` in `defs/types.ts` is the quoted
+      spelling to take it from. Raised by review, 2026-09-20.
 
 - [ ] **A send the codec will refuse waits for a link and a window slot first.** `refuse()` in
       `outgoing-requests.ts` runs `misuse()` and the abort check before the wait, precisely so a call

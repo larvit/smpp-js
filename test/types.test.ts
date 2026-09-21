@@ -42,7 +42,6 @@ describe('integers', () => {
 
 		const notANumber = types.int8.write(NaN, Buffer.alloc(1), 0);
 
-		// JSON spells NaN and the infinities `null`, which is a value the caller never wrote.
 		assert.ok(notANumber.err instanceof Error);
 		assert.match(notANumber.err.message, /NaN/);
 	});
