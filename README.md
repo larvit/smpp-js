@@ -288,11 +288,11 @@ await session.sendSms({
 ```
 
 **Addresses.** `sourceAddrTon` and `destinationAddrTon` default to 5 for an alphanumeric address
-and 1 for a numeric one; the NPI fields default to 0. An address is latin1: `Kaffeé` goes out as
-the six octets that spell it, `4B 61 66 66 65 E9`, and an address you received always sends back.
-One outside `/^[\u0001-\u00FF]*$/` is refused, naming the character and its index — strip or
-transliterate it first. An SMSC may still refuse a non-ASCII sender of its own accord, which
-reaches you as a refusal such as `ESME_RINVSRCADR`.
+and 1 for a numeric one; the NPI fields default to 0. An address is latin1, so `é` is one octet on
+the wire and an address you received always sends back. One outside `/^[\u0001-\u00FF]*$/` is
+refused, naming the character and its index — strip or transliterate it first. An SMSC may still
+refuse a non-ASCII sender of its own accord, which reaches you as a refusal such as
+`ESME_RINVSRCADR`.
 
 **Encoding.**
 
@@ -614,8 +614,7 @@ if (isCommand(pduObj, 'submit_sm')) {
   names, detected from the text where you name none. One that alphabet cannot carry is refused,
   naming the character, its code point and where it is.
 - Every text field is latin1: addresses, `system_id`, `message_id`, `service_type` and the C-Octet
-  String TLVs. A character past `U+00FF` is refused, as is a `U+0000` in a C-Octet String, which the
-  peer reads as the end of the field.
+  String TLVs. A character past `U+00FF` is refused, as is a `U+0000` in a C-Octet String.
 - A `Buffer` goes out exactly as given under any `data_coding`: binary payloads, hand-built user
   data headers, deliberately malformed bodies.
 - `session.send()` and `session.sendReturn()` build through the same codec and refuse the same bodies.

@@ -488,12 +488,10 @@ rule and an index of the titles below.
   Goal 2 settles the refusals, both of them a `size()` that would have agreed with a `write()` that
   put something else on the wire: a character past `U+00FF` written as its low octet, and a caller's
   own `U+0000`, which a mandatory field's reader takes as the end of the field. Goal 4 settles them
-  twice over: for a great many characters that low octet is `0x00`, and the PDU went out malformed
+  twice over: for one character in every 256 that low octet is `0x00`, and the PDU went out malformed
   on the operator's parser. `wantText()` and `wantCstringText()` are the only two places that decide
-  it, which is why the `dest_address` and
-  `unsuccess_sme` structures write their embedded addresses through `cstring.write()` rather than
-  reaching past it into `writeCstring()`. Rejected: reading latin1 and leaving the write spelled
-  ASCII, which leaves two halves agreeing only by accident. Rejected: refusing the upper half on send
+  it. Rejected: reading latin1 and leaving the write spelled ASCII, which leaves two halves agreeing
+  only by accident. Rejected: refusing the upper half on send
   to stay strict to 3.4's ASCII, which would be a new restriction taking away traffic this library
   already sends and operators already accept, on no defect. Rejected: refusing `U+0000` in every
   text field, which would buy one spelling by taking a legitimate octet away from the

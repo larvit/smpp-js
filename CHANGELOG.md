@@ -10,17 +10,14 @@
   `source_addr` of `Kaffeé` previously reached the application as `Kaffei`, because the codec wrote
   the octet and then masked bit 7 reading it back; `destination_addr`, `system_id`, `message_id`,
   `service_type` and the C-Octet String TLVs were affected the same way. A character past `U+00FF`
-  in one of those fields is now refused, where it used to go out as its low octet — which for `一`,
-  `　` and most emoji is `0x00`, ending the field there.
+  in one of those fields is now refused, where it used to go out as its low octet.
 
   **Check what you stored before you roll this out.** Values your application persisted under 0.5.0
   were read with bit 7 masked, so an address or a `message_id` carrying an octet above `0x7F` is
   spelled differently now: a stored id will not match the receipt it belongs to, and a stored address
   will not match the sender it came from. Ids most SMSCs issue are digits or hex and are unaffected.
 - A `U+0000` inside a C-Octet String — `source_addr`, `message_id`, `system_id` and the rest — is
-  refused. The peer reads such a field to its first NULL, so one sent inside the value shifted every
-  mandatory field behind it while `command_length` still counted the whole string. An Octet String
-  carries a NULL as before; its length octet is what ends it.
+  refused. An Octet String carries a NULL as before.
 
 ## 0.5.0
 

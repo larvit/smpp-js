@@ -366,7 +366,7 @@ describe('an address the field cannot carry', () => {
 			assert.deepEqual(sent.smsIds, [], address);
 		}
 
-		assert.deepEqual(smsc.octets, [], 'an address the field cannot carry never reaches the socket');
+		assert.deepEqual(smsc.octets, []);
 	});
 });
 
