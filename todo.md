@@ -231,12 +231,19 @@ and is also what the panel ranked hardest — two methods, one answer.
       built, as "TLV 12594 runs past the end of the PDU". Goals 1 and 2. From the stability review
       of #18.
 
-- [ ] **Settle which numbers may spell a text field, and refuse the rest.** `wantText()` takes every
-      finite number through `String()`, so `message_id: 1e21` writes `1e+21` and `from: 0.1 + 0.2`
-      writes `0.30000000000000004` — neither is the id or the address the caller meant, and both are
-      reported as sent. The numeric branch exists for a digit sequence (`message_id: 123`): either
-      narrow it to one, or record why exponential notation may go on the wire. Goal 3, and the open
-      half of the non-finite guard #18 shipped. From the stability review of #18.
+- [ ] **Settle which numbers may spell a text field, refuse the rest, and say so where a consumer
+      reads it.** `wantText()` takes every finite number through `String()`, so `message_id: 1e21`
+      writes `1e+21`, `from: 0.1 + 0.2` writes `0.30000000000000004` and `source_addr: -5` writes
+      `-5` — none of them is the id or the address the caller meant, and all three are reported as
+      sent. The numeric branch exists for a digit sequence (`message_id: 123`); the product-owner
+      review of #18 recommends `Number.isSafeInteger(value) && value >= 0` with the refusal naming
+      the fix, since a 64-bit SMSC id loses digits to a JS number before this library ever sees it.
+      Goal 3. That a number is accepted at all reaches a consumer in no sentence either: only the
+      type comment at `defs/commands.ts:239`, and one CHANGELOG line that stops being visible when
+      0.7.0 is cut, while README's Building bullet reads as the whole rule for a text field. Whether
+      this is a supported spelling or 0.4.0 tolerance decides whether that sentence lands in
+      README.md or in MIGRATION.md — write it in the same change as the rule, so it is worded once.
+      From the stability and product-owner reviews of #18.
 
 ### Throughput — goal 6, and the default window is where we are slowest
 
