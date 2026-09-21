@@ -479,29 +479,22 @@ rule and an index of the titles below.
   change reads exactly as it did.
 
 - **Every text field on the wire is latin1, and what the field cannot carry is refused rather than
-  truncated.** Maintainer's call, 2026-09-21, from the 0.6.0 correctness list: the codec read these
-  fields with
-  `toString('ascii')`, which masks bit 7, and wrote them with `write(text, 'ascii')`, which does not,
-  so an inbound `source_addr` of `Kaffeé` reached the application as `Kaffei` and
-  `objToPdu(pduToObj(x))` was idempotent for none of `source_addr`, `destination_addr`, `system_id`,
-  `message_id`, `service_type` or the cstring TLVs. Goal 3 settles the read: 3.4 calls these fields
-  ASCII, and an operator routing an alphanumeric sender through the upper half is traffic to keep.
-  The write is named latin1 to match, which is what makes the round trip idempotent and is already
-  the octets Node put on the wire, so no peer sees a change. `wantText()` is the single place that
-  says so — which is why the `dest_address` and `unsuccess_sme` structures write their embedded
-  addresses through `cstring.write()` rather than reaching past it — and a character past `U+00FF`
-  is refused there rather than truncated to its low octet: a `size()` that agreed with a `write()`
-  that dropped half a character is a wrong answer about what went out (goal 2), and it is how an
-  alphabet that cannot carry a message body is already handled. Rejected: reading latin1 and leaving
-  the write spelled ASCII, which leaves two halves agreeing only by accident. Rejected: refusing the
-  upper half on send to stay strict to 3.4's ASCII, which would drop exactly the traffic the read
-  keeps. The security pass over this chunk found the field's other end open the same way: a caller's
-  own `U+0000` was written verbatim, and since the peer reads a C-Octet String to its first NULL,
-  every mandatory field behind it shifted under a `command_length` that had counted the whole string
-  — so an application forwarding a customer's sender id could have a PDU rewritten from inside one.
-  `wantCstringText()` refuses that where `wantText()` refuses the upper end. Rejected: refusing NULL
-  in every text field, which would buy one spelling by taking a legitimate octet away from the
-  length-prefixed Octet String, whose length octet is what ends it.
+  truncated.** Maintainer's call, 2026-09-21, the refusals from the security and stability passes on
+  [#16](https://gitea.larvit.se/larvit/smpp-js/pulls/16). Goal 3 settles the alphabet: 3.4 calls
+  these fields ASCII, and an operator routing an alphanumeric sender through the upper half is
+  traffic to keep, so the read is latin1 and the write is named latin1 to match — which is what
+  makes the round trip idempotent, and is already the octets Node put on the wire, so no peer sees a
+  change. Goal 2 settles the refusals, both of them a `size()` that would have agreed with a
+  `write()` that put something else on the wire: a character past `U+00FF` written as its low octet,
+  and a caller's own `U+0000`, which the peer reads as the end of the field, shifting every mandatory
+  field behind it under a `command_length` that counted the whole string. `wantText()` and
+  `wantCstringText()` are the only two places that decide it, which is why the `dest_address` and
+  `unsuccess_sme` structures write their embedded addresses through `cstring.write()` rather than
+  reaching past it into `writeCstring()`. Rejected: reading latin1 and leaving the write spelled
+  ASCII, which leaves two halves agreeing only by accident. Rejected: refusing the upper half on send
+  to stay strict to 3.4's ASCII, which would drop exactly the traffic the read keeps. Rejected:
+  refusing `U+0000` in every text field, which would buy one spelling by taking a legitimate octet
+  away from the length-prefixed Octet String, whose length octet is what ends it.
 
 ## The session's life
 

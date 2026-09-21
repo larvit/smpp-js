@@ -84,7 +84,6 @@ describe('string (Octet String)', () => {
 		assert.ok(types.string.write('一', Buffer.alloc(4), 0).err instanceof Error);
 	});
 
-	// Its length octet is what ends it, so unlike a C-Octet String it carries a NULL like any other.
 	test('carries a NULL octet, which its length octet already bounds', () => {
 		const target = Buffer.alloc(4);
 
@@ -122,8 +121,6 @@ describe('cstring (C-Octet String)', () => {
 		assert.deepEqual(types.cstring.size(123), { size: 4 });
 	});
 
-	// 'ascii' masks bit 7 on the way in and keeps it on the way out, so an address a peer wrote as
-	// Kaffeé came back Kaffei and objToPdu(pduToObj(x)) stopped being idempotent.
 	test('carries every latin1 octet, and refuses a character past it', () => {
 		const address = Buffer.from([0x4B, 0x61, 0x66, 0x66, 0x65, 0xE9, 0x00]);
 		const target = Buffer.alloc(7);
@@ -136,9 +133,6 @@ describe('cstring (C-Octet String)', () => {
 		assert.ok(types.cstring.write('一', Buffer.alloc(4), 0).err instanceof Error);
 	});
 
-	// The field ends at its first NULL, so writing one smuggles a field boundary into the peer's
-	// parse: every mandatory field behind it shifts, under a command_length that counted the whole
-	// string.
 	test('refuses a NULL of its own rather than ending the field early', () => {
 		assert.ok(types.cstring.size('46701113311\u0000EVIL').err instanceof Error);
 		assert.ok(types.cstring.write('46701113311\u0000EVIL', Buffer.alloc(17), 0).err instanceof Error);
@@ -252,8 +246,6 @@ describe('buffer', () => {
 });
 
 describe('paramText()', () => {
-	// The one reader of a receipt body that arrived with no octets of its own, so masking bit 7
-	// here loses the same characters the wire types used to.
 	test('renders a Buffer parameter as the latin1 text its octets spell', () => {
 		assert.equal(paramText(Buffer.from([0x4B, 0x61, 0x66, 0x66, 0x65, 0xE9])), 'Kaffeé');
 	});
@@ -293,6 +285,11 @@ describe('dest_address_array', () => {
 		types.dest_address_array.write(expected, target, 0);
 
 		assert.deepEqual(target, encoded);
+
+		const smuggled: DestAddress[] = [{ dest_addr_npi: 1, dest_addr_ton: 1, destination_addr: '46\u0000EVIL' }];
+
+		assert.ok(types.dest_address_array.write(smuggled, Buffer.alloc(16), 0).err instanceof Error);
+		assert.ok(types.dest_address_array.write([{ dl_name: '一' }], Buffer.alloc(16), 0).err instanceof Error);
 	});
 
 	test('refuses a field value the wire cannot hold instead of throwing', () => {
@@ -332,6 +329,12 @@ describe('unsuccess_sme_array', () => {
 		types.unsuccess_sme_array.write(expected, target, 0);
 
 		assert.deepEqual(target, encoded);
+
+		const smuggled: UnsuccessSme[] = [
+			{ dest_addr_npi: 1, dest_addr_ton: 1, destination_addr: 'a\u0000b', error_status_code: 0 },
+		];
+
+		assert.ok(types.unsuccess_sme_array.write(smuggled, Buffer.alloc(16), 0).err instanceof Error);
 	});
 
 	test('refuses a field value the wire cannot hold instead of throwing', () => {

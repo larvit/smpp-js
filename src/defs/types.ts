@@ -84,7 +84,7 @@ function pastLatin1(text: string): { err: Error } | undefined {
 
 	if (index === -1) return undefined;
 
-	const code = text.charCodeAt(index).toString(16).toUpperCase().padStart(4, '0');
+	const code = (text.codePointAt(index) ?? 0).toString(16).toUpperCase().padStart(4, '0');
 
 	return {
 		err: new Error(
@@ -103,7 +103,6 @@ function wantText(value: ParamValue): Result<{ text: string }> {
 	return pastLatin1(text) ?? { text };
 }
 
-/** A C-Octet String ends at its first NULL, so one inside the value truncates the field on the peer. */
 function wantCstringText(value: ParamValue): Result<{ text: string }> {
 	const { err, text } = wantText(value);
 
@@ -114,9 +113,7 @@ function wantCstringText(value: ParamValue): Result<{ text: string }> {
 	if (index === -1) return { text };
 
 	return {
-		err: new Error(
-			`U+0000 at index ${String(index)} would end the C-Octet String there, ${String(text.length - index - 1)} characters early`,
-		),
+		err: new Error(`U+0000 at index ${String(index)} would end the C-Octet String there`),
 	};
 }
 
