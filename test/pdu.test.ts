@@ -127,6 +127,24 @@ describe('parsing real PDUs', () => {
 		assert.equal(pduObj.params.short_message, 'hej 一');
 		assert.equal(pduObj.tlvs.message_state?.tagValue, 2);
 	});
+
+	// 'ascii' masks bit 7 on the way in, so this address used to come back Kaffei.
+	test('keeps an alphanumeric sender whole through the wire and back', () => {
+		const pdu = encode({
+			cmdName: 'deliver_sm',
+			params: {
+				destination_addr: '46709771337',
+				short_message: 'hej',
+				source_addr: 'Kaffeé',
+				source_addr_ton: 5,
+			},
+			seqNr: 9,
+		});
+
+		assert.ok(pdu.includes(Buffer.from('Kaffeé', 'latin1')));
+		assert.equal(decode(pdu).params.source_addr, 'Kaffeé');
+		assert.ok(objToPdu({ cmdName: 'deliver_sm', params: { source_addr: '一' } }).err instanceof Error);
+	});
 });
 
 describe('encoding submit_sm', () => {

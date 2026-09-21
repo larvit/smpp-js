@@ -189,15 +189,6 @@ and is also what the panel ranked hardest — two methods, one answer.
 
 ### Correctness, ahead of everything below
 
-- [ ] **Read C-Octet Strings as `latin1`, so an address survives the wire.** `defs/types.ts` reads
-      with `toString('ascii')` at four sites and writes with `write(text, 'ascii')` at three. Node
-      masks bit 7 when decoding and not when encoding, so the codec writes `0xE9` and reads back
-      `0x69`: an inbound `source_addr` of `Kaffeé` reaches the application as `Kaffei`, with no raw
-      escape hatch as `short_message` has in `shortMessageOctets`. Affects `source_addr`,
-      `destination_addr`, `system_id`, `message_id`, `service_type` and the cstring TLVs, and makes
-      `objToPdu(pduToObj(x))` non-idempotent for them. Goals 1 and 3. Verified in the container:
-      `Buffer.from([0xE9]).toString('ascii')` is `'i'`.
-
 - [ ] **Answer `alert_notification` and `outbind` by not answering them.** Both are response-less in
       SMPP 3.4, both fall through `route()`'s default into `unhandled()`, which calls
       `sendReturn(pduObj, 'ESME_RINVCMDID')`; `pduReturn()` then finds no response command, and the

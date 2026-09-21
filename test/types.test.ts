@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
 import type { DestAddress, UnsuccessSme } from '../src/defs/types.ts';
+import { paramText, types } from '../src/defs/types.ts';
 import { tlvs } from '../src/defs/tlvs.ts';
-import { types } from '../src/defs/types.ts';
 
 describe('integers', () => {
 	test('int8 reads, sizes and writes one octet', () => {
@@ -69,6 +69,20 @@ describe('string (Octet String)', () => {
 
 		assert.deepEqual(target, encoded);
 	});
+
+	test('carries every latin1 octet, and refuses a character past it', () => {
+		const target = Buffer.alloc(4);
+
+		assert.deepEqual(types.string.read(Buffer.from([3, 0xE9, 0x80, 0xFF]), 0), {
+			bytesRead: 4,
+			value: 'é\u0080ÿ',
+		});
+		assert.deepEqual(types.string.write('é\u0080ÿ', target, 0), {});
+		assert.deepEqual(target, Buffer.from([3, 0xE9, 0x80, 0xFF]));
+
+		assert.ok(types.string.size('一').err instanceof Error);
+		assert.ok(types.string.write('一', Buffer.alloc(4), 0).err instanceof Error);
+	});
 });
 
 describe('cstring (C-Octet String)', () => {
@@ -98,6 +112,20 @@ describe('cstring (C-Octet String)', () => {
 
 		assert.deepEqual(target, Buffer.from([0x31, 0x32, 0x33, 0x00]));
 		assert.deepEqual(types.cstring.size(123), { size: 4 });
+	});
+
+	// 'ascii' masks bit 7 on the way in and keeps it on the way out, so an address a peer wrote as
+	// Kaffeé came back Kaffei and objToPdu(pduToObj(x)) stopped being idempotent.
+	test('carries every latin1 octet, and refuses a character past it', () => {
+		const address = Buffer.from([0x4B, 0x61, 0x66, 0x66, 0x65, 0xE9, 0x00]);
+		const target = Buffer.alloc(7);
+
+		assert.deepEqual(types.cstring.read(address, 0), { bytesRead: 7, value: 'Kaffeé' });
+		assert.deepEqual(types.cstring.write('Kaffeé', target, 0), {});
+		assert.deepEqual(target, address);
+
+		assert.ok(types.cstring.size('一').err instanceof Error);
+		assert.ok(types.cstring.write('一', Buffer.alloc(4), 0).err instanceof Error);
 	});
 
 	test('refuses a string with no terminator rather than running off the end', () => {
@@ -142,6 +170,32 @@ describe('integer TLVs', () => {
 	});
 });
 
+describe('text TLVs', () => {
+	const encoded = Buffer.from([0xE9, 0x80, 0xFF]);
+
+	test('carry every latin1 octet, and refuse a character past it', () => {
+		const target = Buffer.alloc(3);
+
+		assert.deepEqual(types.tlv.string.read(encoded, 0, 3), { bytesRead: 3, value: 'é\u0080ÿ' });
+		assert.deepEqual(types.tlv.string.write('é\u0080ÿ', target, 0), {});
+		assert.deepEqual(target, encoded);
+
+		assert.ok(types.tlv.string.size('一').err instanceof Error);
+		assert.ok(types.tlv.string.write('一', Buffer.alloc(3), 0).err instanceof Error);
+	});
+
+	test('carry them through a cstring tag too, terminator or none', () => {
+		const target = Buffer.alloc(4);
+
+		assert.deepEqual(types.tlv.cstring.read(encoded, 0, 3), { bytesRead: 3, value: 'é\u0080ÿ' });
+		assert.deepEqual(types.tlv.cstring.write('é\u0080ÿ', target, 0), {});
+		assert.deepEqual(target, Buffer.from([0xE9, 0x80, 0xFF, 0x00]));
+
+		assert.ok(types.tlv.cstring.size('一').err instanceof Error);
+		assert.ok(types.tlv.cstring.write('一', Buffer.alloc(4), 0).err instanceof Error);
+	});
+});
+
 describe('buffer', () => {
 	const expected = Buffer.from('abcd1234');
 
@@ -169,6 +223,22 @@ describe('buffer', () => {
 		types.buffer.write(expected, target, 0);
 
 		assert.deepEqual(target, expected);
+	});
+
+	test('takes a string as the latin1 octets it stands for', () => {
+		const target = Buffer.alloc(3);
+
+		assert.deepEqual(types.buffer.size('é\u0080ÿ'), { size: 3 });
+		assert.deepEqual(types.buffer.write('é\u0080ÿ', target, 0), {});
+		assert.deepEqual(target, Buffer.from([0xE9, 0x80, 0xFF]));
+	});
+});
+
+describe('paramText()', () => {
+	// The one reader of a receipt body that arrived with no octets of its own, so masking bit 7
+	// here loses the same characters the wire types used to.
+	test('renders a Buffer parameter as the latin1 text its octets spell', () => {
+		assert.equal(paramText(Buffer.from([0x4B, 0x61, 0x66, 0x66, 0x65, 0xE9])), 'Kaffeé');
 	});
 });
 

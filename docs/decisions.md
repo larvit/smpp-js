@@ -443,8 +443,8 @@ rule and an index of the titles below.
   the guard would be a second spelling that disagrees about correctness. Rejected: refusing a string
   `message_payload` outright and demanding
   octets, which contradicts `short_message` on the same PDU. Rejected: guarding every string-valued
-  field, which `data_coding` says nothing about — an address is a C-Octet String and ASCII by 3.4's
-  own definition.
+  field against `data_coding`, which says nothing about them — a text field on the wire has an
+  alphabet of its own.
 
 - **A GSM 03.38 message declares `data_coding` 0x00, and an inbound 0x01 is still read as GSM.**
   Maintainer's call, 2026-09-09: `dataCodingFor()` and `encodeBody()` both resolved an alphabet
@@ -477,6 +477,24 @@ rule and an index of the titles below.
   the same codec, `messageClassOf()` finds no class in either, and `Reassembler` groups on the
   concatenation reference rather than on `data_coding` — so a receipt or a segment that crossed the
   change reads exactly as it did.
+
+- **Every text field on the wire is latin1, and a character past `U+00FF` is refused.** Maintainer's
+  call, 2026-09-21, from the 0.6.0 correctness list: the codec read these fields with
+  `toString('ascii')`, which masks bit 7, and wrote them with `write(text, 'ascii')`, which does not,
+  so an inbound `source_addr` of `Kaffeé` reached the application as `Kaffei` and
+  `objToPdu(pduToObj(x))` was idempotent for none of `source_addr`, `destination_addr`, `system_id`,
+  `message_id`, `service_type` or the cstring TLVs. Goal 3 settles the read: 3.4 calls these fields
+  ASCII, and an operator routing an alphanumeric sender through the upper half is traffic to keep.
+  The write is named latin1 to match, which is what makes the round trip idempotent and is already
+  the octets Node put on the wire, so no peer sees a change. `wantText()` is the single place that
+  says so — which is why the `dest_address` and `unsuccess_sme` structures write their embedded
+  addresses through `cstring.write()` rather than reaching past it — and a character past `U+00FF`
+  is refused there rather than truncated to its low octet: a `size()` that agreed with a `write()`
+  that dropped half a character is a wrong answer about what went out (goal 2), and it is how an
+  alphabet that cannot carry a message body is already handled. Rejected: reading latin1 and leaving
+  the write spelled ASCII, which leaves two halves agreeing only by accident. Rejected: refusing the
+  upper half on send to stay strict to 3.4's ASCII, which would drop exactly the traffic the read
+  keeps.
 
 ## The session's life
 

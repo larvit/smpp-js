@@ -28,7 +28,7 @@ export type WireType<T extends ParamValue = ParamValue> = {
 export function paramText(value: ParamValue | undefined): string {
 	if (typeof value === 'string') return value;
 	if (typeof value === 'number') return value.toString();
-	if (Buffer.isBuffer(value)) return value.toString('ascii');
+	if (Buffer.isBuffer(value)) return value.toString('latin1');
 
 	return '';
 }
@@ -79,11 +79,25 @@ function writeInt32(value: ParamValue, buf: Buffer, offset: number): VoidResult 
 	return {};
 }
 
-function wantText(value: ParamValue): Result<{ text: string }> {
-	if (typeof value === 'string') return { text: value };
-	if (typeof value === 'number') return { text: value.toString() };
+function pastLatin1(text: string): { err: Error } | undefined {
+	const index = text.search(/[\u0100-\uFFFF]/);
 
-	return { err: new Error(`Expected a string, got ${typeof value}`) };
+	if (index === -1) return undefined;
+
+	const code = text.charCodeAt(index).toString(16).toUpperCase().padStart(4, '0');
+
+	return {
+		err: new Error(
+			`Character U+${code} at index ${String(index)} is past latin1, which every text field on the wire is written in`,
+		),
+	};
+}
+
+function wantText(value: ParamValue): Result<{ text: string }> {
+	if (typeof value === 'number') return { text: value.toString() };
+	if (typeof value !== 'string') return { err: new Error(`Expected a string, got ${typeof value}`) };
+
+	return pastLatin1(value) ?? { text: value };
 }
 
 function wantBytes(value: ParamValue): Result<{ bytes: Buffer }> {
@@ -91,7 +105,7 @@ function wantBytes(value: ParamValue): Result<{ bytes: Buffer }> {
 
 	const { err, text } = wantText(value);
 
-	return err ? { err } : { bytes: Buffer.from(text, 'ascii') };
+	return err ? { err } : { bytes: Buffer.from(text, 'latin1') };
 }
 
 function isDestAddress(value: unknown): value is DestAddress {
@@ -167,7 +181,7 @@ function readCstring(buffer: Buffer, offset: number): Result<{ bytesRead: number
 		}
 	}
 
-	return { bytesRead: length + 1, value: buffer.toString('ascii', offset, offset + length) };
+	return { bytesRead: length + 1, value: buffer.toString('latin1', offset, offset + length) };
 }
 
 function writeCstring(text: string, buffer: Buffer, offset: number): VoidResult {
@@ -175,7 +189,7 @@ function writeCstring(text: string, buffer: Buffer, offset: number): VoidResult 
 
 	if (err) return { err };
 
-	buffer.write(text, offset, 'ascii');
+	buffer.write(text, offset, 'latin1');
 	buffer[offset + text.length] = 0;
 
 	return {};
@@ -248,7 +262,7 @@ export const string: WireType<string> = {
 
 		if (err) return { err };
 
-		return { bytesRead: length + 1, value: buffer.toString('ascii', offset + 1, offset + 1 + length) };
+		return { bytesRead: length + 1, value: buffer.toString('latin1', offset + 1, offset + 1 + length) };
 	},
 	size(value) {
 		const { err, text } = wantText(value);
@@ -271,7 +285,7 @@ export const string: WireType<string> = {
 		if (rangeErr) return { err: rangeErr };
 
 		buffer.writeUInt8(text.length, offset);
-		buffer.write(text, offset + 1, 'ascii');
+		buffer.write(text, offset + 1, 'latin1');
 
 		return {};
 	},
@@ -401,7 +415,7 @@ export const dest_address_array: WireType<DestAddress[]> = {
 			if ('dl_name' in dest) {
 				buf.writeUInt8(2, offset++);
 
-				const name = writeCstring(dest.dl_name, buf, offset);
+				const name = cstring.write(dest.dl_name, buf, offset);
 
 				if (name.err) return { err: name.err };
 
@@ -417,7 +431,7 @@ export const dest_address_array: WireType<DestAddress[]> = {
 
 				if (npi.err) return { err: npi.err };
 
-				const addr = writeCstring(dest.destination_addr, buf, offset);
+				const addr = cstring.write(dest.destination_addr, buf, offset);
 
 				if (addr.err) return { err: addr.err };
 
@@ -505,7 +519,7 @@ export const unsuccess_sme_array: WireType<UnsuccessSme[]> = {
 
 			if (npi.err) return { err: npi.err };
 
-			const addr = writeCstring(sme.destination_addr, buf, offset);
+			const addr = cstring.write(sme.destination_addr, buf, offset);
 
 			if (addr.err) return { err: addr.err };
 
@@ -538,7 +552,7 @@ export const tlv = {
 				? offset + length
 				: terminator;
 
-			return { bytesRead: length, value: buf.toString('ascii', offset, end) };
+			return { bytesRead: length, value: buf.toString('latin1', offset, end) };
 		},
 		size(value: ParamValue) {
 			const { err, text } = wantText(value);
@@ -559,7 +573,7 @@ export const tlv = {
 		read(buf: Buffer, offset: number, length = 0) {
 			const err = outOfRange(buf, offset, length);
 
-			return err ? { err } : { bytesRead: length, value: buf.toString('ascii', offset, offset + length) };
+			return err ? { err } : { bytesRead: length, value: buf.toString('latin1', offset, offset + length) };
 		},
 		size(value: ParamValue) {
 			const { err, text } = wantText(value);
@@ -575,7 +589,7 @@ export const tlv = {
 
 			if (rangeErr) return { err: rangeErr };
 
-			buf.write(text, offset, 'ascii');
+			buf.write(text, offset, 'latin1');
 
 			return {};
 		},
