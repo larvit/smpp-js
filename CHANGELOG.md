@@ -34,7 +34,7 @@
   name a refused `NaN` too, where the refusal used to read `null`.
 - An `alert_notification` or an `outbind` from the peer is logged and left unanswered, as SMPP 3.4
   gives neither a response. Each one used to emit `sessionError`, `"alert_notification" has no
-  response command`, and a server did the same for an `outbind` before bind.
+  response command`.
 
 ## 0.5.0
 

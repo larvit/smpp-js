@@ -409,6 +409,11 @@ and is also what the panel ranked hardest — two methods, one answer.
 
 ## Worth doing, not blocking
 
+- [ ] **Decide whether `alert_notification` reaches the application as more than `incomingPduObj`.**
+      It is the SMSC saying a handset it could not reach is reachable again (`esme_addr`,
+      `ms_availability_status`); a client has no `onRequest`, so the raw PDU event is the only way in.
+      Raised by the stability review of #21.
+
 - [ ] **Cut the three teardown sentences `test/teardown.ts` already says.** Under AGENTS.md's
       Conventions, "`test/teardown.ts` covers a session, a server and a listener" restates its two
       exported names, "Its close aborts rather than drains" restates `closeAfter`'s own doc comment,
