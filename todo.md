@@ -200,12 +200,6 @@ and is also what the panel ranked hardest — two methods, one answer.
       caller never wrote." A goal is the maintainer's, so nothing edits README until that is
       answered. From the prose pass of #18.
 
-- [ ] **Answer `alert_notification` and `outbind` by not answering them.** Both are response-less in
-      SMPP 3.4, both fall through `route()`'s default into `unhandled()`, which calls
-      `sendReturn(pduObj, 'ESME_RINVCMDID')`; `pduReturn()` then finds no response command, and the
-      failure reaches the application as `sessionError` on every occurrence. `alert_notification`
-      appears nowhere in `src/` but `defs/commands.ts`. One case arm each: log and return.
-
 - [ ] **Range-check `maxOctets` with its five siblings.** `limitsOf()` in `session-options.ts`
       covers `idleTimeout`, `maxOutstanding`, `maxReassembly`, `reassemblyTimeout`, `responseTimeout`
       and `shutdownTimeout`; `maxOctets` is documented, consumed by `Reassembler`, and absent from

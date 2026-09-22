@@ -13,6 +13,7 @@ import { defaultInterfaceVersion } from './defs/constants.ts';
 import { errorFrom } from './error-from.ts';
 import { paramText } from './defs/types.ts';
 import { guardedLog } from './log.ts';
+import { respNameFor } from './defs/commands.ts';
 
 export type AuthenticateResult = { userData?: unknown } | boolean;
 
@@ -224,7 +225,7 @@ async function handleRequest(
 		return true;
 	}
 
-	if (pduObj.cmdName === 'unbind') return false;
+	if (pduObj.cmdName === 'unbind' || !respNameFor(pduObj.cmdName)) return false;
 
 	session.log.debug('server - command before bind', { cmdName: pduObj.cmdName });
 	await session.sendReturn(pduObj, 'ESME_RINVBNDSTS');

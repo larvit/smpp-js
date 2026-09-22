@@ -316,6 +316,28 @@ describe('bind', () => {
 		assert.equal(await responded, '00000010800000150000000400000001');
 	});
 
+	test('leaves an outbind from an unbound peer unanswered', async t => {
+		const smpp = await startServer(t);
+		const errors: Error[] = [];
+
+		smpp.on('session', session => { session.on('sessionError', err => { errors.push(err); }); });
+
+		const responded = once<string>(resolve => {
+			const sock = net.connect({ port: smpp.port }, () => {
+				sock.write(pduBytes({ cmdName: 'outbind', params: { password: 'pass', system_id: 'smsc' }, seqNr: 1 }));
+				sock.write(Buffer.from('00000010000000150000000000000002', 'hex'));
+			});
+
+			sock.on('data', data => {
+				sock.destroy();
+				resolve(data.toString('hex'));
+			});
+		});
+
+		assert.equal(await responded, '00000010800000150000000400000002');
+		assert.deepEqual(errors, []);
+	});
+
 	test('answers the enquire_link a bound peer sends', async t => {
 		const smpp = await startServer(t);
 		const peer = rawPeer(t, smpp.port);
@@ -1790,6 +1812,26 @@ describe('a PDU the codec cannot read', () => {
 		assert.equal(answered.cmdStatus, 'ESME_RINVCMDID');
 		assert.equal(answered.seqNr, 9);
 		assert.ok((await raceWithin(2000, failed)) instanceof Error, 'one sessionError per refused PDU');
+	});
+
+	test('leaves an alert_notification and an outbind unanswered, since SMPP names no response', async t => {
+		const { peer, session } = await bound(t);
+		const errors: Error[] = [];
+
+		session.on('sessionError', err => { errors.push(err); });
+		peer.writeRaw(pduBytes({
+			cmdName: 'alert_notification',
+			params: { esme_addr: '46709771337', source_addr: '46701113311' },
+			seqNr: 10,
+		}));
+		peer.writeRaw(pduBytes({ cmdName: 'outbind', params: { password: 'pass', system_id: 'smsc' }, seqNr: 11 }));
+		peer.writeRaw(pduBytes({ cmdName: 'enquire_link', seqNr: 12 }));
+
+		const answered = await answerTo(peer);
+
+		assert.equal(answered.cmdName, 'enquire_link_resp');
+		assert.equal(answered.seqNr, 12);
+		assert.deepEqual(errors, []);
 	});
 
 	test('answers a deliver_sm with a truncated TLV stream with ESME_RINVTLVSTREAM', async t => {

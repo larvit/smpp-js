@@ -16,6 +16,7 @@ import { createSms } from './sms.ts';
 import { dlrFromPdu } from './dlr.ts';
 import { paramText } from './defs/types.ts';
 import { respIdParams, segmentId } from './sms-id.ts';
+import { respNameFor } from './defs/commands.ts';
 
 /** SMPP 3.4 lists ESME_RMSGQFUL under submit_sm_resp only; 4.6.2's retryable code is another. */
 export function refusedSegmentStatus(
@@ -167,6 +168,12 @@ export class IncomingRequests {
 		if (bindCommands.includes(pduObj.cmdName)) {
 			this.log.info('session - bind on an already bound session', { cmdName: pduObj.cmdName });
 			await this.session.sendReturn(pduObj, 'ESME_RALYBND', { system_id: this.systemId });
+
+			return;
+		}
+
+		if (!respNameFor(pduObj.cmdName)) {
+			this.log.info('session - ignoring a command SMPP gives no response', { cmdName: pduObj.cmdName });
 
 			return;
 		}
