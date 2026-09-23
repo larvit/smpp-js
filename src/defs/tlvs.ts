@@ -154,7 +154,7 @@ function occurrences(value: TlvValue, multiple: boolean): Result<{ values: Param
 		return Array.isArray(value) ? { err: new Error('takes one value, not an array') } : { values: [value] };
 	}
 
-	if (!Array.isArray(value)) return { err: new Error('is repeatable, give an array of its values') };
+	if (!Array.isArray(value)) return { err: new Error('is repeatable, wrap it in an array: [value]') };
 
 	if (value.length === 0) return { err: new Error('holds no values, omit it instead') };
 

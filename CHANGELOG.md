@@ -38,9 +38,15 @@
 - `server()` refuses a `maxOctets` below 1 or not a whole number, `Infinity` included, like its
   other limits. `server({ maxOctets: 0 })` used to start and then refuse every multipart message.
 - `callback_num`, `callback_num_atag`, `callback_num_pres_ind`, `broadcast_area_identifier` and
-  `broadcast_error_status`, the TLVs SMPP allows more than once in a PDU, read as an array of every
-  occurrence in wire order, even where only one arrived, and `objToPdu()` takes an array for them and
-  refuses a lone value. A PDU carrying two of one used to keep only the last.
+  `broadcast_error_status`, the TLVs SMPP allows more than once in a PDU, keep every occurrence in
+  wire order. A PDU carrying two of one used to keep only the last.
+
+  **Reading one of these now needs an index.** `pduObj.tlvs.callback_num?.tagValue` is a `Buffer[]`
+  even where one arrived (a `number[]` for `callback_num_pres_ind` and `broadcast_error_status`), so a
+  `Buffer.isBuffer()` or `typeof` check written for 0.5.0 now reads it as absent. Read `tagValue[0]`
+  for the first occurrence. `objToPdu()`, `session.send()` and `session.sendReturn()` take
+  `{ tagValue: [value] }` for them and refuse a lone value before anything goes out.
+- `cmds.broadcast_sm_resp.tlvMap` is removed; nothing read it.
 
 ## 0.5.0
 

@@ -610,7 +610,8 @@ if (isCommand(pduObj, 'submit_sm')) {
   carried them, `'udh'` or `'sar'`, or `undefined` for a whole message.
 - `callback_num`, `callback_num_atag`, `callback_num_pres_ind`, `broadcast_area_identifier` and
   `broadcast_error_status` may repeat in one PDU, so each reads as an array of every occurrence in wire
-  order, and `objToPdu()` writes one TLV per element of the array it takes for them.
+  order: `number[]` for `callback_num_pres_ind` and `broadcast_error_status`, `Buffer[]` for the rest.
+  A `broadcast_sm_resp`'s `failed_broadcast_area_identifier` reads as `broadcast_area_identifier`.
 - `messageClassOf(dataCoding)`: `0` for the flash class, `1`, `2` and `3` for the ME-, SIM- and
   TE-specific ones, `undefined` where that `data_coding`'s coding group carries no class.
 
@@ -621,6 +622,8 @@ if (isCommand(pduObj, 'submit_sm')) {
   naming the character, its code point and where it is.
 - Every text field is latin1: addresses, `system_id`, `message_id`, `service_type` and the C-Octet
   String TLVs. A character past `U+00FF` is refused, as is a `U+0000` in a C-Octet String.
+- The five repeatable TLVs take an array, written as one TLV per element; a lone value or an empty
+  array is refused.
 - A `Buffer` goes out exactly as given under any `data_coding`: binary payloads, hand-built user
   data headers, deliberately malformed bodies.
 - `session.send()` and `session.sendReturn()` build through the same codec and refuse the same bodies.

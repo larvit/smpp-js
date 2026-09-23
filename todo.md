@@ -197,6 +197,13 @@ and is also what the panel ranked hardest — two methods, one answer.
 
 ### Correctness, ahead of everything below
 
+- [ ] **Type each known TLV's value by its tag, on read and on write, before 0.6.0 is cut.** Every
+      `tagValue` is `TlvValue`, so `{ callback_num: { tagValue: buf } }` compiles and is refused
+      only at runtime, and reading `receipted_message_id` has to narrow out arrays it can never
+      hold. Derive the types from the specs' own wire types and `multiple` flag. It has to land in
+      the same minor as the arrays, or narrowing the types is a second break. From the
+      product-owner review of #25.
+
 - [ ] **Settle what a repeated tag not marked `multiple` reads as, and pin it in a test.** A vendor
       tag or a known single-value tag a peer sends twice keeps the last occurrence and drops the
       rest silently, which goal 3 argues against; listing it would change every such tag's shape.
