@@ -14,6 +14,9 @@ export type UnsuccessSme = {
 
 export type ParamValue = Buffer | DestAddress[] | UnsuccessSme[] | number | string;
 
+/** A tag defined `multiple` holds every occurrence, in wire order; any other tag holds one value. */
+export type TlvValue = Buffer | Buffer[] | number | number[] | string;
+
 /**
  * One field on the wire. `read` reports how many octets it consumed so callers never have to
  * re-derive a length that could disagree with what was actually written.
@@ -26,7 +29,7 @@ export type WireType<T extends ParamValue = ParamValue> = {
 };
 
 /** Renders a parameter as text without ever falling back to "[object Object]". */
-export function paramText(value: ParamValue | undefined): string {
+export function paramText(value: ParamValue | TlvValue | undefined): string {
 	if (typeof value === 'string') return value;
 	if (typeof value === 'number') return value.toString();
 	if (Buffer.isBuffer(value)) return value.toString('latin1');

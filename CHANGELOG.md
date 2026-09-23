@@ -37,6 +37,10 @@
   response command`.
 - `server()` refuses a `maxOctets` below 1 or not a whole number, `Infinity` included, like its
   other limits. `server({ maxOctets: 0 })` used to start and then refuse every multipart message.
+- `callback_num`, `callback_num_atag`, `callback_num_pres_ind`, `broadcast_area_identifier` and
+  `broadcast_error_status`, the TLVs SMPP allows more than once in a PDU, read as an array of every
+  occurrence in wire order, even where only one arrived, and `objToPdu()` takes an array for them and
+  refuses a lone value. A PDU carrying two of one used to keep only the last.
 
 ## 0.5.0
 

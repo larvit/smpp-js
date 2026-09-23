@@ -463,6 +463,48 @@ describe('TLVs', () => {
 		assert.ok(err instanceof Error);
 	});
 
+	test('keeps every occurrence of a repeatable TLV, in wire order', () => {
+		const first = Buffer.from('0146709771337', 'hex');
+		const second = Buffer.from('0146701113311', 'hex');
+		const pduObj = decode(encode({
+			cmdName: 'submit_sm',
+			params: { destination_addr: '46709771337', short_message: 'hi', source_addr: '46701113311' },
+			tlvs: {
+				callback_num: { tagValue: [first, second] },
+				callback_num_pres_ind: { tagValue: [1] },
+			},
+		}));
+
+		assert.deepEqual(pduObj.tlvs.callback_num?.tagValue, [first, second]);
+		assert.deepEqual(pduObj.tlvs.callback_num_pres_ind?.tagValue, [1]);
+	});
+
+	test('reads the failed areas of a broadcast_sm_resp as broadcast_area_identifier', () => {
+		const areas = [Buffer.from('0001', 'hex'), Buffer.from('0002', 'hex')];
+		const pduObj = decode(encode({
+			cmdName: 'broadcast_sm_resp',
+			params: { message_id: '01a0d051-b588-76eb-a5c5-a8cb8b854e68' },
+			tlvs: { failed_broadcast_area_identifier: { tagValue: areas } },
+		}));
+
+		assert.deepEqual(pduObj.tlvs.broadcast_area_identifier?.tagValue, areas);
+	});
+
+	test('refuses a repeatable TLV given one value, and a lone TLV given several', () => {
+		const params = { destination_addr: '46709771337', short_message: 'hi', source_addr: '46701113311' };
+
+		for (const tlvs of [
+			{ callback_num: { tagValue: Buffer.from('01', 'hex') } },
+			{ callback_num: { tagValue: [] } },
+			{ source_port: { tagValue: [1234, 1235] } },
+		]) {
+			const { buffer, err } = objToPdu({ cmdName: 'submit_sm', params, tlvs });
+
+			assert.equal(buffer, undefined);
+			assert.ok(err instanceof Error);
+		}
+	});
+
 	test('round-trips a receipt with message_state and receipted_message_id', () => {
 		const receipt = 'id:450 sub:001 dlvrd:1 submit date:1504031342 done date:1504031342 stat:DELIVRD err:0 text:xxx';
 		const pduObj = decode(encode({

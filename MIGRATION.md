@@ -70,6 +70,9 @@ have for these:
 - Binary TLVs (`message_payload`, `network_error_code`, `callback_num` and the rest) were parsed into
   a hex string and written back as the ASCII of that string, so every round trip corrupted them.
   They are `Buffer`s in both directions now; drop any hex encoding of your own.
+- `callback_num`, `callback_num_atag`, `callback_num_pres_ind`, `broadcast_area_identifier` and
+  `broadcast_error_status` may repeat within a PDU, and each is an array of every occurrence in both
+  directions. 0.4.0 kept only the last one it read.
 - A body carried in the `message_payload` TLV was ignored, so the message arrived empty, and a
   `data_sm` was answered `ESME_RINVCMDID`, so a receipt thrown on one was lost silently. Both reach
   the application now: a receipt as `dlr`, answered for you, and a message as `sms` for you to answer.

@@ -68,7 +68,7 @@ export type { PduObject, PduObjectInput, TlvInput } from './pdu.ts';
 export type { PduHeader } from './pdu-refusal.ts';
 export type { SplitOptions } from './message.ts';
 export type { Tlv, TlvDefinition, TlvName } from './defs/tlvs.ts';
-export type { DestAddress, ParamValue, UnsuccessSme, WireType } from './defs/types.ts';
+export type { DestAddress, ParamValue, TlvValue, UnsuccessSme, WireType } from './defs/types.ts';
 
 /** The spec tables, grouped the way `larvitsmpp.defs` was in 0.4.0. */
 export { defs } from './defs/index.ts';

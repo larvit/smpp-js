@@ -1,6 +1,6 @@
 import type { CommandDefinition, CommandName, PduParams, PduParamsInput } from './defs/commands.ts';
 import type { ErrorName } from './defs/errors.ts';
-import type { ParamValue } from './defs/types.ts';
+import type { ParamValue, TlvValue } from './defs/types.ts';
 import type { PduHeader } from './pdu-refusal.ts';
 import type { Result, VoidResult } from './result.ts';
 import type { Tlv, TlvInput } from './defs/tlvs.ts';
@@ -262,30 +262,59 @@ export function objToPdu<C extends CommandName>(obj: PduObjectInput<C>): Result<
 	);
 }
 
+type Repeats = { buffers: Map<string, Buffer[]>; numbers: Map<string, number[]> };
+
+/** A repeatable tag's occurrences so far, `value` appended; a value no TLV type reads is undefined. */
+function tlvValue(value: ParamValue, key: string, multiple: boolean | undefined, repeats: Repeats): TlvValue | undefined {
+	if (Buffer.isBuffer(value)) return multiple === true ? appended(repeats.buffers, key, value) : value;
+	if (typeof value === 'number') return multiple === true ? appended(repeats.numbers, key, value) : value;
+	if (typeof value === 'string' && multiple !== true) return value;
+
+	return undefined;
+}
+
+function appended<T>(lists: Map<string, T[]>, key: string, value: T): T[] {
+	const list = lists.get(key) ?? [];
+
+	list.push(value);
+	lists.set(key, list);
+
+	return list;
+}
+
+function readTlv(pdu: Buffer, offset: number, repeats: Repeats): Result<{ key: string; octets: number; tlv: Tlv }> {
+	const tagId = pdu.readUInt16BE(offset);
+	const tagLength = pdu.readUInt16BE(offset + 2);
+
+	if (offset + 4 + tagLength > pdu.length) {
+		return { err: new Error(`TLV ${String(tagId)} runs past the end of the PDU`) };
+	}
+
+	const definition = tlvsById[tagId];
+	const read = (definition?.type ?? tlvDefault).read(pdu, offset + 4, tagLength);
+
+	if (read.err) return { err: read.err };
+
+	const key = definition?.tag ?? tagId.toString();
+	const tagValue = tlvValue(read.value, key, definition?.multiple, repeats);
+
+	if (tagValue === undefined) return { err: new Error(`TLV ${String(tagId)} read as a value no TLV holds`) };
+
+	return { key, octets: 4 + tagLength, tlv: { tagId, tagName: definition?.tag, tagValue } };
+}
+
 function parseTlvs(pdu: Buffer, start: number): Result<{ offset: number; tlvs: Record<string, Tlv> }> {
+	const repeats: Repeats = { buffers: new Map(), numbers: new Map() };
 	const tlvs: Record<string, Tlv> = {};
 	let offset = start;
 
 	while (offset + 4 <= pdu.length) {
-		const tagId = pdu.readUInt16BE(offset);
-		const tagLength = pdu.readUInt16BE(offset + 2);
-
-		if (offset + 4 + tagLength > pdu.length) {
-			return { err: new Error(`TLV ${String(tagId)} runs past the end of the PDU`) };
-		}
-
-		const definition = tlvsById[tagId];
-		const read = (definition?.type ?? tlvDefault).read(pdu, offset + 4, tagLength);
+		const read = readTlv(pdu, offset, repeats);
 
 		if (read.err) return { err: read.err };
 
-		tlvs[definition?.tag ?? tagId.toString()] = {
-			tagId,
-			tagName: definition?.tag,
-			tagValue: read.value,
-		};
-
-		offset += 4 + tagLength;
+		tlvs[read.key] = read.tlv;
+		offset += read.octets;
 	}
 
 	return { offset, tlvs };

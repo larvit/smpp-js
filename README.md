@@ -608,6 +608,9 @@ if (isCommand(pduObj, 'submit_sm')) {
   and hands back the UDH where the PDU carries one.
 - `concatOf(pduObj)`: the `part`, `total` and `reference` a PDU declares and the `spelling` that
   carried them, `'udh'` or `'sar'`, or `undefined` for a whole message.
+- `callback_num`, `callback_num_atag`, `callback_num_pres_ind`, `broadcast_area_identifier` and
+  `broadcast_error_status` may repeat in one PDU, so each reads as an array of every occurrence in wire
+  order, and `objToPdu()` writes one TLV per element of the array it takes for them.
 - `messageClassOf(dataCoding)`: `0` for the flash class, `1`, `2` and `3` for the ME-, SIM- and
   TE-specific ones, `undefined` where that `data_coding`'s coding group carries no class.
 

@@ -1,4 +1,4 @@
-import type { ParamValue, WireType } from './types.ts';
+import type { ParamValue, TlvValue, WireType } from './types.ts';
 import type { Result } from '../result.ts';
 import { tlv } from './types.ts';
 
@@ -103,13 +103,13 @@ export const tlvDefault: WireType = tlv.buffer;
 export type Tlv = {
 	tagId: number;
 	tagName: string | undefined;
-	tagValue: ParamValue;
+	tagValue: TlvValue;
 };
 
 export type TlvInput = {
 	/** Resolved from the record key; pass it for a tag the TLV table does not define. */
 	tagId?: number | undefined;
-	tagValue: ParamValue;
+	tagValue: TlvValue;
 };
 
 export function tagIdOf(name: string, input: TlvInput): Result<{ tagId: number }> {
@@ -135,30 +135,50 @@ export function writeTlvs(inputs: Record<string, TlvInput> | undefined): Result<
 
 		if (tag.err) return { err: tag.err };
 
-		const type = tlvsById[tag.tagId]?.type ?? tlvDefault;
-		const sized = type.size(input.tagValue);
+		const definition = tlvsById[tag.tagId];
+		const values = occurrences(input.tagValue, definition?.multiple === true);
 
-		if (sized.err) {
-			return { err: new Error(`TLV "${name}": ${sized.err.message}`) };
+		if (values.err) return { err: new Error(`TLV "${name}": ${values.err.message}`) };
+
+		for (const value of values.values) {
+			const chunk = writeTlv(tag.tagId, definition?.type ?? tlvDefault, value);
+
+			if (chunk.err) return { err: new Error(`TLV "${name}": ${chunk.err.message}`) };
+
+			chunks.push(chunk.chunk);
 		}
-
-		if (sized.size > 0xffff) {
-			return { err: new Error(`TLV "${name}": ${String(sized.size)} octets overflow the two octet length`) };
-		}
-
-		const chunk = Buffer.alloc(sized.size + 4);
-
-		chunk.writeUInt16BE(tag.tagId, 0);
-		chunk.writeUInt16BE(sized.size, 2);
-
-		const written = type.write(input.tagValue, chunk, 4);
-
-		if (written.err) {
-			return { err: new Error(`TLV "${name}": ${written.err.message}`) };
-		}
-
-		chunks.push(chunk);
 	}
 
 	return { chunks };
+}
+
+function occurrences(value: TlvValue, multiple: boolean): Result<{ values: ParamValue[] }> {
+	if (!multiple) {
+		return Array.isArray(value) ? { err: new Error('takes one value, not an array') } : { values: [value] };
+	}
+
+	if (!Array.isArray(value)) return { err: new Error('is repeatable, give an array of its values') };
+
+	if (value.length === 0) return { err: new Error('holds no values, omit it instead') };
+
+	return { values: value };
+}
+
+function writeTlv(tagId: number, type: WireType, value: ParamValue): Result<{ chunk: Buffer }> {
+	const sized = type.size(value);
+
+	if (sized.err) return { err: sized.err };
+
+	if (sized.size > 0xffff) {
+		return { err: new Error(`${String(sized.size)} octets overflow the two octet length`) };
+	}
+
+	const chunk = Buffer.alloc(sized.size + 4);
+
+	chunk.writeUInt16BE(tagId, 0);
+	chunk.writeUInt16BE(sized.size, 2);
+
+	const written = type.write(value, chunk, 4);
+
+	return written.err ? { err: written.err } : { chunk };
 }

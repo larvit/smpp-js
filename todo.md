@@ -189,13 +189,6 @@ and is also what the panel ranked hardest — two methods, one answer.
 
 ### Correctness, ahead of everything below
 
-- [ ] **Read `multiple` in `parseTlvs()` and `writeTlvs()`, or delete it and `tlvMap`.** Five TLVs
-      declare `multiple: true` (`callback_num`, `callback_num_atag`, `callback_num_pres_ind`,
-      `broadcast_area_identifier`, `broadcast_error_status`) and nothing reads it; `parseTlvs()` keys
-      by tag name, so a peer sending two `callback_num` TLVs silently keeps the last. `tlvMap` on
-      `broadcast_sm_resp` is declared, set once and read nowhere. This is the "Dormant filters" row
-      of the 0.4.0 defect table in a new spelling — metadata that reads as a guarantee.
-
 - [ ] **Test that a multipart send which errors never fires `messageDlr`.** Goal 2 now says so and
       README promises it; `session-extras.test.ts` covers a drop *after* the send, not one during it.
 

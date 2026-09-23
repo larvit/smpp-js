@@ -1,5 +1,5 @@
 import type { MessageState } from './defs/constants.ts';
-import type { ParamValue } from './defs/types.ts';
+import type { TlvValue } from './defs/types.ts';
 import type { PduObject } from './pdu.ts';
 import type { SmsIdFormat } from './sms-id.ts';
 import { consts, constsById, hasUdh, messageTypeOf } from './defs/constants.ts';
@@ -150,7 +150,7 @@ const smeMessageTypes: readonly number[] = [
 	consts.ESM_CLASS.USER_ACKNOWLEDGEMENT,
 ];
 
-function nonEmptyText(value: ParamValue | undefined): string | undefined {
+function nonEmptyText(value: TlvValue | undefined): string | undefined {
 	return typeof value === 'string' && value !== '' ? value : undefined;
 }
 
@@ -178,7 +178,7 @@ function receiptBody(pduObj: PduObject): string {
 }
 
 function receiptId(
-	tlvId: ParamValue | undefined,
+	tlvId: TlvValue | undefined,
 	receipt: Receipt | undefined,
 	format: SmsIdFormat,
 ): string | undefined {
@@ -198,7 +198,7 @@ function isMessageState(name: string | undefined): name is MessageState {
 
 /** The state TLV wins where it names a state we know; an unnameable one leaves the body to say. */
 function receiptStatus(
-	tlvState: ParamValue | undefined,
+	tlvState: TlvValue | undefined,
 	receipt: Receipt | undefined,
 ): { statusId: number; statusMsg: MessageState | undefined } {
 	const scraped = receiptStates[receipt?.stat?.toUpperCase() ?? ''];

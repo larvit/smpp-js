@@ -4,7 +4,6 @@ import { buffer, cstring, dest_address_array, int8, unsuccess_sme_array } from '
 type CommandSpec = {
 	id: number;
 	params?: Record<string, WireType>;
-	tlvMap?: Record<string, string>;
 };
 
 const bindParams = {
@@ -59,7 +58,6 @@ const specs = {
 	broadcast_sm_resp: {
 		id: 0x80000111,
 		params: { message_id: cstring },
-		tlvMap: { broadcast_area_identifier: 'failed_broadcast_area_identifier' },
 	},
 	cancel_broadcast_sm: {
 		id: 0x00000113,
