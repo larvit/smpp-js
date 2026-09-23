@@ -12,7 +12,7 @@ not for structure or style.
 
 ## Goals
 
-The ten goals, in priority order, live in
+The goals, in priority order, live in
 [README.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/README.md#goals) — they say where this library is heading, which an outside
 reader judges it by. The README states the audience alongside them. Everything below cites a goal by
 number.
@@ -86,8 +86,9 @@ src/
 		types.ts         Wire types: int8/int16/int32/string/cstring/buffer/arrays
 ```
 
-Dependency direction is one way: `defs` knows nothing above it, `pdu` uses `defs`, `session` uses
-`pdu`, and `client`/`server` use `session`. Nothing reaches back up.
+Imports point one way: `defs` knows nothing above it but `result.ts`, `pdu` uses `defs`, `session`
+uses `pdu`, and `client`/`server` use `session`. The one way back up is the `Session` handed to
+`IncomingRequests` and `createSms()`, imported as a type only.
 
 **Parameter order is wire order.** The key order inside `cmds.*.params` is the order the fields are
 written to and read from the buffer. Never sort those alphabetically — the alphabetical-ordering
@@ -103,20 +104,12 @@ docker compose run --rm node npm test
 docker compose run --rm node npm run build
 ```
 
-- Tests are `.ts` and run directly under Node's type stripping — no build step in the dev loop.
 - Source imports use `.ts` extensions; `rewriteRelativeImportExtensions` emits `.js` into `dist`.
 - `erasableSyntaxOnly` is on, so no enums, no namespaces, no parameter properties. Use `as const`
   objects plus union types.
-- The published floor is Node 18, but the dev container runs Node 24 (type stripping needs it). CI
-  compiles the tests and runs them on 18, every LTS above it, and current, so the floor is
-  verified rather than asserted.
+- The published floor is Node 18; the dev container runs Node 24 because type stripping needs it.
 - `typescript` is pinned to the 6.x line because `typescript-eslint` peer-requires `<6.1.0`. Move to
   TypeScript 7 once that constraint lifts.
-- GitHub mirrors Gitea through `.gitea/workflows/mirror.yaml`, which never prunes, and
-  `mirror-delete.yaml`, one run per deleted ref. A delete run that fails or outlives Gitea's queue
-  timeout, or a push run that cloned before the delete, leaves the ref on GitHub until the delete
-  run is re-run. Accepted: a stale ref there is harmless, and refs only GitHub has must survive.
-  Maintainer's call, 2026-09-14; valid while nothing deploys from GitHub.
 
 ## Defects found in 0.4.0
 
@@ -151,13 +144,6 @@ Confirmed by reading the 0.4.0 source; each row has a regression test naming the
 | Binary TLVs round-trip corrupt | `pduToObj` turns a `Buffer` TLV value into a hex string (`utils.js:307`), and `objToPdu` writes that string back as its own ASCII, so `message_payload`, `network_error_code`, `callback_num` and the rest are destroyed by any round trip |
 | `ESME_RINVBCASTCHANIND` typo | Defined as `0x011`, three hex digits; the spec value is `0x0112` |
 | Every response carries a message id | `session.js` builds `params = {'message_id': …}` for every response it sends, `deliver_sm_resp` included; SMPP 3.4 4.6.2 makes that field unused and NULL, and Jasmin closes the connection on one |
-
-## Multipart sends
-
-`sendSms` puts every segment of a message on the wire together instead of waiting for each response
-in turn, so a long message costs one round trip rather than one per segment. Nothing on the
-receiving side forces the order either way: this library answers each inbound segment as it arrives,
-so a peer that dispatches one request at a time is never left waiting on us.
 
 ## GSM 7-bit is sent unpacked
 
@@ -249,7 +235,6 @@ the file.
 - `Session` is publicly constructible, which is what makes `SessionOptions` and `ReconnectOptions`
   public too.
 - `acceptsOptionalParams()` and `bindAllows()` are predicates, not chokepoints.
-- `session.sock` is a getter over `PduTransport`.
 - Both emitters re-declare their listener methods to accept a promise.
 - `PduRefusedError` is exported, and `sessionError` names it in the event's type.
 - `bitCount()`, `encodeMessage()` and `splitMessage()` keep their total signatures, because
@@ -308,6 +293,7 @@ the file.
   `false` is the one way to turn it off.
 - A stream this library cannot frame is a dead link; one PDU it cannot parse is not.
 - A deliberate shutdown drains; an unusable link and an abort do not.
+- `sendSms()` puts every segment of a message on the wire together.
 - Every segment of a concatenated message is answered as it arrives, so `sendResp()` on one is the
   application's own signal rather than the peer's answer.
 - `server()` composes the application's `onRequest` after its own bind handling, and offers it every
@@ -331,3 +317,5 @@ the file.
 - `test/` stays flat too, and a file there is named for the question it answers rather than for the
   module it covers.
 - CI tests on Linux only; `src/` keeps off what is known to break on macOS or Windows.
+- GitHub mirrors Gitea without pruning, and a ref deleted on Gitea is deleted on GitHub by a run of
+  its own.

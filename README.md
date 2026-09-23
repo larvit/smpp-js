@@ -161,7 +161,6 @@ await smpp.close();      // stop listening, then drain and close every live sess
   `sendDlr('UNDELIVERABLE')` any other state: [Server in depth](#server-in-depth).
 - A message that arrived in several segments was answered as they arrived, so `sendResp()` there
   takes no `smsId` or refusing `status`. `sms.answeredOnArrival` says which case you are in.
-- `smpp.close()` stops listening, then drains and closes every live session.
 
 ## Errors
 
@@ -262,7 +261,7 @@ All optional. Timeouts are milliseconds.
 | `tls` | `false` | A `tls.TlsOptions` object with your certificate and key. A bare `true` is refused. |
 | `idleTimeout` | `40000` | Drop a peer that has been silent this long. |
 | `maxReassembly` | `1000` | Incomplete multipart messages held per session. |
-| `maxOctets` | `67108864` | Bytes of incomplete multipart messages held per session. |
+| `maxOctets` | `67108864` | Roughly the memory incomplete multipart messages may hold per session. |
 | `reassemblyTimeout` | `300000` | How long a late segment can still join an incomplete message. |
 | `responseTimeout`, `shutdownTimeout`, `maxOutstanding`, `log`, `signal` | as for the client | |
 
@@ -701,7 +700,7 @@ one wins. They do not override the [hard rules](https://gitea.larvit.se/larvit/s
    to the application to persist. Coordinating processes any other way is declined without a fresh
    argument each time.
 10. **It builds, tests and runs the same everywhere.** Container-only toolchain, no runtime
-   dependencies, the Node 18 floor verified in CI rather than asserted, every README example executed
+   dependencies, the Node 18 floor verified in CI, every README example executed
    by the suite.
 
 ## Audience
@@ -710,8 +709,7 @@ Who depends on this library, and what they may rely on.
 
 - **The public npm audience.** Only what `src/index.ts` exports is public; everything behind it is
   reshaped freely.
-- **Node 18 and newer, ESM only, no runtime dependencies.** The floor is verified in CI rather than
-  asserted, so the library drops into a service or a container without pulling a tree behind it.
+- **Node 18 and newer, ESM only, no runtime dependencies.**
 - **Real SMSCs and ESMEs as operators actually run them**, not a reference implementation. Jasmin,
   SMPPSim, Kannel, jsmpp, Cloudhopper, python-smpplib and php-smpp are the interop targets, and what
   they do in practice outranks what the specification says they should do.

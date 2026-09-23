@@ -262,8 +262,8 @@ and is also what the panel ranked hardest — two methods, one answer.
 - [ ] **Give `IncomingRequests` a port instead of the `Session` it drives.** It holds its owner and
       calls eight members of it 18 times, including `this.session.close()` on an inbound `unbind` —
       a collaborator ending its owner's life. `OutgoingRequests` is the mirror half of the same
-      boundary and takes no session at all. AGENTS.md's "Nothing reaches back up" is false because of
-      this, and `docs/decisions.md` already states the rule under The session's life: "a collaborator
+      boundary and takes no session at all. AGENTS.md names this as the one way back up; the port
+      removes that exception, and `docs/decisions.md` already states the rule under The session's life: "a collaborator
       that has to ask does not own its decision". It is also the missing test seam — inbound routing,
       reassembly dispatch, `onRequest` ordering and bind-direction refusal have no unit test because
       the class cannot be built without a live socket. Carry the eight members as `IncomingDeps`,
@@ -398,10 +398,6 @@ and is also what the panel ranked hardest — two methods, one answer.
       documented sending options" passes none of the five options the README's example passes. Read
       the fenced blocks at test time and assert each appears verbatim in the executed source, so an
       edit to either fails the gate.
-
-- [ ] **Correct AGENTS.md's "Nothing reaches back up".** False while `IncomingRequests` holds a
-      `Session`: either the first Locality item makes it true, or the sentence names the exception
-      until it does.
 
 - [ ] **Narrow the `src/defs/*` lint exemption to the four table files.** Its stated reason — "the
       spec tables are data: their length tracks the specification, not any complexity" — is false for

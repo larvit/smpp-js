@@ -17,9 +17,6 @@ rule and an index of the titles below.
   sending them. Only `submit_sm`, `deliver_sm` and `data_sm` are policed by bind direction — the
   three the library dispatches by it, of which it sends the first two.
 
-- **`session.sock` is a getter over `PduTransport`.** Reading it is unchanged; assigning it no longer
-  compiles, which never rewired the handlers and so never worked.
-
 - **Both emitters re-declare their listener methods to accept a promise.** Maintainer's call,
   2026-08-27: `EventEmitter` types every listener as void-returning, so the
   `session.on('sms', async sms => …)` README documents reads as a misused promise in any strict
@@ -133,8 +130,7 @@ rule and an index of the titles below.
   rule purely additive: no PDU that parsed before reads differently now. Rejected: preferring the
   TLV, which re-reads every message a peer echoes into both. Rejected: refusing a PDU carrying both,
   which discards a message that is almost certainly present twice over, where goal 3 keeps the
-  traffic. The reassembler's octet cap already counts TLV values, so a 64 KB payload is bounded like
-  any other segment.
+  traffic.
 
 - **A segment's concatenation is read from its UDH, or from the `sar_*` TLVs where it declares none,
   and each spelling groups in a reference space of its own.** Maintainer's call, 2026-09-06, from
@@ -359,8 +355,8 @@ rule and an index of the titles below.
   it. There is one budget, 140 less the UDH, and the alphabet decides only what it is counted in, so
   Latin-1 and UCS2 both take those 134 octets — 134 characters and 67 — and it is GSM 7-bit's 153
   that is the odd number rather than the other way round. `Record<EncodingName, number>` is what makes
-  a fourth alphabet state its own. Rejected: 134 for GSM 7-bit too, which is the mistake the
-  unpacked-alphabet section above exists to stop. Accepted: a Latin-1 message past the 140 characters
+  a fourth alphabet state its own. Rejected: 134 for GSM 7-bit too, which is the mistake
+  [GSM 7-bit is sent unpacked](../AGENTS.md#gsm-7-bit-is-sent-unpacked) exists to stop. Accepted: a Latin-1 message past the 140 characters
   one SMS holds now costs more segments than it did, and `smsIds` is that much longer.
 
 - **An alphabet the caller named has to carry the message, and a time the format cannot express is
@@ -588,6 +584,10 @@ rule and an index of the titles below.
   reports each session's unfinished drain through `serverError`, because its own result says nothing
   but that the listener stopped.
 
+- **`sendSms()` puts every segment of a message on the wire together.** Goal 6: a long message costs
+  one round trip rather than one per segment. Rejected: sending each segment once the last is
+  answered, which a receiver waiting for the whole message before answering would deadlock.
+
 - **Every segment of a concatenated message is answered as it arrives, so `sendResp()` on one is the
   application's own signal rather than the peer's answer.** Maintainer's call, 2026-09-06, from the
   Jasmin interoperability phase: Jasmin dispatches one `submit_sm` per connector at a time and will
@@ -789,7 +789,7 @@ rule and an index of the titles below.
   dev image has no openssl.
 
 - **`src/` stays flat until a module has to move for another reason.** Architecture review,
-  2026-09-06: the grouping the file map above already implies — `wire/` for `pdu*` and `defs`,
+  2026-09-06: the grouping the [file map](../AGENTS.md#architecture) already implies — `wire/` for `pdu*` and `defs`,
   `link/` for `link-*`, `reconnect-*`, `pdu-transport` and `send-window`, `messages/` for `sms*`,
   `dlr*`, `message*`, `reassembly` and `udh` — rewrites every import for no change to
   `dist/index.js`, the one published entry. Valid while that map is what a reader navigates by.
@@ -809,3 +809,10 @@ rule and an index of the titles below.
   That binds what `dist/` runs; the container tooling, `interop-tests/` and the `package.json` scripts
   run on Linux by goal 10. Rejected: macOS and Windows runners, on GitHub's mirror or as Gitea
   host-mode runners on a Windows VM and a Mac.
+
+- **GitHub mirrors Gitea without pruning, and a ref deleted on Gitea is deleted on GitHub by a run of
+  its own.** Maintainer's call, 2026-09-14; valid while nothing deploys from GitHub.
+  `.gitea/workflows/mirror.yaml` never prunes, and `mirror-delete.yaml` runs once per deleted ref. A
+  delete run that fails or outlives Gitea's queue timeout, or a push run that cloned before the
+  delete, leaves the ref on GitHub until the delete run is re-run. Accepted: a stale ref there is
+  harmless, and refs only GitHub has must survive.
