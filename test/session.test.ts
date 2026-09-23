@@ -12,6 +12,7 @@ import { DlrMerger } from '../src/dlr-merger.ts';
 import { PduFramer } from '../src/pdu-framer.ts';
 import { ReconnectLoop } from '../src/reconnect-loop.ts';
 import { Session, bindCommands } from '../src/session.ts';
+import { checkSessionOptions } from '../src/session-options.ts';
 import { client } from '../src/client.ts';
 import { closeAfter, closeListenerAfter } from './teardown.ts';
 import { consts } from '../src/defs/constants.ts';
@@ -2694,6 +2695,7 @@ describe('option validation', () => {
 		if (listening.server) await listening.server.close();
 
 		assert.match(listening.err?.message ?? '', /maxOctets must be 1 or more, got 0/);
+		assert.match(checkSessionOptions({ maxOctets: Infinity }).err?.message ?? '', /maxOctets must be 1 or more, got Infinity/);
 	});
 
 	test('returns an error rather than rejecting on an impossible port', async () => {

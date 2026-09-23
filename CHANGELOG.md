@@ -35,8 +35,8 @@
 - An `alert_notification` or an `outbind` from the peer is logged and left unanswered, as SMPP 3.4
   gives neither a response. Each one used to emit `sessionError`, `"alert_notification" has no
   response command`.
-- `server()` refuses a `maxOctets` below 1 or not a whole number, like its other limits.
-  `server({ maxOctets: 0 })` used to start and then drop every multipart message.
+- `server()` refuses a `maxOctets` below 1 or not a whole number, `Infinity` included, like its
+  other limits. `server({ maxOctets: 0 })` used to start and then refuse every multipart message.
 
 ## 0.5.0
 
