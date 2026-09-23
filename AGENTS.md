@@ -12,7 +12,7 @@ not for structure or style.
 
 ## Goals
 
-The nine goals, in priority order, live in
+The ten goals, in priority order, live in
 [README.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/README.md#goals) — they say where this library is heading, which an outside
 reader judges it by. The README states the audience alongside them. Everything below cites a goal by
 number.

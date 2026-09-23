@@ -654,7 +654,7 @@ See [MIGRATION.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/MIGRAT
 ## Goals
 
 In priority order, and the order is the point: where two of them pull against each other, the earlier
-one wins. They do not override the hard rules below.
+one wins. They do not override the [hard rules](AGENTS.md#hard-rules).
 
 1. **Correct on the wire.** SMPP 3.4 as SMSCs actually run it. Every other goal yields to this one;
    the defect table below is what the alternative costs.
