@@ -480,7 +480,8 @@ carrying the worst status of the segments and each of them under `segments`. An 
 report never counts. Merging needs the SMSC to number its segment ids `<base>-<n>`, this library's
 own server's convention; an SMSC that hands out unrelated ids per segment never fires it. A base is
 merged once: a later message the SMSC gives the same ids is reported through `dlr` alone, and an
-earlier one still collecting loses its merged report.
+earlier one still collecting loses its merged report. A send that returned an `err` never fires it,
+even where the SMSC took some of its segments; their receipts still arrive as `dlr`.
 
 ## Server in depth
 
@@ -658,7 +659,8 @@ one wins. They do not override the hard rules below.
    nothing, so nothing the library concludes may rest on one; a request the peer may already have
    taken is never re-sent on the library's own initiative; work the peer has no reason to send again
    is not dropped; a call that reports a message as sent asserts that the wire carried what the caller
-   wrote, so a value we cannot send as given is refused before anything goes out.
+   wrote, so a value we cannot send as given is refused before anything goes out; each message gets
+   one answer about it as a whole, so a send that fails is that answer and no merged report follows it.
 3. **Strict in what we send, generous in what we read.** The library's own senders follow 3.4, and
    the codec parses whatever arrives. Where the letter of the spec would discard traffic a real SMSC
    sends, keep the traffic.

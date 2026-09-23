@@ -202,13 +202,8 @@ and is also what the panel ranked hardest — two methods, one answer.
       `broadcast_sm_resp` is declared, set once and read nowhere. This is the "Dormant filters" row
       of the 0.4.0 defect table in a new spelling — metadata that reads as a guarantee.
 
-- [ ] **Arm the merge for the segments the SMSC did take, or say why not.** `collectSent()` sets
-      `failure` if any segment errored, including the `UnansweredError` a mid-send drop produces, and
-      `session.ts` only calls `dlrMerger.expect(sent.smsIds)` when `!sent.err`. So a link drop during
-      a multipart send leaves per-segment `dlr` events firing while `messageDlr` never can, traced
-      only by one `debug` line. `session-extras.test.ts` has the adjacent case — a drop *after* the
-      send — and not this one. If goal 2 forbids reporting on a message we cannot fully account for,
-      that is the answer; it is stated in no file today either way.
+- [ ] **Test that a multipart send which errors never fires `messageDlr`.** Goal 2 now says so and
+      README promises it; `session-extras.test.ts` covers a drop *after* the send, not one during it.
 
 - [ ] **Return an `err` where `message` is not a string, rather than throwing.**
       `sendSms({ message: undefined })` — a forgotten property — reaches `value.replace()` in
