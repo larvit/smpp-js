@@ -173,7 +173,7 @@ export class IncomingRequests {
 		}
 
 		if (!respNameFor(pduObj.cmdName)) {
-			this.log.info('session - ignoring a command SMPP gives no response', { cmdName: pduObj.cmdName });
+			this.log.verbose('session - ignoring a command SMPP gives no response', { cmdName: pduObj.cmdName });
 
 			return;
 		}
