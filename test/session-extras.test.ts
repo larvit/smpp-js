@@ -1824,9 +1824,8 @@ describe('reassembly bounds', () => {
 		assert.equal(collectPayload(40).kept, true);
 	});
 
-	// One segment is 36 octets before its two 10-octet callback numbers.
-	test('counts every occurrence of a repeatable TLV against the octet cap', () => {
-		function collectCallbacks(maxOctets: number): Collected {
+	test('counts every occurrence of a repeatable TLV against the octet cap, empty ones included', () => {
+		function collectCallbacks(maxOctets: number, tagValue: Buffer[]): Collected {
 			const reassembler = new Reassembler({
 				log: silentLog,
 				max: 10,
@@ -1836,13 +1835,19 @@ describe('reassembly bounds', () => {
 				timeout: 60_000,
 			});
 			const carried = segment(9, 1, 2);
-			const tagValue = [Buffer.alloc(10, 0x31), Buffer.alloc(10, 0x32)];
 
 			return collectPdu(reassembler, { ...carried, tlvs: { callback_num: { tagId: 0x0381, tagName: 'callback_num', tagValue } } });
 		}
 
-		assert.equal(collectCallbacks(50).kept, false);
-		assert.equal(collectCallbacks(60).kept, true);
+		const numbers = [Buffer.alloc(10_000, 0x31), Buffer.alloc(10_000, 0x32)];
+
+		assert.equal(collectCallbacks(20_000, numbers).kept, false);
+		assert.equal(collectCallbacks(30_000, numbers).kept, true);
+		assert.equal(
+			collectCallbacks(30_000, Array.from({ length: 10_000 }, () => Buffer.alloc(0))).kept,
+			false,
+			'an empty occurrence still holds an object',
+		);
 	});
 
 	// The segments before it were answered ESME_ROK, so dropping those is not the same as refusing one.

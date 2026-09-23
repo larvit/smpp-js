@@ -262,7 +262,6 @@ export function objToPdu<C extends CommandName>(obj: PduObjectInput<C>): Result<
 	);
 }
 
-
 function readParams(
 	cmdName: CommandName,
 	pdu: Buffer,

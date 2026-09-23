@@ -6,6 +6,14 @@ hard rules first — they constrain every item below.
 This is a working file that sets its own rules. The documentation conventions in AGENTS.md do not
 govern it, and nothing here is a source anything else may cite.
 
+## Security
+
+- [ ] **Charge a held segment's TLVs for the objects they keep, not only their value octets.** A
+      peer sending segments that carry thousands of distinct unknown tags with empty values makes
+      this library hold megabytes of heap per segment that `maxOctets` counts as nothing, up to
+      255 segments per group. Repeatable tags are already charged per occurrence. From the stability
+      review of #25.
+
 ## Status
 
 The rewrite is **feature complete and green**: the suite, lint and typecheck are clean on Node 18
