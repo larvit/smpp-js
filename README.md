@@ -654,10 +654,10 @@ See [MIGRATION.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/MIGRAT
 ## Goals
 
 In priority order, and the order is the point: where two of them pull against each other, the earlier
-one wins. They do not override the [hard rules](AGENTS.md#hard-rules).
+one wins. They do not override the [hard rules](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/AGENTS.md#hard-rules).
 
 1. **Correct on the wire.** SMPP 3.4 as SMSCs actually run it. Every other goal yields to this one;
-   the [defect table](AGENTS.md#defects-found-in-040) is what the alternative costs.
+   the [defect table](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/AGENTS.md#defects-found-in-040) is what the alternative costs.
 2. **Never give the application a wrong answer about what happened.** An outcome we cannot determine
    is reported as undetermined rather than guessed; a report the peer marked as not final settles
    nothing, so nothing the library concludes may rest on one; a request the peer may already have
