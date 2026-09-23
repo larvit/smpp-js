@@ -657,7 +657,8 @@ one wins. They do not override the hard rules below.
    is reported as undetermined rather than guessed; a report the peer marked as not final settles
    nothing, so nothing the library concludes may rest on one; a request the peer may already have
    taken is never re-sent on the library's own initiative; work the peer has no reason to send again
-   is not dropped.
+   is not dropped; a call that reports a message as sent asserts that the wire carried what the caller
+   wrote, so a value we cannot send as given is refused before anything goes out.
 3. **Strict in what we send, generous in what we read.** The library's own senders follow 3.4, and
    the codec parses whatever arrives. Where the letter of the spec would discard traffic a real SMSC
    sends, keep the traffic.

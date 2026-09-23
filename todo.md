@@ -189,17 +189,6 @@ and is also what the panel ranked hardest — two methods, one answer.
 
 ### Correctness, ahead of everything below
 
-- [ ] **Take the maintainer's call on whether goal 2 covers a value we could not send as given.**
-      Goal 2's four clauses are one family — an undeterminable outcome, a non-final report, a
-      re-send, dropped work — and none of them covers *the wire carried a value the caller did not
-      write, and the call reported success*, which is the `NaN` sender, the `sm_length: 0` body and
-      `1e+21`. Items below cite goal 2 for exactly that, and the DLR-merge item concedes it "is
-      stated in no file today either way". Proposed clause, after "…is not dropped": "; a call that
-      reports a message as sent asserts that the wire carried what the caller wrote, so a value we
-      cannot send as given is refused before anything goes out rather than coerced into one the
-      caller never wrote." A goal is the maintainer's, so nothing edits README until that is
-      answered. From the prose pass of #18.
-
 - [ ] **Range-check `maxOctets` with its five siblings.** `limitsOf()` in `session-options.ts`
       covers `idleTimeout`, `maxOutstanding`, `maxReassembly`, `reassemblyTimeout`, `responseTimeout`
       and `shutdownTimeout`; `maxOctets` is documented, consumed by `Reassembler`, and absent from
