@@ -322,9 +322,10 @@ const { err, pduObjs, smsIds, unanswered } = await session.sendSms({ from, messa
 - One id per segment. `smsIds` is positional with `pduObjs`, and an entry is `undefined` where the
   SMSC took the segment without naming an id; some name one for the first segment only. No receipt
   ever carries an empty id, so an unnamed entry matches nothing.
-- `err` is set when the SMSC refuses a segment, naming the status. Every segment goes out together,
-  so `pduObjs` and `smsIds` then hold what was accepted: enough to reconcile a later receipt, not
-  enough to resend the rest. Treat a partial failure as a failed message.
+- `err` is set when the SMSC refuses a segment, naming the status, or leaves one unanswered. Every
+  segment goes out together, so `pduObjs` and `smsIds` then hold only the accepted segments, in send
+  order: enough to reconcile a later receipt, not enough to resend the rest. Treat a partial failure
+  as a failed message; its accepted segments report through `dlr` alone.
 - `unanswered` counts segments that went out and were never answered. The SMSC may have taken each
   and lost only the response, so a message with `unanswered` above zero cannot be resent without
   risking a duplicate.
@@ -480,7 +481,7 @@ carrying the worst status of the segments and each of them under `segments`. An 
 report never counts. Merging needs the SMSC to number its segment ids `<base>-<n>`, this library's
 own server's convention; an SMSC that hands out unrelated ids per segment never fires it. A base is
 merged once: a later message the SMSC gives the same ids is reported through `dlr` alone, and an
-earlier one still collecting loses its merged report. A send that returned an `err` never fires it,
+earlier one still collecting loses its merged report. A send that returned an `err` never fires `messageDlr`,
 even where the SMSC took some of its segments; their receipts still arrive as `dlr`.
 
 ## Server in depth
@@ -660,7 +661,7 @@ one wins. They do not override the hard rules below.
    taken is never re-sent on the library's own initiative; work the peer has no reason to send again
    is not dropped; a call that reports a message as sent asserts that the wire carried what the caller
    wrote, so a value we cannot send as given is refused before anything goes out; each message gets
-   one answer about it as a whole, so a send that fails is that answer and no merged report follows it.
+   one outcome as a whole, so a send that fails is that outcome and no merged report follows it.
 3. **Strict in what we send, generous in what we read.** The library's own senders follow 3.4, and
    the codec parses whatever arrives. Where the letter of the spec would discard traffic a real SMSC
    sends, keep the traffic.
