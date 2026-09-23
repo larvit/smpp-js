@@ -2688,6 +2688,14 @@ describe('option validation', () => {
 		assert.match(hookRefused.err?.message ?? '', /onRequest must be a function/);
 	});
 
+	test('refuses a reassembly octet cap below 1 at startup', async () => {
+		const listening = await server({ maxOctets: 0, port: 0 });
+
+		if (listening.server) await listening.server.close();
+
+		assert.match(listening.err?.message ?? '', /maxOctets must be 1 or more, got 0/);
+	});
+
 	test('returns an error rather than rejecting on an impossible port', async () => {
 		const listening = await server({ port: 70_000 });
 

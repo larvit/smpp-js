@@ -189,12 +189,6 @@ and is also what the panel ranked hardest — two methods, one answer.
 
 ### Correctness, ahead of everything below
 
-- [ ] **Range-check `maxOctets` with its five siblings.** `limitsOf()` in `session-options.ts`
-      covers `idleTimeout`, `maxOutstanding`, `maxReassembly`, `reassemblyTimeout`, `responseTimeout`
-      and `shutdownTimeout`; `maxOctets` is documented, consumed by `Reassembler`, and absent from
-      both that list and `CheckableOptions`. `server({ maxOctets: 0 })` starts, then refuses every
-      multipart message and reports each as lost traffic.
-
 - [ ] **Read `multiple` in `parseTlvs()` and `writeTlvs()`, or delete it and `tlvMap`.** Five TLVs
       declare `multiple: true` (`callback_num`, `callback_num_atag`, `callback_num_pres_ind`,
       `broadcast_area_identifier`, `broadcast_error_status`) and nothing reads it; `parseTlvs()` keys

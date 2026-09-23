@@ -43,7 +43,7 @@ export type Collected =
 		whole?: PduObject[] | undefined;
 	};
 
-const defaultMaxOctets = 64 * 1024 * 1024;
+export const defaultMaxOctets = 64 * 1024 * 1024;
 
 type Group = {
 	octets: number;

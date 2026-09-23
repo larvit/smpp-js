@@ -9,6 +9,7 @@ import type { SmsIdFormat } from './sms-id.ts';
 import type { Sms } from './sms.ts';
 import type { Socket } from 'node:net';
 import { backoffDefaults } from './reconnect-loop.ts';
+import { defaultMaxOctets } from './reassembly.ts';
 import { isSmsIdNotation, smsIdNotations, smsIdPlaces } from './sms-id.ts';
 import { namedValue } from './error-from.ts';
 
@@ -160,6 +161,7 @@ export function checkSessionOptions(options: CheckableOptions): VoidResult {
 function limitsOf(options: CheckableOptions): [string, number, number][] {
 	return [
 		['idleTimeout', options.idleTimeout ?? 0, 0],
+		['maxOctets', options.maxOctets ?? defaultMaxOctets, 1],
 		['maxOutstanding', options.maxOutstanding ?? defaults.maxOutstanding, 1],
 		['maxReassembly', options.maxReassembly ?? defaults.maxReassembly, 1],
 		['reassemblyTimeout', options.reassemblyTimeout ?? defaults.reassemblyTimeout, 0],
@@ -268,6 +270,7 @@ export type CheckableOptions = {
 	/** Not an option: the one spelling is inside reconnect, and this is where the other is refused. */
 	fromStart?: unknown;
 	idleTimeout?: number | undefined;
+	maxOctets?: number | undefined;
 	maxOutstanding?: number | undefined;
 	maxReassembly?: number | undefined;
 	reassemblyTimeout?: number | undefined;
