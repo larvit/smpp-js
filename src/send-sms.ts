@@ -314,8 +314,7 @@ export async function submitSms(deps: SendSmsDeps, sms: SendSmsInput): Promise<S
 
 	deps.log.debug('sendSms() - sending', { encoding, segments: segments.length, to: sms.to });
 
-	// Segments go out together rather than one-after-a-response: a receiver that waits for every
-	// segment before answering — this library's own server does — would otherwise deadlock.
+	// Segments go out together: a receiver that waits for every segment before answering would otherwise deadlock.
 	const sent = await Promise.all(segments.map(segment => deps.send({
 		cmdName: 'submit_sm',
 		params: submitSmParams(sms, segment, {

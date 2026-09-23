@@ -372,6 +372,18 @@ and is also what the panel ranked hardest — two methods, one answer.
 
 ### Doc claims this review falsified
 
+- [ ] **Make `LinkGate.isUp()`'s doc true or its state match it.** It says a link attached but not
+      yet bound cannot carry a request, while `up` starts `true`, so the first link and a server
+      session are up before any bind. From the comprehension panel of #25.
+
+- [ ] **Move `checkSessionOptions()`'s doc comment to what it describes.** It explains why a count
+      below 1 is refused, which is `checkLimits`' job, and says nothing of the function it heads.
+      From the comprehension panel of #25.
+
+- [ ] **Log why `DlrMerger.expect()` registered no merge.** Ids with no common `<base>-<n>`
+      numbering return silently, the likeliest cause of a `messageDlr` that never fires and the one
+      that leaves no trace. From the comprehension panel of #25.
+
 - [ ] **Make "every README example is executed by the suite" true, or stop claiming it.** Goal 10 and
       the Done table both promise it; `test/readme.test.ts` transcribes the examples by hand and has
       drifted — 15 fenced `javascript` blocks in the README against 10 tests, and the test named "the
