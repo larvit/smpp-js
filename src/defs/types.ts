@@ -17,6 +17,31 @@ export type ParamValue = Buffer | DestAddress[] | UnsuccessSme[] | number | stri
 /** A tag defined `multiple` holds every occurrence, in wire order; any other tag holds one value. */
 export type TlvValue = Buffer | Buffer[] | number | number[] | string;
 
+/** Octets a value holds, counting a string by its length. */
+export function tlvOctets(value: TlvValue): number {
+	if (Buffer.isBuffer(value)) return value.length;
+	if (typeof value === 'string') return value.length;
+	if (typeof value === 'number') return 0;
+
+	let octets = 0;
+
+	for (const one of value) {
+		octets += typeof one === 'number' ? 0 : one.length;
+	}
+
+	return octets;
+}
+
+/** A value holding no view into the PDU it was read from. */
+export function detachedTlv(value: TlvValue): TlvValue {
+	if (Buffer.isBuffer(value)) return Buffer.from(value);
+	if (!Array.isArray(value)) return value;
+
+	const buffers = value.filter(one => Buffer.isBuffer(one));
+
+	return buffers.length === value.length ? buffers.map(one => Buffer.from(one)) : value;
+}
+
 /**
  * One field on the wire. `read` reports how many octets it consumed so callers never have to
  * re-derive a length that could disagree with what was actually written.

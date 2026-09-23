@@ -1824,6 +1824,27 @@ describe('reassembly bounds', () => {
 		assert.equal(collectPayload(40).kept, true);
 	});
 
+	// One segment is 36 octets before its two 10-octet callback numbers.
+	test('counts every occurrence of a repeatable TLV against the octet cap', () => {
+		function collectCallbacks(maxOctets: number): Collected {
+			const reassembler = new Reassembler({
+				log: silentLog,
+				max: 10,
+				maxOctets,
+				now: () => 0,
+				onLost: () => undefined,
+				timeout: 60_000,
+			});
+			const carried = segment(9, 1, 2);
+			const tagValue = [Buffer.alloc(10, 0x31), Buffer.alloc(10, 0x32)];
+
+			return collectPdu(reassembler, { ...carried, tlvs: { callback_num: { tagId: 0x0381, tagName: 'callback_num', tagValue } } });
+		}
+
+		assert.equal(collectCallbacks(50).kept, false);
+		assert.equal(collectCallbacks(60).kept, true);
+	});
+
 	// The segments before it were answered ESME_ROK, so dropping those is not the same as refusing one.
 	test('reports the answered segments of a group that overruns the cap mid-message', () => {
 		const lost: LostGroup[] = [];

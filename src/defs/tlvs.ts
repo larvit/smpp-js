@@ -2,17 +2,14 @@ import type { ParamValue, TlvValue, WireType } from './types.ts';
 import type { Result } from '../result.ts';
 import { tlv } from './types.ts';
 
-export type TlvDefinition = {
-	id: number;
-	multiple?: boolean;
-	tag: string;
-	type: WireType;
-};
+/** Only a tag read as octets or as a number may repeat, since its occurrences are listed as one of those. */
+type Definition<Tag> = { id: number; multiple?: false; tag: Tag; type: WireType<Buffer | number | string> }
+	| { id: number; multiple: true; tag: Tag; type: WireType<Buffer> | WireType<number> };
+
+export type TlvDefinition = Definition<string>;
 
 /** The constraint keys every definition to its own name, so a `tag` that drifts fails to compile. */
-const tlvSpecs = <T extends { [K in keyof T]: { id: number; multiple?: boolean; tag: K; type: WireType } }>(
-	definitions: T,
-): T => definitions;
+const tlvSpecs = <T extends { [K in keyof T]: Definition<K> }>(definitions: T): T => definitions;
 
 // Ordered by tag id, mirroring the SMPP 5.0 TLV table.
 const specs = tlvSpecs({
@@ -98,7 +95,7 @@ for (const definition of Object.values<TlvDefinition>(specs)) {
 }
 
 /** Fallback for tags this table does not know: keep the raw octets. */
-export const tlvDefault: WireType = tlv.buffer;
+export const tlvDefault: WireType<Buffer> = tlv.buffer;
 
 export type Tlv = {
 	tagId: number;
@@ -181,4 +178,69 @@ function writeTlv(tagId: number, type: WireType, value: ParamValue): Result<{ ch
 	const written = type.write(value, chunk, 4);
 
 	return written.err ? { err: written.err } : { chunk };
+}
+
+type Occurrence = { definition: TlvDefinition | undefined; tagId: number; value: Buffer | number | string };
+
+function readTlv(pdu: Buffer, offset: number): Result<{ octets: number; occurrence: Occurrence }> {
+	const tagId = pdu.readUInt16BE(offset);
+	const tagLength = pdu.readUInt16BE(offset + 2);
+
+	if (offset + 4 + tagLength > pdu.length) {
+		return { err: new Error(`TLV ${String(tagId)} runs past the end of the PDU`) };
+	}
+
+	const definition = tlvsById[tagId];
+	const read = (definition?.type ?? tlvDefault).read(pdu, offset + 4, tagLength);
+
+	if (read.err) return { err: read.err };
+
+	return { occurrence: { definition, tagId, value: read.value }, octets: 4 + tagLength };
+}
+
+/** Keyed by tag name, a repeatable tag listing every occurrence in wire order and any other keeping its last. */
+function keyedTlvs(occurrences: Occurrence[]): Record<string, Tlv> {
+	const repeated = new Map<string, { tagId: number; values: Occurrence['value'][] }>();
+	const tlvs: Record<string, Tlv> = {};
+
+	for (const { definition, tagId, value } of occurrences) {
+		const key = definition?.tag ?? tagId.toString();
+
+		if (definition?.multiple === true) {
+			const entry = repeated.get(key) ?? { tagId, values: [] };
+
+			entry.values.push(value);
+			repeated.set(key, entry);
+		} else {
+			tlvs[key] = { tagId, tagName: definition?.tag, tagValue: value };
+		}
+	}
+
+	for (const [key, { tagId, values }] of repeated) {
+		const buffers = values.filter(value => Buffer.isBuffer(value));
+
+		tlvs[key] = {
+			tagId,
+			tagName: key,
+			tagValue: buffers.length === values.length ? buffers : values.filter(value => typeof value === 'number'),
+		};
+	}
+
+	return tlvs;
+}
+
+export function parseTlvs(pdu: Buffer, start: number): Result<{ offset: number; tlvs: Record<string, Tlv> }> {
+	const occurrences: Occurrence[] = [];
+	let offset = start;
+
+	while (offset + 4 <= pdu.length) {
+		const read = readTlv(pdu, offset);
+
+		if (read.err) return { err: read.err };
+
+		occurrences.push(read.occurrence);
+		offset += read.octets;
+	}
+
+	return { offset, tlvs: keyedTlvs(occurrences) };
 }

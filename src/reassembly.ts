@@ -6,7 +6,7 @@ import type { Tlv } from './defs/tlvs.ts';
 import { ExpiringGroups } from './expiring-groups.ts';
 import { decodeMessage } from './message.ts';
 import { messageOctets } from './message-body.ts';
-import { paramNumber, paramText } from './defs/types.ts';
+import { detachedTlv, paramNumber, paramText, tlvOctets } from './defs/types.ts';
 import { uuidv7 } from './uuid.ts';
 
 /** A concatenated message given up on, whose segments the peer has already been answered for. */
@@ -62,9 +62,7 @@ function detach(pduObj: PduObject): PduObject {
 	}
 
 	for (const [name, tlv] of Object.entries(pduObj.tlvs)) {
-		tlvs[name] = Buffer.isBuffer(tlv.tagValue)
-			? { ...tlv, tagValue: Buffer.from(tlv.tagValue) }
-			: tlv;
+		tlvs[name] = { ...tlv, tagValue: detachedTlv(tlv.tagValue) };
 	}
 
 	// short_message holds the same octets wherever it was not decoded, so one copy covers both.
@@ -76,7 +74,7 @@ function detach(pduObj: PduObject): PduObject {
 }
 
 // A cstring param arrives as a string, and source_addr alone can carry most of a 1 MiB PDU.
-function sizeOf(value: unknown): number {
+function sizeOf(value: ParamValue): number {
 	if (Buffer.isBuffer(value)) return value.length;
 
 	return typeof value === 'string' ? value.length : 0;
@@ -90,7 +88,7 @@ function octetsOf(pduObj: PduObject): number {
 	}
 
 	for (const tlv of Object.values(pduObj.tlvs)) {
-		octets += sizeOf(tlv.tagValue);
+		octets += tlvOctets(tlv.tagValue);
 	}
 
 	return octets;

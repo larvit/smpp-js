@@ -189,6 +189,15 @@ and is also what the panel ranked hardest — two methods, one answer.
 
 ### Correctness, ahead of everything below
 
+- [ ] **Settle what a repeated tag not marked `multiple` reads as, and pin it in a test.** A vendor
+      tag or a known single-value tag a peer sends twice keeps the last occurrence and drops the
+      rest silently, which goal 3 argues against; listing it would change every such tag's shape.
+      From the architecture review of #25.
+
+- [ ] **Refuse a TLV input naming one tag under both its spellings.** `broadcast_area_identifier`
+      and `failed_broadcast_area_identifier` in one `tlvs` record both write, so the peer receives
+      the union of two lists the caller may have meant as one. From the architecture review of #25.
+
 - [ ] **Test that a multipart send which errors never fires `messageDlr`.** Goal 2 now says so and
       README promises it; `session-extras.test.ts` covers a drop *after* the send, not one during it.
 
