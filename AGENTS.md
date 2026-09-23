@@ -82,7 +82,7 @@ src/
 		constants.ts     consts + constsById, and the SMPP version constants
 		encodings.ts     GSM 03.38, LATIN1, UCS2, detection, data_coding resolution
 		errors.ts        errors + errorsById (ESME_*)
-		tlvs.ts          TLV definitions, tlvsById, the input shape, and writing a TLV stream
+		tlvs.ts          TLV definitions, tlvsById, the input shape, and reading and writing a TLV stream
 		types.ts         Wire types: int8/int16/int32/string/cstring/buffer/arrays
 ```
 
