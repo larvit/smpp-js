@@ -29,7 +29,6 @@ import { client } from '../src/client.ts';
 import { closeAfter, closeListenerAfter } from './teardown.ts';
 import { concatOf } from '../src/concat.ts';
 import { consts } from '../src/defs/constants.ts';
-import { detach } from '../src/retained-pdu.ts';
 import { errors } from '../src/defs/errors.ts';
 import { paramNumber, paramText } from '../src/defs/types.ts';
 import { server } from '../src/server.ts';
@@ -1504,7 +1503,8 @@ describe('held message bounds', () => {
 
 	// submitPdu() holds 1026 octets by the maxOctets charge: its object, and the three text fields.
 	test('drops the message held longest once the octets held pass the cap', () => {
-		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 2100, timeout: 10_000 });
+		let now = 0;
+		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 2100, now: () => now, timeout: 10_000 });
 		const oldest = message(1);
 
 		held.hold(oldest);
@@ -1516,6 +1516,26 @@ describe('held message bounds', () => {
 
 		assert.equal(held.size, 2);
 		assert.equal(held.has(oldest), false);
+
+		// A message that leaves any other way gives its octets back, so two still fit afterwards.
+		const answered = message(4);
+
+		held.hold(answered);
+		held.release(answered);
+		held.hold(message(5));
+		assert.equal(held.size, 2, 'after a release');
+
+		now = 20_000;
+		held.sweep();
+		now = 0;
+		held.hold(message(6));
+		held.hold(message(7));
+		assert.equal(held.size, 2, 'after a sweep');
+
+		held.clear();
+		held.hold(message(8));
+		held.hold(message(9));
+		assert.equal(held.size, 2, 'after a clear');
 
 		held.clear();
 	});
@@ -1534,13 +1554,30 @@ describe('held message bounds', () => {
 		held.clear();
 	});
 
-	test('holds a message detached from the chunk it was read from', () => {
+	test('holds a message detached from the chunk it was read from', async t => {
+		const session = new Session({ sock: new net.Socket() });
+
+		closeAfter(t, session);
+		session.boundAs = 'transceiver';
+
+		const incoming = new IncomingRequests({
+			dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
+			log: silentLog,
+			sendPastDrain: () => Promise.resolve({ err: new Error('never sent') }),
+			session,
+		});
 		const chunk = Buffer.alloc(64 * 1024);
 		const carried = submitPdu(1);
-		const retained = detach({ ...carried, params: { ...carried.params, short_message: chunk.subarray(16, 20) } });
+		let received: Sms | undefined;
 
-		assert.ok(Buffer.isBuffer(retained.params.short_message));
-		assert.notEqual(retained.params.short_message.buffer, chunk.buffer);
+		session.on('sms', sms => { received = sms; });
+		await incoming.handle({ ...carried, params: { ...carried.params, short_message: chunk.subarray(16, 20) } });
+
+		const retained = received?.pduObjs[0]?.params.short_message;
+
+		assert.ok(Buffer.isBuffer(retained));
+		assert.notEqual(retained.buffer, chunk.buffer);
+		incoming.clear();
 	});
 
 	test('gives up on a message the application never answers', () => {

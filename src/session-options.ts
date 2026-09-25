@@ -128,7 +128,7 @@ export const defaults = {
 	heldMessageTimeout: 300_000,
 	maxDlrMerges: 1000,
 	maxHeldMessages: 1000,
-	maxHeldOctets: defaultMaxOctets,
+	maxHeldOctets: 64 * 1024 * 1024,
 	maxOutstanding: 10,
 	maxReassembly: 1000,
 	reassemblyTimeout: 300_000,
