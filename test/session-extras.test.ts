@@ -29,6 +29,7 @@ import { client } from '../src/client.ts';
 import { closeAfter, closeListenerAfter } from './teardown.ts';
 import { concatOf } from '../src/concat.ts';
 import { consts } from '../src/defs/constants.ts';
+import { detach } from '../src/retained-pdu.ts';
 import { errors } from '../src/defs/errors.ts';
 import { paramNumber, paramText } from '../src/defs/types.ts';
 import { server } from '../src/server.ts';
@@ -1483,7 +1484,7 @@ describe('held message bounds', () => {
 	}
 
 	test('drops the message held longest rather than holding every one', () => {
-		const held = new HeldMessages({ log: silentLog, max: 2, timeout: 10_000 });
+		const held = new HeldMessages({ log: silentLog, max: 2, maxOctets: 1_000_000, timeout: 10_000 });
 		const oldest = message(1);
 
 		held.hold(oldest);
@@ -1501,9 +1502,50 @@ describe('held message bounds', () => {
 		held.clear();
 	});
 
+	// submitPdu() holds 1026 octets by the maxOctets charge: its object, and the three text fields.
+	test('drops the message held longest once the octets held pass the cap', () => {
+		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 2100, timeout: 10_000 });
+		const oldest = message(1);
+
+		held.hold(oldest);
+		held.hold(message(2));
+
+		assert.equal(held.size, 2);
+
+		held.hold(message(3));
+
+		assert.equal(held.size, 2);
+		assert.equal(held.has(oldest), false);
+
+		held.clear();
+	});
+
+	// Dropping it would leave the drain blind to a message the peer is still owed an answer for.
+	test('keeps a message larger than the cap on its own', () => {
+		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 1000, timeout: 10_000 });
+		const large = message(2);
+
+		held.hold(message(1));
+		held.hold(large);
+
+		assert.equal(held.size, 1);
+		assert.equal(held.has(large), true);
+
+		held.clear();
+	});
+
+	test('holds a message detached from the chunk it was read from', () => {
+		const chunk = Buffer.alloc(64 * 1024);
+		const carried = submitPdu(1);
+		const retained = detach({ ...carried, params: { ...carried.params, short_message: chunk.subarray(16, 20) } });
+
+		assert.ok(Buffer.isBuffer(retained.params.short_message));
+		assert.notEqual(retained.params.short_message.buffer, chunk.buffer);
+	});
+
 	test('gives up on a message the application never answers', () => {
 		let now = 0;
-		const held = new HeldMessages({ log: silentLog, max: 10, now: () => now, timeout: 60 });
+		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 1_000_000, now: () => now, timeout: 60 });
 
 		held.hold(message(1));
 		now = 61;
@@ -1519,7 +1561,7 @@ describe('held message bounds', () => {
 	// Without this the drain sits out its whole budget before returning what a sweep already settled.
 	test('wakes a waiting drain when the last message expires', async () => {
 		let now = 0;
-		const held = new HeldMessages({ log: silentLog, max: 10, now: () => now, timeout: 60 });
+		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 1_000_000, now: () => now, timeout: 60 });
 
 		held.hold(message(1));
 

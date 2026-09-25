@@ -383,8 +383,9 @@ holds for `session.send()`.
    message has failed. Answering through `sendReturn()` instead leaves the wait running.
 3. Tear down what is left, resolving to an `err` that says what was lost.
 
-At most 1000 unanswered messages are held, for five minutes each; what falls out of either bound is
-dropped with a warning on the log and waited for no longer. Neither bound is an option.
+At most 1000 unanswered messages, and 64 MiB of them by the `maxOctets` charge, are held for five
+minutes each; what falls out of a bound is dropped with a warning on the log and waited for no
+longer. None of the bounds is an option.
 `close({ signal })` cuts the wait short. `unbind()` takes no signal, and waits a further
 `responseTimeout` for its own response.
 

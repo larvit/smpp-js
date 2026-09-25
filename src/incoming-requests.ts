@@ -13,6 +13,7 @@ import { Reassembler, decodeSegments } from './reassembly.ts';
 import { bindCommands, defaults, standsInFor } from './session-options.ts';
 import { concatOf } from './concat.ts';
 import { createSms } from './sms.ts';
+import { detach } from './retained-pdu.ts';
 import { dlrFromPdu } from './dlr.ts';
 import { paramText } from './defs/types.ts';
 import { respIdParams, segmentId } from './sms-id.ts';
@@ -72,6 +73,7 @@ export class IncomingRequests {
 		this.held = new HeldMessages({
 			log: options.log,
 			max: defaults.maxHeldMessages,
+			maxOctets: defaults.maxHeldOctets,
 			timeout: defaults.heldMessageTimeout,
 		});
 		this.log = options.log;
@@ -213,7 +215,7 @@ export class IncomingRequests {
 		const concat = concatOf(pduObj);
 
 		if (!concat) {
-			this.emitSms([pduObj]);
+			this.emitSms([detach(pduObj)]);
 
 			return;
 		}

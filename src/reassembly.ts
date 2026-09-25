@@ -1,12 +1,11 @@
 import type { Concat } from './concat.ts';
-import type { ParamValue } from './defs/types.ts';
 import type { PduObject } from './pdu.ts';
 import type { SmppLog } from './log.ts';
-import type { Tlv } from './defs/tlvs.ts';
 import { ExpiringGroups } from './expiring-groups.ts';
 import { decodeMessage } from './message.ts';
+import { detach, retainedOctets } from './retained-pdu.ts';
 import { messageOctets } from './message-body.ts';
-import { detachedTlv, paramNumber, paramText, tlvOctets } from './defs/types.ts';
+import { paramNumber, paramText } from './defs/types.ts';
 import { uuidv7 } from './uuid.ts';
 
 /** A concatenated message given up on, whose segments the peer has already been answered for. */
@@ -51,54 +50,6 @@ type Group = {
 	smsId: string;
 	total: number;
 };
-
-/** Wire reads hand back views, so retaining one segment would pin the whole PDU it arrived in. */
-function detach(pduObj: PduObject): PduObject {
-	const params: Record<string, ParamValue> = {};
-	const tlvs: Record<string, Tlv> = {};
-
-	for (const [name, value] of Object.entries(pduObj.params)) {
-		params[name] = Buffer.isBuffer(value) ? Buffer.from(value) : value;
-	}
-
-	for (const [name, tlv] of Object.entries(pduObj.tlvs)) {
-		tlvs[name] = { ...tlv, tagValue: detachedTlv(tlv.tagValue) };
-	}
-
-	// short_message holds the same octets wherever it was not decoded, so one copy covers both.
-	const octets = Buffer.isBuffer(params.short_message)
-		? params.short_message
-		: pduObj.shortMessageOctets && Buffer.from(pduObj.shortMessageOctets);
-
-	return { ...pduObj, params, shortMessageOctets: octets, tlvs };
-}
-
-// Measured heap beyond the octets, so a segment of empty fields or empty TLVs is not free.
-const segmentObjectOverhead = 1000;
-const tlvObjectOverhead = 300;
-
-// A cstring param arrives as a string, and source_addr alone can carry most of a 1 MiB PDU.
-function sizeOf(value: ParamValue): number {
-	if (Buffer.isBuffer(value)) return value.length;
-
-	return typeof value === 'string' ? value.length : 0;
-}
-
-function octetsOf(pduObj: PduObject): number {
-	let octets = segmentObjectOverhead;
-
-	for (const value of Object.values(pduObj.params)) {
-		octets += sizeOf(value);
-	}
-
-	for (const tlv of Object.values(pduObj.tlvs)) {
-		const listed = Array.isArray(tlv.tagValue) ? tlv.tagValue.length : 0;
-
-		octets += tlvOctets(tlv.tagValue) + (1 + listed) * tlvObjectOverhead;
-	}
-
-	return octets;
-}
 
 // NUL: the one octet a C-Octet String address cannot hold, so no sender can forge another's key.
 function groupKey(pduObj: PduObject, concat: Concat): string {
@@ -169,7 +120,7 @@ export class Reassembler {
 		const group = existing ?? this.open(key, concat.total);
 		const replaced = group.parts.get(concat.part);
 		const segment = detach(pduObj);
-		const delta = octetsOf(segment) - (replaced === undefined ? 0 : octetsOf(replaced));
+		const delta = retainedOctets(segment) - (replaced === undefined ? 0 : retainedOctets(replaced));
 
 		group.parts.set(concat.part, segment);
 		group.octets += delta;

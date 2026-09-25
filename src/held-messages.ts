@@ -2,10 +2,12 @@ import type { PduObject } from './pdu.ts';
 import type { SmppLog } from './log.ts';
 import { ExpiringGroups } from './expiring-groups.ts';
 import { IdleWaiters } from './idle-waiters.ts';
+import { retainedOctets } from './retained-pdu.ts';
 
 export type HeldMessagesOptions = {
 	log: SmppLog;
 	max: number;
+	maxOctets: number;
 	/** Injected so expiry can be exercised without a wall clock. */
 	now?: (() => number) | undefined;
 	timeout: number;
@@ -18,12 +20,19 @@ function keyOf(pduObjs: PduObject[]): string | undefined {
 	return first ? String(first.seqNr) : undefined;
 }
 
+type Held = {
+	octets: number;
+	pduObjs: PduObject[];
+};
+
 /** The messages handed to the application that it has not answered yet, held by their segments. */
 export class HeldMessages {
-	private readonly held: ExpiringGroups<PduObject[]>;
+	private readonly held: ExpiringGroups<Held>;
 	private readonly idleWaiters = new IdleWaiters();
 	private readonly log: SmppLog;
 	private readonly max: number;
+	private readonly maxOctets: number;
+	private octets = 0;
 
 	constructor(options: HeldMessagesOptions) {
 		this.held = new ExpiringGroups({
@@ -34,6 +43,7 @@ export class HeldMessages {
 		});
 		this.log = options.log;
 		this.max = options.max;
+		this.maxOctets = options.maxOctets;
 	}
 
 	get size(): number {
@@ -48,35 +58,49 @@ export class HeldMessages {
 
 		this.sweep();
 
-		if (this.held.get(key)) {
+		const replaced = this.held.get(key);
+
+		if (replaced) {
 			this.log.warn('heldMessages - replacing a message on a re-used sequence number', { seqNr: Number(key) });
+			this.delete(key, replaced);
 		} else if (this.held.full) {
 			this.dropOldest();
 		}
 
-		this.held.set(key, pduObjs);
+		const octets = pduObjs.reduce((sum, pduObj) => sum + retainedOctets(pduObj), 0);
+
+		// The message just held stays even alone past the cap: the peer is still owed its answer.
+		while (this.held.size > 0 && this.octets + octets > this.maxOctets) {
+			this.dropOldest();
+		}
+
+		this.held.set(key, { octets, pduObjs });
+		this.octets += octets;
 	}
 
 	/** Whether a drain is still waiting for this message to be answered. */
 	has(pduObjs: PduObject[]): boolean {
 		const key = keyOf(pduObjs);
 
-		return key !== undefined && this.held.get(key) === pduObjs;
+		return key !== undefined && this.held.get(key)?.pduObjs === pduObjs;
 	}
 
 	release(pduObjs: PduObject[]): void {
 		const key = keyOf(pduObjs);
 
 		// Identity, not the key: a wrapped sequence number must not release someone else's message.
-		if (key === undefined || this.held.get(key) !== pduObjs) return;
+		const held = key === undefined ? undefined : this.held.get(key);
 
-		this.held.delete(key);
+		if (key === undefined || held?.pduObjs !== pduObjs) return;
+
+		this.delete(key, held);
 		this.settle();
 	}
 
 	/** Drops every message: their segments went with the link, so no answer of ours correlates now. */
 	clear(): void {
 		this.held.takeAll();
+		this.octets = 0;
 		this.idleWaiters.settle();
 	}
 
@@ -90,10 +114,13 @@ export class HeldMessages {
 
 		if (!oldest) return;
 
-		const [seqNr] = oldest;
+		const [seqNr, held] = oldest;
 
+		this.octets -= held.octets;
 		this.log.warn('heldMessages - buffer full, dropping the oldest message', {
 			max: this.max,
+			maxOctets: this.maxOctets,
+			octets: this.octets,
 			seqNr: Number(seqNr),
 		});
 	}
@@ -104,10 +131,19 @@ export class HeldMessages {
 
 		if (expired.length === 0) return;
 
+		for (const [, held] of expired) {
+			this.octets -= held.octets;
+		}
+
 		this.log.warn('heldMessages - messages the application never answered', {
 			messages: expired.length,
 		});
 		this.settle();
+	}
+
+	private delete(key: string, held: Held): void {
+		this.held.delete(key);
+		this.octets -= held.octets;
 	}
 
 	private settle(): void {

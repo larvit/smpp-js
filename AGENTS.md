@@ -70,6 +70,7 @@ src/
 	reassembly.ts        Reassembler: capped, expiring multipart groups
 	reconnect-loop.ts    ReconnectLoop: backoff, retry timer, stopped-ness
 	result.ts            Result<T> — the shape every fallible call returns
+	retained-pdu.ts      A PDU copied off the wire so holding it pins nothing else, and what holding it costs
 	send-sms.ts          submitSms composition and the submitSmParams builder
 	send-window.ts       SendWindow: the maxOutstanding semaphore
 	session-options.ts   SessionOptions, ReconnectOptions, bind direction and the session defaults

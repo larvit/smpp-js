@@ -40,6 +40,9 @@
   count as next to nothing, so a peer could hold far more than the cap. **Raise a `maxOctets` you
   tuned low**: it now holds several times fewer segments, and an incomplete message evicted over
   the cap is lost, since its segments were already answered.
+- Unanswered `sms` messages are capped at 64 MiB per session by the `maxOctets` charge, beside the
+  1000-message cap: the oldest is dropped with a warning, as over the count. A peer faster than an
+  application answering asynchronously could hold gigabytes per session.
 - `server()` refuses a `maxOctets` below 1 or not a whole number, `Infinity` included, like its
   other limits. `server({ maxOctets: 0 })` used to start and then refuse every multipart message.
 - `callback_num`, `callback_num_atag`, `callback_num_pres_ind`, `broadcast_area_identifier` and

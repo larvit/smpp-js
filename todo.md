@@ -6,14 +6,6 @@ hard rules first — they constrain every item below.
 This is a working file that sets its own rules. The documentation conventions in AGENTS.md do not
 govern it, and nothing here is a source anything else may cite.
 
-## Security
-
-- [ ] **Bound the heap `HeldMessages` keeps, not only its count.** It holds up to 1000 messages the
-      application has not answered for up to 300 s, each as the PDUs it arrived in, undetached and
-      uncharged: one 200 KB PDU of 50,000 empty unknown TLVs is 15 MB of heap, and a completed
-      reassembly is up to `maxOctets`. A peer faster than an application answering asynchronously
-      holds gigabytes per session. From the stability review of #27.
-
 ## Status
 
 The rewrite is **feature complete and green**: the suite, lint and typecheck are clean on Node 18
