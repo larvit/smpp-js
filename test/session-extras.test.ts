@@ -1805,7 +1805,7 @@ describe('reassembly bounds', () => {
 		assert.deepEqual(lost, [], 'the peer holds the only segment there was, so nothing was lost');
 	});
 
-	// The two addresses are 22 octets, so only the 14 the TLV carries can overrun a cap of 30.
+	// The two addresses and the TLV's object are 222 octets, so only the 14 it carries can overrun a cap of 230.
 	test('counts a body carried in message_payload against the octet cap', () => {
 		function collectPayload(maxOctets: number): Collected {
 			const reassembler = new Reassembler({
@@ -1820,12 +1820,12 @@ describe('reassembly bounds', () => {
 			return collectPdu(reassembler, payloadSegment(9, 1, 2));
 		}
 
-		assert.equal(collectPayload(30).kept, false, 'a TLV body the cap cannot hold is refused, not dropped later');
-		assert.equal(collectPayload(40).kept, true);
+		assert.equal(collectPayload(230).kept, false, 'a TLV body the cap cannot hold is refused, not dropped later');
+		assert.equal(collectPayload(240).kept, true);
 	});
 
-	test('counts every occurrence of a repeatable TLV against the octet cap, empty ones included', () => {
-		function collectCallbacks(maxOctets: number, tagValue: Buffer[]): Collected {
+	test('counts every TLV and every occurrence of a repeatable one against the octet cap, empty ones included', () => {
+		function collectTlvs(maxOctets: number, tlvs: PduObject['tlvs']): Collected {
 			const reassembler = new Reassembler({
 				log: silentLog,
 				max: 10,
@@ -1834,11 +1834,17 @@ describe('reassembly bounds', () => {
 				onLost: () => undefined,
 				timeout: 60_000,
 			});
-			const carried = segment(9, 1, 2);
 
-			return collectPdu(reassembler, { ...carried, tlvs: { callback_num: { tagId: 0x0381, tagName: 'callback_num', tagValue } } });
+			return collectPdu(reassembler, { ...segment(9, 1, 2), tlvs });
 		}
+		function collectCallbacks(maxOctets: number, tagValue: Buffer[]): Collected {
+			return collectTlvs(maxOctets, { callback_num: { tagId: 0x0381, tagName: 'callback_num', tagValue } });
+		}
+		const unknownTags = Object.fromEntries(Array.from({ length: 10_000 }, (_, i) => {
+			const tagId = 0x4000 + i;
 
+			return [String(tagId), { tagId, tagName: undefined, tagValue: Buffer.alloc(0) }];
+		}));
 		const numbers = [Buffer.alloc(10_000, 0x31), Buffer.alloc(10_000, 0x32)];
 
 		assert.equal(collectCallbacks(20_000, numbers).kept, false);
@@ -1848,6 +1854,7 @@ describe('reassembly bounds', () => {
 			false,
 			'an empty occurrence still holds an object',
 		);
+		assert.equal(collectTlvs(30_000, unknownTags).kept, false, 'an empty tag still holds an object');
 	});
 
 	// The segments before it were answered ESME_ROK, so dropping those is not the same as refusing one.
@@ -1921,9 +1928,9 @@ describe('reassembly bounds', () => {
 		assert.equal(counted.size, 1, 'the second group evicted the first, as a UDH group would');
 		counted.clear();
 
-		// A sar_* segment is the two 11-octet addresses plus an 8-octet body, with no UDH to carry.
-		assert.equal(collectSar(capped(20), 3, 1, 2).kept, false);
-		assert.equal(collectSar(capped(30), 3, 1, 2).kept, true);
+		// A sar_* segment is the two 11-octet addresses, an 8-octet body and three 200-octet TLV objects.
+		assert.equal(collectSar(capped(620), 3, 1, 2).kept, false);
+		assert.equal(collectSar(capped(630), 3, 1, 2).kept, true);
 	});
 
 	// Nothing else says a message the peer has already been answered for was thrown away.

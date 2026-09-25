@@ -73,8 +73,8 @@ function detach(pduObj: PduObject): PduObject {
 	return { ...pduObj, params, shortMessageOctets: octets, tlvs };
 }
 
-// Roughly the heap a listed occurrence costs beyond its value, so a PDU of empty repeats is not free.
-const listedTlvOverhead = 200;
+// Roughly the heap a TLV or listed occurrence costs beyond its value, so a PDU of empty ones is not free.
+const tlvObjectOverhead = 200;
 
 // A cstring param arrives as a string, and source_addr alone can carry most of a 1 MiB PDU.
 function sizeOf(value: ParamValue): number {
@@ -93,7 +93,7 @@ function octetsOf(pduObj: PduObject): number {
 	for (const tlv of Object.values(pduObj.tlvs)) {
 		const listed = Array.isArray(tlv.tagValue) ? tlv.tagValue.length : 0;
 
-		octets += tlvOctets(tlv.tagValue) + listed * listedTlvOverhead;
+		octets += tlvOctets(tlv.tagValue) + (1 + listed) * tlvObjectOverhead;
 	}
 
 	return octets;

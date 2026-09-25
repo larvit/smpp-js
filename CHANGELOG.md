@@ -35,6 +35,9 @@
 - An `alert_notification` or an `outbind` from the peer is logged and left unanswered, as SMPP 3.4
   gives neither a response. Each one used to emit `sessionError`, `"alert_notification" has no
   response command`.
+- `maxOctets` charges every TLV a held segment carries for the memory it keeps, empty ones
+  included. A peer could hold megabytes per segment beyond the cap by sending thousands of empty
+  TLVs, which it counted as nothing.
 - `server()` refuses a `maxOctets` below 1 or not a whole number, `Infinity` included, like its
   other limits. `server({ maxOctets: 0 })` used to start and then refuse every multipart message.
 - `callback_num`, `callback_num_atag`, `callback_num_pres_ind`, `broadcast_area_identifier` and
