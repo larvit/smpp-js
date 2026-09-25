@@ -37,9 +37,9 @@
   response command`.
 - `maxOctets` charges each held segment 1000 octets beyond its own, 300 more per TLV on it, and 300
   per occurrence of a repeatable one. Segments of empty fields or thousands of empty TLVs used to
-  count as next to nothing, so a peer could hold far more than the cap. **Raise a `maxOctets` you tuned low**: it now
-  holds a sixth to a tenth as many segments, and an incomplete message evicted over the cap is lost,
-  since its segments were already answered.
+  count as next to nothing, so a peer could hold far more than the cap. **Raise a `maxOctets` you
+  tuned low**: it now holds several times fewer segments, and an incomplete message evicted over
+  the cap is lost, since its segments were already answered.
 - `server()` refuses a `maxOctets` below 1 or not a whole number, `Infinity` included, like its
   other limits. `server({ maxOctets: 0 })` used to start and then refuse every multipart message.
 - `callback_num`, `callback_num_atag`, `callback_num_pres_ind`, `broadcast_area_identifier` and
