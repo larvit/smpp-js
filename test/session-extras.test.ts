@@ -1805,7 +1805,7 @@ describe('reassembly bounds', () => {
 		assert.deepEqual(lost, [], 'the peer holds the only segment there was, so nothing was lost');
 	});
 
-	// The two addresses and the TLV's object are 222 octets, so only the 14 it carries can overrun a cap of 230.
+	// The two addresses and the segment's and TLV's objects are 1322 octets, so only the 14 it carries can overrun 1330.
 	test('counts a body carried in message_payload against the octet cap', () => {
 		function collectPayload(maxOctets: number): Collected {
 			const reassembler = new Reassembler({
@@ -1820,11 +1820,11 @@ describe('reassembly bounds', () => {
 			return collectPdu(reassembler, payloadSegment(9, 1, 2));
 		}
 
-		assert.equal(collectPayload(230).kept, false, 'a TLV body the cap cannot hold is refused, not dropped later');
-		assert.equal(collectPayload(240).kept, true);
+		assert.equal(collectPayload(1330).kept, false, 'a TLV body the cap cannot hold is refused, not dropped later');
+		assert.equal(collectPayload(1340).kept, true);
 	});
 
-	test('counts every TLV and every occurrence of a repeatable one against the octet cap, empty ones included', () => {
+	test('counts the objects a segment and each of its TLVs hold against the octet cap, empty ones included', () => {
 		function collectTlvs(maxOctets: number, tlvs: PduObject['tlvs']): Collected {
 			const reassembler = new Reassembler({
 				log: silentLog,
@@ -1854,7 +1854,11 @@ describe('reassembly bounds', () => {
 			false,
 			'an empty occurrence still holds an object',
 		);
-		assert.equal(collectTlvs(30_000, unknownTags).kept, false, 'an empty tag still holds an object');
+		// The segment itself is 1036 octets, so the tags must be charged 300 each to overrun 3,001,000.
+		assert.equal(collectTlvs(3_001_000, unknownTags).kept, false, 'an empty tag still holds an object');
+		assert.equal(collectTlvs(3_002_000, unknownTags).kept, true);
+		assert.equal(collectTlvs(1_000, {}).kept, false, 'a segment holds objects beyond its 36 octets');
+		assert.equal(collectTlvs(1_036, {}).kept, true);
 	});
 
 	// The segments before it were answered ESME_ROK, so dropping those is not the same as refusing one.
@@ -1863,8 +1867,8 @@ describe('reassembly bounds', () => {
 		const reassembler = new Reassembler({
 			log: silentLog,
 			max: 10,
-			// One segment is 36 octets, so the second overruns a group already holding the first.
-			maxOctets: 50,
+			// One segment is 1036 octets, so the second overruns a group already holding the first.
+			maxOctets: 1050,
 			now: () => 0,
 			onLost: one => { lost.push(one); },
 			timeout: 60_000,
@@ -1928,9 +1932,9 @@ describe('reassembly bounds', () => {
 		assert.equal(counted.size, 1, 'the second group evicted the first, as a UDH group would');
 		counted.clear();
 
-		// A sar_* segment is the two 11-octet addresses, an 8-octet body and three 200-octet TLV objects.
-		assert.equal(collectSar(capped(620), 3, 1, 2).kept, false);
-		assert.equal(collectSar(capped(630), 3, 1, 2).kept, true);
+		// A sar_* segment is the two 11-octet addresses, an 8-octet body, its own object and three TLVs'.
+		assert.equal(collectSar(capped(1920), 3, 1, 2).kept, false);
+		assert.equal(collectSar(capped(1930), 3, 1, 2).kept, true);
 	});
 
 	// Nothing else says a message the peer has already been answered for was thrown away.
@@ -2046,8 +2050,8 @@ describe('reassembly bounds', () => {
 		const reassembler = new Reassembler({
 			log: silentLog,
 			max: 10,
-			// One segment is 36 octets: 14 of short_message plus the two 11-octet addresses.
-			maxOctets: 80,
+			// One segment is 1036 octets: 14 of short_message, the two 11-octet addresses and its object.
+			maxOctets: 2100,
 			now: () => 0,
 			onLost: () => undefined,
 			timeout: 60_000,

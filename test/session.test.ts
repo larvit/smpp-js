@@ -910,8 +910,8 @@ describe('receiving', () => {
 
 	// The refusal a submission gets is the one submit_sm_resp defines, whichever command carried it.
 	test('refuses a data_sm segment a server has no room for with the submit code', async t => {
-		// The two addresses are 22 octets, so the 6-octet UDH and its text are what overrun 30.
-		const smpp = await startServer(t, { maxOctets: 30 });
+		// The two addresses and the objects are 1322 octets, so the 6-octet UDH and its text are what overrun 1330.
+		const smpp = await startServer(t, { maxOctets: 1330 });
 		const { session } = await connect(t, smpp, { bindType: 'transmitter' });
 
 		assert.ok(session);
