@@ -664,32 +664,25 @@ rule and an index of the titles below.
   down while the application was still answering a `submit_sm`, so the peer timed out and re-sent —
   the duplicate goal 2 forbids, in the direction the window already covers. No completion signal was
   added to the `sms` event: `sendResp()` is what an application already calls when it is done with a
-  message, so it is the one the drain waits for. Counting every inbound request until `sendReturn()` answered it was rejected —
-  an `onRequest` that deliberately answers nothing would then cost a full `shutdownTimeout` on every
-  close — and a message no listener took is released at once, since nothing is going to answer it.
-  A listener that failed before answering gives it up the same way, but only once every listener has:
-  a throw stops `emit()` where it stands, while a rejection leaves the others running, so the release
-  waits for the last of them rather than answering on their behalf. What ends the wait is the response
-  reaching the wire, not the call — a `sendResp()` the library refused, or one the socket would not
-  carry, leaves the message held, so `close()` still reports the one the peer is owed. Where the
-  segments were answered as they arrived there is no response left to write, so the call itself ends
-  the wait, an argument the library refuses excepted. `teardown()`
-  drops what is still held for the same reason it drops inbound segments. The release is one turn
-  late, so a listener that sends its receipt straight after the response is still holding when the
-  drain looks; `sendDlr()` is the one send that goes out past the drain's refusal, and only while the
-  message is still held — past that it is an ordinary send, because the drain it would slip past is
-  no longer waiting for it. `shutdownTimeout: 0` does not carry over to this half:
-  waiting forever is safe for the peer, whose every request is bounded by `responseTimeout` unless the
-  caller set that to 0 as well, and unsafe for the application, which nothing bounds — `close()` is
-  what you reach for when the application is stuck, so it may not block on the application coming
-  unstuck. That half falls back to `responseTimeout`, the same answer the link gate's hold already
-  takes — and to that option's default where it is 0 as well, since neither option is an answer about
-  the application. What is held is capped and expiring like every other inbound store, on constants
-  rather than options, because a bound the application cannot raise is the point: an application that
-  answers nothing would otherwise grow it for the life of the link, which goal 4 forbids. A message
-  that falls out of the bound is one the drain stops waiting for, so `close()` can report fewer
-  unanswered than there were — accepted, because the alternative is holding what nothing will answer,
-  and both exits are logged.
+  message, so it is the one the drain waits for. Counting every inbound request until `sendReturn()`
+  answered it was rejected: an `onRequest` that deliberately answers nothing would then cost a full
+  `shutdownTimeout` on every close. The response reaching the wire ends the wait, so a `sendResp()`
+  the library refused or the socket would not carry leaves `close()` still reporting the message the
+  peer is owed.
+
+- **The drain's wait on the application ignores `shutdownTimeout: 0`.** Waiting forever is safe for
+  the peer, whose every request is bounded by `responseTimeout` unless the caller set that to 0 as
+  well, and unsafe for the application, which nothing bounds — `close()` is what you reach for when
+  the application is stuck, so it may not block on the application coming unstuck. That half falls
+  back to `responseTimeout`, the same answer the link gate's hold already takes — and to that
+  option's default where it is 0 as well, since neither option is an answer about the application.
+
+- **What the application holds unanswered is capped on constants.** A bound the application cannot
+  raise is the point: an application that answers nothing would otherwise grow it for the life of
+  the link, which goal 4 forbids. Reassembly's `maxOctets` is an option because it bounds what the
+  peer sends; this bounds what the application leaves unanswered. A message that falls out of a bound
+  is one the drain stops waiting for, so `close()` can report fewer unanswered than there were —
+  accepted, because the alternative is holding what nothing will answer.
 
 - **A reconnect keeps the delivery-receipt merges; everything else the link held is dropped.**
   `onDelivery()` answers each receipt before the group it belongs to is complete, and `teardown()`

@@ -301,6 +301,8 @@ the file.
   request that handling did not answer.
 - The drain waits on the messages the application holds, and `sendResp()` is what says it is done
   with one.
+- The drain's wait on the application ignores `shutdownTimeout: 0`.
+- What the application holds unanswered is capped on constants.
 - A reconnect keeps the delivery-receipt merges; everything else the link held is dropped.
 - A message id base is merged at most once.
 - A send that never reached the socket waits for the next link; one that did is counted, not resent.
