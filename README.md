@@ -261,7 +261,7 @@ All optional. Timeouts are milliseconds.
 | `tls` | `false` | A `tls.TlsOptions` object with your certificate and key. A bare `true` is refused. |
 | `idleTimeout` | `40000` | Drop a peer that has been silent this long. |
 | `maxReassembly` | `1000` | Incomplete multipart messages held per session. |
-| `maxOctets` | `67108864` | Roughly the memory incomplete multipart messages may hold per session. |
+| `maxOctets` | `67108864` | Roughly the memory incomplete multipart messages may hold per session: each held segment counts its octets plus 1000, and each TLV on it, every repeat included, 300 more. |
 | `reassemblyTimeout` | `300000` | How long a late segment can still join an incomplete message. |
 | `responseTimeout`, `shutdownTimeout`, `maxOutstanding`, `log`, `signal` | as for the client | |
 
