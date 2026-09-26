@@ -19,7 +19,11 @@ import { paramText } from './defs/types.ts';
 import { respIdParams, segmentId } from './sms-id.ts';
 import { respNameFor } from './defs/commands.ts';
 
-/** SMPP 3.4 lists ESME_RMSGQFUL under submit_sm_resp only; 4.6.2's retryable code is another. */
+/** Asks the peer to keep the message and retry: RTHROTTLED is the SMSC's to send, so an ESME's is another. */
+function throttledStatus(carriedAs: string): ErrorName {
+	return carriedAs === 'submit_sm' ? 'ESME_RTHROTTLED' : 'ESME_RX_T_APPN';
+}
+
 export function refusedSegmentStatus(
 	carriedAs: string,
 	refusal: Refusal,
@@ -30,7 +34,7 @@ export function refusedSegmentStatus(
 		return spelling === 'sar' ? 'ESME_RINVTLVVAL' : 'ESME_RINVESMCLASS';
 	}
 
-	return carriedAs === 'submit_sm' ? 'ESME_RMSGQFUL' : 'ESME_RX_T_APPN';
+	return throttledStatus(carriedAs);
 }
 
 const lostReasons: Record<LostGroup['reason'], string> = {
@@ -212,6 +216,16 @@ export class IncomingRequests {
 	 * one request at a time never sends the second segment until the first has been answered.
 	 */
 	private async onMessage(pduObj: PduObject): Promise<void> {
+		if (this.held.full()) {
+			this.log.info('session - unanswered messages at their bound, asking the peer to retry', {
+				cmdName: pduObj.cmdName,
+				seqNr: pduObj.seqNr,
+			});
+			await this.session.sendReturn(pduObj, throttledStatus(this.carriedAs(pduObj)));
+
+			return;
+		}
+
 		const concat = concatOf(pduObj);
 
 		if (!concat) {

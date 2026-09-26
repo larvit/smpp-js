@@ -1482,76 +1482,82 @@ describe('held message bounds', () => {
 		return [submitPdu(seqNr)];
 	}
 
-	test('drops the message held longest rather than holding every one', () => {
+	test('is full at its count, and a re-used sequence number replaces rather than adding', () => {
 		const held = new HeldMessages({ log: silentLog, max: 2, maxOctets: 1_000_000, timeout: 10_000 });
-		const oldest = message(1);
+		const first = message(1);
 
-		held.hold(oldest);
+		held.hold(first);
 		held.hold(message(2));
 		held.hold(message(2));
-
-		assert.equal(held.size, 2, 'a re-used sequence number replaces rather than evicting');
-		assert.equal(held.has(oldest), true);
-
-		held.hold(message(3));
 
 		assert.equal(held.size, 2);
-		assert.equal(held.has(oldest), false);
+		assert.equal(held.full(), true);
+		assert.equal(held.has(first), true);
 
 		held.clear();
 	});
 
 	// submitPdu() holds 1026 octets by the maxOctets charge: its object, and the three text fields.
-	test('drops the message held longest once the octets held pass the cap', () => {
+	test('is full at its octet cap, until a message leaves by any way out', () => {
 		let now = 0;
-		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 2100, now: () => now, timeout: 10_000 });
-		const oldest = message(1);
-
-		held.hold(oldest);
-		held.hold(message(2));
-
-		assert.equal(held.size, 2);
-
-		held.hold(message(3));
-
-		assert.equal(held.size, 2);
-		assert.equal(held.has(oldest), false);
-
-		// A message that leaves any other way gives its octets back, so two still fit afterwards.
-		const answered = message(4);
+		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 2000, now: () => now, timeout: 10_000 });
+		const answered = message(1);
 
 		held.hold(answered);
+		assert.equal(held.full(), false);
+		held.hold(message(2));
+		assert.equal(held.full(), true);
+
 		held.release(answered);
-		held.hold(message(5));
-		assert.equal(held.size, 2, 'after a release');
+		assert.equal(held.full(), false, 'after a release');
+		held.hold(message(3));
 
 		now = 20_000;
 		held.sweep();
 		now = 0;
-		held.hold(message(6));
-		held.hold(message(7));
-		assert.equal(held.size, 2, 'after a sweep');
+		assert.equal(held.full(), false, 'after a sweep');
+		held.hold(message(4));
+		held.hold(message(5));
 
 		held.clear();
-		held.hold(message(8));
-		held.hold(message(9));
-		assert.equal(held.size, 2, 'after a clear');
-
-		held.clear();
+		assert.equal(held.full(), false, 'after a clear');
 	});
 
-	// Dropping it would leave the drain blind to a message the peer is still owed an answer for.
-	test('keeps a message larger than the cap on its own', () => {
-		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 1000, timeout: 10_000 });
-		const large = message(2);
+	// Dropping one the application still holds frees nothing, and the drain stops waiting for it.
+	test('refuses what arrives past the bound with a status that asks the peer to retry', async t => {
+		const session = new Session({ sock: new net.Socket() });
 
-		held.hold(message(1));
-		held.hold(large);
+		closeAfter(t, session);
+		session.boundAs = 'transceiver';
 
-		assert.equal(held.size, 1);
-		assert.equal(held.has(large), true);
+		const incoming = new IncomingRequests({
+			dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
+			log: silentLog,
+			sendPastDrain: () => Promise.resolve({ err: new Error('never sent') }),
+			session,
+		});
+		const answers: (ErrorName | undefined)[] = [];
+		let messages = 0;
 
-		held.clear();
+		session.sendReturn = (_pdu, status) => {
+			answers.push(status);
+
+			return Promise.resolve({});
+		};
+		session.on('sms', () => { messages++; });
+
+		for (let seqNr = 1; seqNr <= 1000; seqNr++) {
+			await incoming.handle(submitPdu(seqNr));
+		}
+
+		assert.equal(messages, 1000);
+
+		await incoming.handle(submitPdu(1001));
+		await incoming.handle(segment(7, 1, 2));
+
+		assert.equal(messages, 1000);
+		assert.deepEqual(answers, ['ESME_RTHROTTLED', 'ESME_RTHROTTLED']);
+		incoming.clear();
 	});
 
 	test('holds a message detached from the chunk it was read from', async t => {
@@ -2213,16 +2219,15 @@ describe('reassembly bounds', () => {
 // Jasmin dispatches one request per connector at a time: holding a group unanswered until it was
 // whole deadlocked every multi-segment message against it (interop-tests/findings/03-jasmin.md).
 describe('the status a refused segment is answered with', () => {
-	// SMPP 3.4 lists ESME_RMSGQFUL under submit_sm_resp only; 4.6.2's retryable code is another.
 	test('names one the command the segment arrived on defines', () => {
-		assert.equal(refusedSegmentStatus('submit_sm', 'full', 'udh'), 'ESME_RMSGQFUL');
+		assert.equal(refusedSegmentStatus('submit_sm', 'full', 'udh'), 'ESME_RTHROTTLED');
 		assert.equal(refusedSegmentStatus('deliver_sm', 'full', 'udh'), 'ESME_RX_T_APPN');
 		assert.equal(refusedSegmentStatus('submit_sm', 'unplaceable', 'udh'), 'ESME_RINVESMCLASS');
 		assert.equal(refusedSegmentStatus('deliver_sm', 'unplaceable', 'udh'), 'ESME_RINVESMCLASS');
 		// esm_class is 0x00 on a sar_* segment and entirely valid: the TLV values are what cannot be honoured.
 		assert.equal(refusedSegmentStatus('submit_sm', 'unplaceable', 'sar'), 'ESME_RINVTLVVAL');
 		assert.equal(refusedSegmentStatus('deliver_sm', 'unplaceable', 'sar'), 'ESME_RINVTLVVAL');
-		assert.equal(refusedSegmentStatus('submit_sm', 'full', 'sar'), 'ESME_RMSGQFUL');
+		assert.equal(refusedSegmentStatus('submit_sm', 'full', 'sar'), 'ESME_RTHROTTLED');
 	});
 
 	// Which command that is, for the one that travels both ways, is what the end it arrived at says.
@@ -2232,7 +2237,7 @@ describe('the status a refused segment is answered with', () => {
 		assert.equal(standsInFor('deliver_sm', 'esme'), 'deliver_sm');
 		assert.equal(standsInFor('submit_sm', 'smsc'), 'submit_sm');
 		assert.equal(standsInFor('enquire_link', 'smsc'), 'enquire_link');
-		assert.equal(refusedSegmentStatus(standsInFor('data_sm', 'smsc'), 'full', 'udh'), 'ESME_RMSGQFUL');
+		assert.equal(refusedSegmentStatus(standsInFor('data_sm', 'smsc'), 'full', 'udh'), 'ESME_RTHROTTLED');
 		assert.equal(refusedSegmentStatus(standsInFor('data_sm', 'esme'), 'full', 'udh'), 'ESME_RX_T_APPN');
 	});
 });

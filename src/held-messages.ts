@@ -30,7 +30,6 @@ export class HeldMessages {
 	private readonly held: ExpiringGroups<Held>;
 	private readonly idleWaiters = new IdleWaiters();
 	private readonly log: SmppLog;
-	private readonly max: number;
 	private readonly maxOctets: number;
 	private octets = 0;
 
@@ -42,7 +41,6 @@ export class HeldMessages {
 			timeout: options.timeout,
 		});
 		this.log = options.log;
-		this.max = options.max;
 		this.maxOctets = options.maxOctets;
 	}
 
@@ -50,7 +48,13 @@ export class HeldMessages {
 		return this.held.size;
 	}
 
-	/** An application that answers no message at all may not grow this without end. */
+	/** Whether a message arriving now is past the bound, once the expired are swept. */
+	full(): boolean {
+		this.sweep();
+
+		return this.held.full || this.octets >= this.maxOctets;
+	}
+
 	hold(pduObjs: PduObject[]): void {
 		const key = keyOf(pduObjs);
 
@@ -63,16 +67,9 @@ export class HeldMessages {
 		if (replaced) {
 			this.log.warn('heldMessages - replacing a message on a re-used sequence number', { seqNr: Number(key) });
 			this.delete(key, replaced);
-		} else if (this.held.full) {
-			this.dropOldest();
 		}
 
 		const octets = pduObjs.reduce((sum, pduObj) => sum + retainedOctets(pduObj), 0);
-
-		// The message just held stays even alone past the cap: the peer is still owed its answer.
-		while (this.held.size > 0 && this.octets + octets > this.maxOctets) {
-			this.dropOldest();
-		}
 
 		this.held.set(key, { octets, pduObjs });
 		this.octets += octets;
@@ -107,22 +104,6 @@ export class HeldMessages {
 	/** Resolves 0 once every message has been answered, or with how many have not. */
 	idle(timeout: number, signal: AbortSignal | undefined): Promise<number> {
 		return this.idleWaiters.wait(() => this.held.size, timeout, signal);
-	}
-
-	private dropOldest(): void {
-		const oldest = this.held.takeOldest();
-
-		if (!oldest) return;
-
-		const [seqNr, held] = oldest;
-
-		this.octets -= held.octets;
-		this.log.warn('heldMessages - buffer full, dropping the oldest message', {
-			max: this.max,
-			maxOctets: this.maxOctets,
-			octets: this.octets,
-			seqNr: Number(seqNr),
-		});
 	}
 
 	/** Drops every message past its deadline. Runs before each hold and on its own timer. */

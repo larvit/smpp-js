@@ -6,17 +6,6 @@ hard rules first — they constrain every item below.
 This is a working file that sets its own rules. The documentation conventions in AGENTS.md do not
 govern it, and nothing here is a source anything else may cite.
 
-## Security
-
-- [ ] **Bound what a peer can make the application hold, not only the library.** An `sms` the
-      application is still answering pins its PDUs through `Sms.pduObjs` and its `sendResp`/`sendDlr`
-      closures, so the held-message caps free nothing while it works, and nothing slows the peer: a
-      peer faster than an application answering asynchronously (a DB write per message) grows the
-      heap without bound. Each eviction by the caps also stops the drain waiting for a message still
-      being answered, so `close()` can cut it off and the peer re-sends it. Flow control is a wire
-      change under goal 4 and the maintainer's call: answer `ESME_RTHROTTLED`, or stop reading the
-      socket, once the held count or octets are at the cap. From the stability review of #28.
-
 ## Status
 
 The rewrite is **feature complete and green**: the suite, lint and typecheck are clean on Node 18

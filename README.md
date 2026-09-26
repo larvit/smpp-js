@@ -383,9 +383,10 @@ holds for `session.send()`.
    message has failed. Answering through `sendReturn()` instead leaves the wait running.
 3. Tear down what is left, resolving to an `err` that says what was lost.
 
-At most 1000 unanswered messages, and 64 MiB of them by the `maxOctets` charge, are held for five
-minutes each; what falls out of a bound is dropped with a warning on the log and waited for no
-longer. None of the bounds is an option.
+At most 1000 unanswered messages, and 64 MiB of them by the `maxOctets` charge, are held. Past
+either bound a new message is refused with `ESME_RTHROTTLED` (`ESME_RX_T_APPN` on a `deliver_sm`),
+so the peer retries it. One held five minutes is dropped with a warning on the log and waited for
+no longer. None of the bounds is an option.
 `close({ signal })` cuts the wait short. `unbind()` takes no signal, and waits a further
 `responseTimeout` for its own response.
 
@@ -488,8 +489,8 @@ even where the SMSC took some of its segments; their receipts still arrive as `d
 
 **Multipart is answered on arrival.** Each segment is answered as it lands, because a relaying SMSC
 will not send the next until the last is answered. The answer is `ESME_ROK`, unless the segment
-numbers itself into no message this session can join, which refuses it, or the reassembly buffer is
-full, which asks the SMSC to keep it and try again. `sms.answeredOnArrival` says whether the message
+numbers itself into no message this session can join, which refuses it, or the reassembly buffer or
+the unanswered messages are at their bound, which asks the SMSC to keep it and try again. `sms.answeredOnArrival` says whether the message
 you hold was answered that way; a segment count cannot, since a peer may number a message one part
 of one.
 

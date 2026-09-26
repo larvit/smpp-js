@@ -302,7 +302,10 @@ the file.
 - The drain waits on the messages the application holds, and `sendResp()` is what says it is done
   with one.
 - The drain's wait on the application ignores `shutdownTimeout: 0`.
-- What the application holds unanswered is capped on constants.
+- What the application holds unanswered is capped on constants, and a message past the cap is
+  refused.
+- A store at its bound answers `ESME_RTHROTTLED` to a `submit_sm` and `ESME_RX_T_APPN` to a
+  `deliver_sm`.
 - A reconnect keeps the delivery-receipt merges; everything else the link held is dropped.
 - A message id base is merged at most once.
 - A send that never reached the socket waits for the next link; one that did is counted, not resent.

@@ -932,7 +932,7 @@ describe('receiving', () => {
 
 		assert.ok(refused.pduObj);
 		assert.equal(refused.pduObj.cmdName, 'data_sm_resp');
-		assert.equal(refused.pduObj.cmdStatus, 'ESME_RMSGQFUL');
+		assert.equal(refused.pduObj.cmdStatus, 'ESME_RTHROTTLED');
 	});
 
 	test('reassembles a concatenated message whose segments arrived in message_payload', async t => {

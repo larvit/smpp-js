@@ -603,7 +603,7 @@ rule and an index of the titles below.
   untouched, and is where a caller-chosen id and a refusal live; `onRequest` is the escape hatch for
   an application that must refuse a PDU the `sms` event could not have shown it yet. `collect()`
   answers every segment it will not carry rather than leaving it unanswered, which is the same stall
-  in miniature: the field that numbered it where the segment belongs to no group, `ESME_RMSGQFUL`
+  in miniature: the field that numbered it where the segment belongs to no group, the retry status
   where the segment's own arrival overran the octet cap, since a peer told that still holds it. Rejected:
   answering every segment but the one that completes the group, which leaves the peer holding some
   segments accepted and one refused with nothing in SMPP to retract the rest, and still cannot honour
@@ -677,12 +677,25 @@ rule and an index of the titles below.
   back to `responseTimeout`, the same answer the link gate's hold already takes — and to that
   option's default where it is 0 as well, since neither option is an answer about the application.
 
-- **What the application holds unanswered is capped on constants.** A bound the application cannot
-  raise is the point: an application that answers nothing would otherwise grow it for the life of
-  the link, which goal 4 forbids. Reassembly's `maxOctets` is an option because it bounds what the
-  peer sends; this bounds what the application leaves unanswered. A message that falls out of a bound
-  is one the drain stops waiting for, so `close()` can report fewer unanswered than there were —
-  accepted, because the alternative is holding what nothing will answer.
+- **What the application holds unanswered is capped on constants, and a message past the cap is
+  refused.** A bound the application cannot raise is the point: an application that answers nothing
+  would otherwise grow it for the life of the link, which goal 4 forbids. Reassembly's `maxOctets`
+  is an option because it bounds what the peer sends; this bounds what the application leaves
+  unanswered. Maintainer's call, 2026-09-26: a message arriving past the cap is refused with the
+  retry status, so the peer keeps it (goal 2). Rejected: dropping the oldest to make room, which
+  frees nothing while the application still holds its `Sms`, and stops the drain waiting for a
+  message the peer is owed. Rejected: pausing the socket, which also stalls every answer and
+  `enquire_link` on the link. A message held past its timeout is still dropped, so `close()` can
+  report fewer unanswered than there were — accepted, because the alternative is holding what
+  nothing will answer.
+
+- **A store at its bound answers `ESME_RTHROTTLED` to a `submit_sm` and `ESME_RX_T_APPN` to a
+  `deliver_sm`.** Maintainer's call, 2026-09-26, for reassembly and held messages alike, so "keep it
+  and retry" has one spelling per direction. `ESME_RTHROTTLED` asks the sender to slow down, which
+  is what the peer outrunning us needs, and operators send it (Vonage, LINK Mobility, Route Mobile,
+  Jasmin), so clients built against them meet it (goal 1). Rejected: `ESME_RMSGQFUL`, which names an
+  exhausted queue and no rate. `ESME_RTHROTTLED` is the SMSC's to send, so an ESME answers with
+  SMPP 3.4's temporary receiver error, the one an SMSC retries on (goal 3).
 
 - **A reconnect keeps the delivery-receipt merges; everything else the link held is dropped.**
   `onDelivery()` answers each receipt before the group it belongs to is complete, and `teardown()`
