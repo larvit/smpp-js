@@ -432,13 +432,12 @@ const { err, pduObj } = await session.send({
   each is two messages.
 - **Answered on arrival.** Each segment was answered as it landed, before you see the message:
   [Server in depth](#server-in-depth).
-- **Unanswered messages.** While 1000 messages you have not called `sendResp()` on, or 64 MiB of
-  them counted the way `maxOctets` counts segments, are held, every new message is refused with
-  `ESME_RTHROTTLED` (`ESME_RX_T_APPN` on a `deliver_sm`) so the peer retries it, and no `sms` fires.
-  Reaching the bound logs one `warn`, and the first message accepted once both are down to half one
-  `info`. A message left five
-  minutes is dropped from the count with a `warn`; a later `sendResp()` still answers it. Neither
-  bound is an option.
+- **Unanswered messages.** While a session holds 1000 messages you have not called `sendResp()` on,
+  or 64 MiB of them counted the way `maxOctets` counts segments, every new message and segment is
+  refused so the peer retries it: `ESME_RTHROTTLED` on a submission, `ESME_RX_T_APPN` on a delivery.
+  No `sms` fires. Reaching the bound logs one `warn`, and the first message accepted once both are
+  down to half one `info`. A message left five minutes is dropped from the count with a `warn`; a
+  later `sendResp()` still answers it. None of the three is an option.
 - **Where the body is.** A body in the `message_payload` TLV, SMPP's way of carrying up to 64 KB and
   the only place a `data_sm` has, reads exactly like one in `short_message`, concatenated messages
   and receipts included. A PDU filling both is read from `short_message`.

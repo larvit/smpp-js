@@ -42,7 +42,7 @@
   the cap is lost, since its segments were already answered.
 - A message arriving while the application holds 1000 unanswered, or 64 MiB of them counted the way
   `maxOctets` counts segments, is refused with `ESME_RTHROTTLED` (`ESME_RX_T_APPN` on a
-  `deliver_sm`), so the peer keeps it and retries. **Call `sendResp()` on every `sms`, multipart
+  delivery), so the peer keeps it and retries. **Call `sendResp()` on every `sms`, multipart
   included**: 1000 left unanswered now stop inbound traffic for up to five minutes, where the oldest
   used to be dropped with a warning.
 - A `submit_sm` segment the reassembly buffer has no room for is refused with `ESME_RTHROTTLED`,

@@ -19,7 +19,7 @@ import { paramText } from './defs/types.ts';
 import { respIdParams, segmentId } from './sms-id.ts';
 import { respNameFor } from './defs/commands.ts';
 
-/** Asks the peer to keep the message and retry: RTHROTTLED is the SMSC's to send, so an ESME's is another. */
+/** Asks the peer to keep the message and retry. */
 function throttledStatus(carriedAs: string): ErrorName {
 	return carriedAs === 'submit_sm' ? 'ESME_RTHROTTLED' : 'ESME_RX_T_APPN';
 }
