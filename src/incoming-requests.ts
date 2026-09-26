@@ -217,7 +217,7 @@ export class IncomingRequests {
 	 */
 	private async onMessage(pduObj: PduObject): Promise<void> {
 		if (this.held.full()) {
-			this.log.info('session - unanswered messages at their bound, asking the peer to retry', {
+			this.log.verbose('session - unanswered messages at their bound, asking the peer to retry', {
 				cmdName: pduObj.cmdName,
 				seqNr: pduObj.seqNr,
 			});

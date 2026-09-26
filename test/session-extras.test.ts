@@ -24,7 +24,7 @@ import { Session } from '../src/session.ts';
 import { DlrMerger } from '../src/dlr-merger.ts';
 import { PduRefusedError } from '../src/pdu-refusal.ts';
 import { objToPdu } from '../src/pdu.ts';
-import { checkSessionOptions, standsInFor } from '../src/session-options.ts';
+import { checkSessionOptions, defaults, standsInFor } from '../src/session-options.ts';
 import { client } from '../src/client.ts';
 import { closeAfter, closeListenerAfter } from './teardown.ts';
 import { concatOf } from '../src/concat.ts';
@@ -1537,26 +1537,33 @@ describe('held message bounds', () => {
 			session,
 		});
 		const answers: (ErrorName | undefined)[] = [];
-		let messages = 0;
+		const received: Sms[] = [];
 
 		session.sendReturn = (_pdu, status) => {
 			answers.push(status);
 
 			return Promise.resolve({});
 		};
-		session.on('sms', () => { messages++; });
+		session.on('sms', sms => { received.push(sms); });
 
-		for (let seqNr = 1; seqNr <= 1000; seqNr++) {
+		for (let seqNr = 1; seqNr <= defaults.maxHeldMessages; seqNr++) {
 			await incoming.handle(submitPdu(seqNr));
 		}
 
-		assert.equal(messages, 1000);
+		assert.equal(received.length, defaults.maxHeldMessages);
 
-		await incoming.handle(submitPdu(1001));
+		await incoming.handle(submitPdu(defaults.maxHeldMessages + 1));
 		await incoming.handle(segment(7, 1, 2));
 
-		assert.equal(messages, 1000);
+		assert.equal(received.length, defaults.maxHeldMessages);
 		assert.deepEqual(answers, ['ESME_RTHROTTLED', 'ESME_RTHROTTLED']);
+
+		// The refused first segment joined no group, so the second one completes nothing.
+		await received[0]?.sendResp();
+		await delay(0);
+		await incoming.handle(segment(7, 2, 2));
+
+		assert.equal(received.length, defaults.maxHeldMessages);
 		incoming.clear();
 	});
 

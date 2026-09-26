@@ -44,8 +44,8 @@
   `maxOctets` charge, is refused with `ESME_RTHROTTLED` (`ESME_RX_T_APPN` on a `deliver_sm`), so the
   peer keeps it and retries. The oldest used to be dropped to make room, which freed nothing while
   the application still held it and let `close()` stop waiting for a message the peer was owed.
-- A segment the reassembly buffer has no room for is refused with `ESME_RTHROTTLED`, where it was
-  `ESME_RMSGQFUL`.
+- A `submit_sm` segment the reassembly buffer has no room for is refused with `ESME_RTHROTTLED`,
+  where it was `ESME_RMSGQFUL`.
 - `server()` refuses a `maxOctets` below 1 or not a whole number, `Infinity` included, like its
   other limits. `server({ maxOctets: 0 })` used to start and then refuse every multipart message.
 - `callback_num`, `callback_num_atag`, `callback_num_pres_ind`, `broadcast_area_identifier` and

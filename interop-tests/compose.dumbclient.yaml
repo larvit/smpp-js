@@ -12,27 +12,36 @@ x-dumbclient-healthcheck: &dumbclient-healthcheck
   timeout: 2s
 
 services:
-  # Network owner for every dumbclient-* service and the capture sidecar below (see the comment on
-  # `capture`): all four are pure outbound TCP clients with nothing of their own listening, so
-  # sharing one netns is only ever a source-IP detail, never a port collision.
+  # Network owner for every dumbclient-* service and the capture sidecar below: all four are pure
+  # outbound TCP clients, so sharing one netns is only a source-IP detail. It never exits, because a
+  # client that finishes early would take the namespace, and every other conversation, with it.
+  dumbclient-netns:
+    image: nicolaka/netshoot:v0.16
+    <<: *log-limits
+    command: ["sleep", "infinity"]
+
   dumbclient-w2000:
     build: ./interop-tests/peers/dumbclient
     image: interop-dumbclient:de0334b
     <<: *log-limits
+    network_mode: "service:dumbclient-netns"
     command: ["conf/window2000.yml"]
     healthcheck: *dumbclient-healthcheck
+    depends_on:
+      dumbclient-netns:
+        condition: service_started
 
   # S9's comparison run: window below maxHeldMessages (1000, session-options.ts), where nothing
-  # should ever be evicted - see findings/07-load.md.
+  # should ever be throttled - see findings/07-load.md.
   dumbclient-w500:
     build: ./interop-tests/peers/dumbclient
     image: interop-dumbclient:de0334b
     <<: *log-limits
-    network_mode: "service:dumbclient-w2000"
+    network_mode: "service:dumbclient-netns"
     command: ["conf/window500.yml"]
     healthcheck: *dumbclient-healthcheck
     depends_on:
-      dumbclient-w2000:
+      dumbclient-netns:
         condition: service_started
 
   # S6: sends one message, then never speaks again - the no-ping binary (see the Dockerfile) sends
@@ -41,13 +50,13 @@ services:
     build: ./interop-tests/peers/dumbclient
     image: interop-dumbclient:de0334b
     <<: *log-limits
-    network_mode: "service:dumbclient-w2000"
+    network_mode: "service:dumbclient-netns"
     environment:
       DUMBCLIENT_BIN: /app/smpp-dumb-client-noping
     command: ["conf/idle.yml"]
     healthcheck: *dumbclient-healthcheck
     depends_on:
-      dumbclient-w2000:
+      dumbclient-netns:
         condition: service_started
 
   # The long soak: the longest run the time-box allows, fast handler, watched for anything that
@@ -56,25 +65,25 @@ services:
     build: ./interop-tests/peers/dumbclient
     image: interop-dumbclient:de0334b
     <<: *log-limits
-    network_mode: "service:dumbclient-w2000"
+    network_mode: "service:dumbclient-netns"
     command: ["conf/soak.yml"]
     healthcheck: *dumbclient-healthcheck
     depends_on:
-      dumbclient-w2000:
+      dumbclient-netns:
         condition: service_started
 
-  # Every dumbclient-* service shares dumbclient-w2000's netns (see above), so this one sidecar
+  # Every dumbclient-* service shares dumbclient-netns's namespace (see above), so this one sidecar
   # sees all four conversations with node:2775 - the same pattern compose.kannel.yaml uses for its
   # four bearerbox variants, one namespace deeper.
   capture:
     image: nicolaka/netshoot:v0.16
-    network_mode: "service:dumbclient-w2000"
+    network_mode: "service:dumbclient-netns"
     cap_add:
       - NET_ADMIN
       - NET_RAW
     depends_on:
-      dumbclient-w2000:
-        condition: service_healthy
+      dumbclient-netns:
+        condition: service_started
     command: ["dumpcap", "-i", "any", "-f", "tcp port 2775", "-w", "/captures/dumbclient.pcapng"]
     volumes:
       - ./interop-tests/captures:/captures

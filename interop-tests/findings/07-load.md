@@ -65,7 +65,7 @@ keeps a live reproducer asserting what our server does when it receives it (refu
 unframeable - see Scenarios) rather than removing the peer. `smpp-dumb-client` covers S9, and
 substitutes for S6 and (partially) S8 - see below.
 
-### smpp-dumb-client: builds and interoperates cleanly; its own window bookkeeping stalls under sustained load
+### smpp-dumb-client: builds and interoperates cleanly
 
 No build friction. Two binaries from the same pinned source: `smpp-dumb-client` (unmodified) and
 `smpp-dumb-client-noping` (its two `enquireSender()` call sites in `smpp.go` commented out at build
@@ -78,25 +78,18 @@ One integration snag, not a build one: `smpp.remote` in `config.yml` is fed stra
 there directly. Fixed in the entrypoint: every `conf/*.yml` carries a `NODE_HOST` placeholder,
 resolved with `getent hosts` and substituted into a writable copy before the real binary starts.
 
-Four one-shot scenarios share `dumbclient-w2000`'s network namespace (`network_mode:
-"service:dumbclient-w2000"`) - they are pure outbound clients with nothing of their own listening,
-so the only shared cost is a source IP, and one capture sidecar sees all four conversations with
-`node:2775` the same way `compose.kannel.yaml`'s does for its four bearerbox variants.
+The four scenarios share one network namespace, owned by `dumbclient-netns`, a container that
+never exits - they are pure outbound clients with nothing of their own listening, so the only shared
+cost is a source IP, and one capture sidecar sees all four conversations with `node:2775` the same
+way `compose.kannel.yaml`'s does for its four bearerbox variants.
 
-The long soak (below) surfaced a peer-side limit worth designing around rather than fighting: with
-a fast, immediate-response handler and a window of 100 - nothing our server should ever have
-trouble draining - the peer's own reported in-flight count (`GetTrackQueueSize`, read from
-`len(TrackTX)`) gets stuck pinned at the window within the first minute, and its log fills with
-`Expired TX packet` lines (`libsmpp`'s hardcoded, non-configurable 7000ms `TX_MAX_TIMEOUT_MS`) -
-throughput drops from ~500/s to a trickle of tens per second, gated by how many tracked entries
-individually cross that 7s mark each second rather than by real responses being matched. Our own
-server-side counters (`arrived`/`answered`/`peakOutstanding`, tracked independently in
-`dumbclient.test.ts`) stay in lockstep throughout with a low peak - see Scenarios - which places the
-stall entirely on the peer's own window bookkeeping, not on anything our server did or failed to
-do. The soak test was redesigned around this: bounded by wall-clock (5 minutes) rather than a
-target count, asserting the invariants that matter regardless of how much the peer's own bug lets
-through (every arrival answered, nothing duplicated, memory shape), and reporting whatever
-throughput was actually reached rather than requiring a specific one.
+Runs 1 and 2 had `dumbclient-w2000` own the namespace. It exits once it has sent its 20,000, which
+took every other client's network with it: the soak's responses stopped arriving, and its log filled
+with `Expired TX packet` lines (`libsmpp`'s 7000ms `TX_MAX_TIMEOUT_MS`). Those runs read that as the
+peer's own window bookkeeping stalling; run 3 (2026-09-26), with the namespace owned by a container
+that outlives them all, reached 173,820 soak messages in 300s where run 2 reached 22,440. The soak
+stays bounded by wall-clock (5 minutes), asserting every arrival answered, nothing duplicated, and
+the memory shape.
 
 One test-harness bug found and fixed between the two runs below, not a library defect: the S6 test's
 first version attached its `session.on('close', ...)` listener lazily inside the test body, after
@@ -105,9 +98,9 @@ the S6 test ran, the idle session had already closed, and an `EventEmitter` neve
 event to a listener added after it fired. Fixed by attaching every session's `close` listener at
 `session`-creation time, recording it in the same per-scenario stats every other assertion reads.
 
-Two runs of `./interop-tests/run.py dumbclient`. Run 1 (the original 300,000-count soak) surfaced
-both the peer's TX-tracking stall and the S6 harness bug above; run 2, after both fixes, is the one
-reported below. `smppload.test.ts` passed on every run it was given (three, across the investigation
+Three runs of `./interop-tests/run.py dumbclient`. Run 1 (the original 300,000-count soak) surfaced
+the S6 harness bug above; run 2 fixed it; run 3, with the namespace owner above and the held-message
+throttle in `src/`, is the one Scenarios reports. The capture figures below are run 2's. `smppload.test.ts` passed on every run it was given (three, across the investigation
 above); its one scenario needs no repeat - a second run reproduces the identical corrupted PDU,
 adding nothing.
 
@@ -127,29 +120,24 @@ every session's own `arrived` exactly, and every session's own `answered` matche
 
 ## Throughput and memory
 
-`dumb-w500` and `dumb-w2000` (S9) both ran to their full 20,000-message count in ~44s each,
-concurrently, against a handler serialised to answer roughly one message every 2ms
-(`SLOW_HANDLER_DELAY_MS`) - `peakOutstanding` read exactly 500 and exactly 2000, the two configured
-windows, confirming the peer never let more than its own window ride at once.
+Run 3. `dumb-w500` ran to its full 20,000 in ~44s against a handler serialised to answer roughly
+one message every 2ms (`SLOW_HANDLER_DELAY_MS`), `peakOutstanding` exactly 500. `dumb-w2000`, run
+concurrently, held exactly 1000 and was throttled for the rest.
 
-The soak (fast, immediate-response handler; window 100) reached 22,440 `submit_sm` over its fixed
-300s observation window - about 75/s, well under the peer's own configured `rate: 500` and under
-what our server can sustain (see Setup: `smpp-dumb-client`'s own TX-tracking bookkeeping is the
-ceiling here, not our server - `peakOutstanding` stayed at 25 throughout). Sampled every 5s across
-the whole run (69 samples over 340s, all four scenarios combined): rss first=170MiB, min=124MiB,
-max=306MiB (during the two window runs' backlog), last=125MiB, heapUsed at the last sample 15MiB -
-back below its own starting point once the backlog drained, not merely flat. No monotonic trend in
-either direction.
+The soak (fast, immediate-response handler; window 100) reached 173,820 `submit_sm` over its fixed
+300s, about 580/s, `peakOutstanding` 15. Sampled every 5s across the whole run (69 samples over
+340s, all four scenarios combined, the harness's own per-message bookkeeping included): rss
+first=165MiB, min=165MiB, max=298MiB, last=298MiB, heapUsed at the last sample 81MiB.
 
 ## Scenarios (PLAN.md)
 
 | Id | Result | Evidence |
 | --- | --- | --- |
 | S6 (idleTimeout, no peer ever pings) | pass | `dumbclient.test.ts` "S6 - idle peer..." - dropped at idleTimeout, `linkTimers - closing an idle peer` logged, no response past the one owed |
-| S8 (throughput, long messages, receipts) | blocked (smppload) / partial substitute | smppload's own scenario is blocked - see Setup. The soak below gives a genuine submit_sm/s figure without long messages or receipts, which `smpp-dumb-client` does not support (`research/esme-clients-and-validators.md` section B) - and is itself capped well below what our server can sustain by the peer's own TX-tracking stall, also see Setup |
-| S9 (bounded window) | pass | `dumbclient.test.ts` "S9 - bounded window..." - 20,000/20,000 answered on both window 500 and window 2000, in arrival order, no duplicate ids, `peakOutstanding` exactly 500 and exactly 2000 |
-| Backpressure at the server | pass | Same run: `peakOutstanding` 2000 exceeds `maxHeldMessages` (1000, session-options.ts) and the eviction warning fires; window 500 (`peakOutstanding` 500) never does; memory sampled before/after the window runs (170MiB before, 306MiB after, 125MiB once the soak's own run had also settled) |
-| Long soak | pass (run once at the redesigned, wall-clock-bounded shape - see Setup) | `dumbclient.test.ts` "Long soak" - 22,440 arrived, 22,440 answered, 0 duplicates, 0 unanswered errors, `close()` drains with no error |
+| S8 (throughput, long messages, receipts) | blocked (smppload) / partial substitute | smppload's own scenario is blocked - see Setup. The soak below gives a genuine submit_sm/s figure without long messages or receipts, which `smpp-dumb-client` does not support (`research/esme-clients-and-validators.md` section B) |
+| S9 (bounded window) | pass | Run 3: `dumbclient.test.ts` "S9 - bounded window..." - window 500 20,000/20,000 answered in ~44s, `peakOutstanding` exactly 500; window 2000 5,639 answered and 14,361 throttled, in arrival order, no duplicate ids |
+| Backpressure at the server | pass | Run 3: window 2000 holds exactly 1000 (`maxHeldMessages`, session-options.ts) and the rest is answered `ESME_RTHROTTLED`; smpp-dumb-client counts a throttled message as sent and never resends it; window 500 is never throttled |
+| Long soak | pass | Run 3: `dumbclient.test.ts` "Long soak" - 173,820 arrived, 173,820 answered, 0 duplicates, 0 unanswered errors, `close()` drains with no error; rss 165MiB first, 298MiB max and last, heapUsed 81MiB last |
 | smppload bind corruption (not in PLAN.md - found this phase) | blocked | `smppload.test.ts` - our server refuses the unreadable stream instead of hanging |
 
 ## Defects in @larvit/smpp
@@ -157,16 +145,14 @@ either direction.
 None found. `smppload.test.ts`'s own scenario is smppload's defect, not ours: our server's reaction
 (refusing the stream as unframeable, per the decision in the root `AGENTS.md`, "A stream this
 library cannot frame...") is the documented behaviour working exactly as designed against a peer
-that never gets as far as a readable PDU. The soak's throughput ceiling is the peer's own defect
-(see Setup) - our own `arrived`/`answered`/`peakOutstanding` counters stayed clean throughout every
-run.
+that never gets as far as a readable PDU.
 
 ## Peer quirks
 
 - **smppload's `bind_transceiver` is corrupted on the wire** - see Setup. Not chased past `oserl`'s
   `pack/2` (which is correct on inspection) given the time-box.
-- **`smpp-dumb-client`'s window bookkeeping stalls under sustained load, throttling its own
-  throughput far below what a promptly-answering server can sustain** - see Setup. Its `enquire_link`
+- **`smpp-dumb-client` treats `ESME_RTHROTTLED` as final** - a throttled message counts as sent
+  and is never resubmitted. Its `enquire_link`
   interval (10s once bound as an ESME) is also hardcoded (`smpp.go`, `enquireSender(10)`), not
   exposed through `config.yml` at all - the no-ping binary built for S6 patches the call site out
   rather than configuring it.
@@ -177,7 +163,3 @@ run.
 
 - Whether smppload's bind corruption is in `oserl`'s `gen_esme_session`/`smpp_session` send path
   (not reached, given the time-box) or something specific to this build's dependency versions.
-- Whether `smpp-dumb-client`'s stall is a sequence-number correlation bug (a response failing to
-  match its `TrackTX` entry, falling back to the 7s expiry) or something else in its own window
-  accounting - not chased past the observation in Setup, given the time-box and that the fault is
-  clearly on the peer's side (our own counters stayed clean throughout).

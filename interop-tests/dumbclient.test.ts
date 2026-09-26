@@ -206,17 +206,26 @@ after(async () => {
 
 // S9 (target 11) and the backpressure-at-server scenario: window 2000 at a high rate against a
 // handler slowed enough to build a real backlog. window500 is the same shape with a window below
-// maxHeldMessages (1000, session-options.ts defaults.maxHeldMessages) - see findings/07-load.md for
-// what that constant, rather than maxOutstanding, turns out to be the one that interacts with a
-// peer's window.
-describe('S9 - bounded window against a slowed handler', () => {
-	for (const [name, expectedCount] of [['dumb-w500', 20_000], ['dumb-w2000', 20_000]] as const) {
-		test(`${name}: every message answered exactly once, ordering holds`, async () => {
-			const done = await waitFor(() => (statsFor(name).answered >= expectedCount ? true : undefined), 180_000);
+// maxHeldMessages (1000, session-options.ts defaults.maxHeldMessages), the bound past which a
+// peer's window is answered ESME_RTHROTTLED. smpp-dumb-client counts a throttled message as sent
+// and never resends it, so window 2000 accounts for 20,000 as answered plus throttled.
+const throttleMessage = 'session - unanswered messages at their bound, asking the peer to retry';
 
-			assert.ok(done, `${name} did not answer ${String(expectedCount)} messages within budget`);
+// window500's peak (<=500) and the soak's never reach the 1000 default, so every refusal is
+// necessarily from the w2000 session - the runs share one server and one log.
+function throttled(name: string): number {
+	return name === 'dumb-w2000' ? logEntries.filter(entry => entry.message === throttleMessage).length : 0;
+}
+
+describe('S9 - bounded window against a slowed handler', () => {
+	for (const name of ['dumb-w500', 'dumb-w2000'] as const) {
+		test(`${name}: every message answered or throttled exactly once, ordering holds`, async () => {
+			const done = await waitFor(() => (statsFor(name).answered + throttled(name) >= 20_000 ? true : undefined), 180_000);
+
+			assert.ok(done, `${name} did not account for 20000 messages within budget`);
 
 			const s = statsFor(name);
+			const expectedCount = 20_000 - throttled(name);
 
 			assert.equal(s.arrived, expectedCount);
 			assert.equal(s.answered, expectedCount);
@@ -227,17 +236,9 @@ describe('S9 - bounded window against a slowed handler', () => {
 		});
 	}
 
-	test('window 2000 pressed past maxHeldMessages (1000): the internal held-message cap evicts, window500 never does', async () => {
-		await waitFor(() => (statsFor('dumb-w2000').answered >= 20_000 ? true : undefined), 180_000);
-
-		const evictions = logEntries.filter(entry => entry.message === 'heldMessages - buffer full, dropping the oldest message');
-
-		// window500's peak (<=500) never reaches the 1000 default, so any eviction observed is
-		// necessarily from the w2000 session - the two runs share one server and one log.
-		assert.ok(evictions.length > 0, 'expected at least one held-message eviction under window 2000');
-		// The peer's own window, respected exactly both runs (peakOutstanding read 500 and 2000 on
-		// the nose) - the lower bound is what distinguishes this from window500's own eviction-free run.
-		assert.ok(statsFor('dumb-w2000').peakOutstanding > 1000 && statsFor('dumb-w2000').peakOutstanding <= 2000);
+	test('window 2000 pressed past maxHeldMessages (1000): the peer is throttled, window500 never is', () => {
+		assert.ok(throttled('dumb-w2000') > 0, 'expected at least one ESME_RTHROTTLED under window 2000');
+		assert.ok(statsFor('dumb-w2000').peakOutstanding <= 1000);
 		assert.equal(statsFor('dumb-w500').peakOutstanding <= 500, true);
 	});
 
@@ -284,10 +285,8 @@ describe('S6 - idle peer, no enquire_link at all', () => {
 });
 
 // The long soak: the longest run the time-box allows, fast handler, watched for anything that
-// grows without bound (held messages, listeners, memory). Bounded by wall-clock rather than a
-// target count: smpp-dumb-client's own TX-tracking window bookkeeping stalls under sustained load
-// (findings/07-load.md, Peer quirks) well short of the configured count, on the client's side only
-// - our own arrived/answered stay in lockstep throughout, which is what this asserts.
+// grows without bound (held messages, listeners, memory). Bounded by wall-clock, and asserting that
+// arrived/answered stay in lockstep.
 describe('Long soak', () => {
 	const SOAK_DURATION_MS = 300_000;
 
