@@ -1567,6 +1567,16 @@ describe('held message bounds', () => {
 
 		assert.equal(answers.at(-1), 'ESME_ROK');
 		assert.equal(received.length, defaults.maxHeldMessages);
+
+		// A peer keeping its window full crosses the bound on every answer, and that is still one warning.
+		await received[1]?.sendResp();
+		await new Promise(resolve => { setImmediate(resolve); });
+		await incoming.handle(submitPdu(defaults.maxHeldMessages + 2));
+		await incoming.handle(submitPdu(defaults.maxHeldMessages + 3));
+		await incoming.handle(submitPdu(defaults.maxHeldMessages + 4));
+
+		assert.equal(answers.at(-1), 'ESME_RTHROTTLED');
+		assert.equal(warnings.length, 1);
 		incoming.clear();
 	});
 

@@ -435,7 +435,8 @@ const { err, pduObj } = await session.send({
 - **Unanswered messages.** While 1000 messages you have not called `sendResp()` on, or 64 MiB of
   them counted the way `maxOctets` counts segments, are held, every new message is refused with
   `ESME_RTHROTTLED` (`ESME_RX_T_APPN` on a `deliver_sm`) so the peer retries it, and no `sms` fires.
-  Reaching the bound logs one `warn`, and falling back below it one `info`. A message left five
+  Reaching the bound logs one `warn`, and the first message accepted once both are down to half one
+  `info`. A message left five
   minutes is dropped from the count with a `warn`; a later `sendResp()` still answers it. Neither
   bound is an option.
 - **Where the body is.** A body in the `message_payload` TLV, SMPP's way of carrying up to 64 KB and
@@ -498,8 +499,8 @@ the unanswered messages are at their bound, which asks the SMSC to keep it and t
 `sms.answeredOnArrival` says whether the message you hold was answered that way; a segment count
 cannot, since a peer may number a message one part of one.
 
-- The id was fixed with the first segment, so `sendResp()` there only says you are done, and
-  returns `err` for an `smsId` or a refusing `status`.
+- The id was fixed with the first segment, so `sendResp()` there puts nothing on the wire and
+  releases the message, and returns `err` for an `smsId` or a refusing `status`.
 - `sms.smsId` is the base. `sendDlr()` names `<smsId>-1`, `<smsId>-2` and so on: the ids the
   `submit_sm` responses carried.
 - A `deliver_sm` is answered with no id at all, since SMPP marks that field unused, so an inbound

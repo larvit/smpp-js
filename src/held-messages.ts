@@ -44,6 +44,10 @@ export class HeldMessages {
 		this.maxOctets = options.maxOctets;
 	}
 
+	get octetsHeld(): number {
+		return this.octets;
+	}
+
 	get size(): number {
 		return this.held.size;
 	}

@@ -213,16 +213,13 @@ export class IncomingRequests {
 		await this.session.sendReturn(pduObj);
 	}
 
-	/**
-	 * A concatenated message is answered segment by segment as it arrives: a peer that dispatches
-	 * one request at a time never sends the second segment until the first has been answered.
-	 */
-	private async onMessage(pduObj: PduObject): Promise<void> {
+	private async refusedAtBound(pduObj: PduObject): Promise<boolean> {
 		if (this.held.full()) {
 			if (!this.refusing) {
 				this.refusing = true;
 				this.log.warn('session - unanswered messages at their bound, refusing new ones until the application answers', {
 					messages: this.held.size,
+					octets: this.held.octetsHeld,
 				});
 			}
 
@@ -232,13 +229,28 @@ export class IncomingRequests {
 			});
 			await this.session.sendReturn(pduObj, throttledStatus(this.carriedAs(pduObj)));
 
-			return;
+			return true;
 		}
 
-		if (this.refusing) {
+		// Half, so a peer keeping its window full does not flip this on every answer.
+		if (
+			this.refusing
+			&& this.held.size <= defaults.maxHeldMessages / 2
+			&& this.held.octetsHeld <= defaults.maxHeldOctets / 2
+		) {
 			this.refusing = false;
-			this.log.info('session - unanswered messages below their bound, accepting again', { messages: this.held.size });
+			this.log.info('session - unanswered messages down to half their bound, accepting again', { messages: this.held.size });
 		}
+
+		return false;
+	}
+
+	/**
+	 * A concatenated message is answered segment by segment as it arrives: a peer that dispatches
+	 * one request at a time never sends the second segment until the first has been answered.
+	 */
+	private async onMessage(pduObj: PduObject): Promise<void> {
+		if (await this.refusedAtBound(pduObj)) return;
 
 		const concat = concatOf(pduObj);
 

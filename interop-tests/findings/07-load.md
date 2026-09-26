@@ -101,8 +101,8 @@ event to a listener added after it fired. Fixed by attaching every session's `cl
 Three runs of `./interop-tests/run.py dumbclient`. Run 1 (the original 300,000-count soak) surfaced
 the S6 harness bug above; run 2 fixed it; run 3, with the namespace owner above and the held-message
 throttle in `src/`, is the one Scenarios reports. The capture figures below are run 2's.
-`smppload.test.ts` passed on every run it was given (three, across the investigation above); its one scenario needs no repeat - a second run reproduces the identical corrupted PDU,
-adding nothing.
+`smppload.test.ts` passed on every run it was given (three, across the investigation above); its one
+scenario needs no repeat - a second run reproduces the identical corrupted PDU, adding nothing.
 
 ```
 dumbclient run 2: frames 111300, bind_transceiver 4/4, enquire_link 12 (enquire_link_resp 9 - the
