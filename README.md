@@ -101,9 +101,10 @@ session.on('sms', async sms => {
 });
 ```
 
-Call `sendResp()` for every message; it is part of the protocol. Delivery receipts reach you as
-`dlr` events, not here. A multipart message arrives reassembled and already answered segment by
-segment, so `sendResp()` there only says you are done with it: [Receiving in depth](#receiving-in-depth).
+Call `sendResp()` for every message, multipart included: until you do, it counts toward the bound
+past which the peer's messages are refused. Delivery receipts reach you as `dlr` events, not here. A
+multipart message arrives reassembled and already answered segment by segment, so `sendResp()` there
+puts nothing on the wire and releases it: [Receiving in depth](#receiving-in-depth).
 
 ## Run an SMPP server
 
@@ -383,10 +384,7 @@ holds for `session.send()`.
    message has failed. Answering through `sendReturn()` instead leaves the wait running.
 3. Tear down what is left, resolving to an `err` that says what was lost.
 
-A message arriving while 1000 unanswered messages, or 64 MiB of them by the `maxOctets` charge, are
-held is refused with `ESME_RTHROTTLED` (`ESME_RX_T_APPN` on a `deliver_sm`), so the peer retries it.
-One held five minutes is dropped with a warning on the log and waited for no longer. None of the
-bounds is an option.
+A message left unanswered for five minutes is no longer waited for.
 `close({ signal })` cuts the wait short. `unbind()` takes no signal, and waits a further
 `responseTimeout` for its own response.
 
@@ -434,6 +432,12 @@ const { err, pduObj } = await session.send({
   each is two messages.
 - **Answered on arrival.** Each segment was answered as it landed, before you see the message:
   [Server in depth](#server-in-depth).
+- **Unanswered messages.** While 1000 messages you have not called `sendResp()` on, or 64 MiB of
+  them counted the way `maxOctets` counts segments, are held, every new message is refused with
+  `ESME_RTHROTTLED` (`ESME_RX_T_APPN` on a `deliver_sm`) so the peer retries it, and no `sms` fires.
+  Reaching the bound logs one `warn`, and falling back below it one `info`. A message left five
+  minutes is dropped from the count with a `warn`; a later `sendResp()` still answers it. Neither
+  bound is an option.
 - **Where the body is.** A body in the `message_payload` TLV, SMPP's way of carrying up to 64 KB and
   the only place a `data_sm` has, reads exactly like one in `short_message`, concatenated messages
   and receipts included. A PDU filling both is read from `short_message`.

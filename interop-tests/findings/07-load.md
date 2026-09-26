@@ -100,8 +100,8 @@ event to a listener added after it fired. Fixed by attaching every session's `cl
 
 Three runs of `./interop-tests/run.py dumbclient`. Run 1 (the original 300,000-count soak) surfaced
 the S6 harness bug above; run 2 fixed it; run 3, with the namespace owner above and the held-message
-throttle in `src/`, is the one Scenarios reports. The capture figures below are run 2's. `smppload.test.ts` passed on every run it was given (three, across the investigation
-above); its one scenario needs no repeat - a second run reproduces the identical corrupted PDU,
+throttle in `src/`, is the one Scenarios reports. The capture figures below are run 2's.
+`smppload.test.ts` passed on every run it was given (three, across the investigation above); its one scenario needs no repeat - a second run reproduces the identical corrupted PDU,
 adding nothing.
 
 ```
@@ -152,10 +152,9 @@ that never gets as far as a readable PDU.
 - **smppload's `bind_transceiver` is corrupted on the wire** - see Setup. Not chased past `oserl`'s
   `pack/2` (which is correct on inspection) given the time-box.
 - **`smpp-dumb-client` treats `ESME_RTHROTTLED` as final** - a throttled message counts as sent
-  and is never resubmitted. Its `enquire_link`
-  interval (10s once bound as an ESME) is also hardcoded (`smpp.go`, `enquireSender(10)`), not
-  exposed through `config.yml` at all - the no-ping binary built for S6 patches the call site out
-  rather than configuring it.
+  and is never resubmitted. Its `enquire_link` interval (10s once bound as an ESME) is hardcoded
+  (`smpp.go`, `enquireSender(10)`), not exposed through `config.yml` at all - the no-ping binary
+  built for S6 patches the call site out rather than configuring it.
 - **`smpp.remote` takes a literal IP, never a hostname** (`net.ParseIP`, no DNS resolution) - see
   Setup.
 

@@ -19,6 +19,7 @@ services:
     image: nicolaka/netshoot:v0.16
     <<: *log-limits
     command: ["sleep", "infinity"]
+    init: true
 
   dumbclient-w2000:
     build: ./interop-tests/peers/dumbclient

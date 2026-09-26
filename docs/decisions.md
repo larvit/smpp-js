@@ -685,7 +685,9 @@ rule and an index of the titles below.
   retry status, so the peer keeps it (goal 2). Rejected: dropping the oldest to make room, which
   frees nothing while the application still holds its `Sms`, and stops the drain waiting for a
   message the peer is owed. Rejected: pausing the socket, which also stalls every answer and
-  `enquire_link` on the link. A message held past its timeout is still dropped, so `close()` can
+  `enquire_link` on the link. Reaching the bound is a log line and nothing more (goal 8): an event
+  or a public count would be surface for what the application already knows, since it is the one
+  not answering. A message held past its timeout is still dropped, so `close()` can
   report fewer unanswered than there were — accepted, because the alternative is holding what
   nothing will answer.
 

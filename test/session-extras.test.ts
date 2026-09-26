@@ -1530,9 +1530,10 @@ describe('held message bounds', () => {
 		closeAfter(t, session);
 		session.boundAs = 'transceiver';
 
+		const warnings: string[] = [];
 		const incoming = new IncomingRequests({
 			dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
-			log: silentLog,
+			log: { ...silentLog, warn: message => { warnings.push(message); } },
 			sendPastDrain: () => Promise.resolve({ err: new Error('never sent') }),
 			session,
 		});
@@ -1557,12 +1558,14 @@ describe('held message bounds', () => {
 
 		assert.equal(received.length, defaults.maxHeldMessages);
 		assert.deepEqual(answers, ['ESME_RTHROTTLED', 'ESME_RTHROTTLED']);
+		assert.equal(warnings.length, 1, 'reaching the bound warns once, not per refusal');
 
-		// The refused first segment joined no group, so the second one completes nothing.
+		// The refused first segment joined no group, so the second one is taken and completes nothing.
 		await received[0]?.sendResp();
-		await delay(0);
+		await new Promise(resolve => { setImmediate(resolve); });
 		await incoming.handle(segment(7, 2, 2));
 
+		assert.equal(answers.at(-1), 'ESME_ROK');
 		assert.equal(received.length, defaults.maxHeldMessages);
 		incoming.clear();
 	});

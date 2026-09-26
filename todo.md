@@ -405,6 +405,11 @@ and is also what the panel ranked hardest — two methods, one answer.
 
 ## Worth doing, not blocking
 
+- [ ] **Make the dumbclient soak's memory sample evidence of no library leak again.** Its rss ends at
+      its maximum (298 MiB, heapUsed 81 MiB after 173,820 messages), which the harness's own per-id
+      `Set` and `answerOrder` explain but cannot separate from a leak in `src/`: sample the heap
+      after the bookkeeping is cleared. From the stability review of #29.
+
 - [ ] **Decide whether `alert_notification` reaches the application as more than `incomingPduObj`.**
       It is the SMSC saying a handset it could not reach is reachable again (`esme_addr`,
       `ms_availability_status`); a client has no `onRequest`, so the raw PDU event is the only way in.

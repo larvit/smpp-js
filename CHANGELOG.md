@@ -40,10 +40,11 @@
   count as next to nothing, so a peer could hold far more than the cap. **Raise a `maxOctets` you
   tuned low**: it now holds several times fewer segments, and an incomplete message evicted over
   the cap is lost, since its segments were already answered.
-- A message arriving while the application holds 1000 unanswered, or 64 MiB of them by the
-  `maxOctets` charge, is refused with `ESME_RTHROTTLED` (`ESME_RX_T_APPN` on a `deliver_sm`), so the
-  peer keeps it and retries. The oldest used to be dropped to make room, which freed nothing while
-  the application still held it and let `close()` stop waiting for a message the peer was owed.
+- A message arriving while the application holds 1000 unanswered, or 64 MiB of them counted the way
+  `maxOctets` counts segments, is refused with `ESME_RTHROTTLED` (`ESME_RX_T_APPN` on a
+  `deliver_sm`), so the peer keeps it and retries. **Call `sendResp()` on every `sms`, multipart
+  included**: 1000 left unanswered now stop inbound traffic for up to five minutes, where the oldest
+  used to be dropped with a warning.
 - A `submit_sm` segment the reassembly buffer has no room for is refused with `ESME_RTHROTTLED`,
   where it was `ESME_RMSGQFUL`.
 - `server()` refuses a `maxOctets` below 1 or not a whole number, `Infinity` included, like its

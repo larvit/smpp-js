@@ -71,6 +71,7 @@ export class IncomingRequests {
 	private readonly smsIdFormat: SmsIdFormat;
 	private readonly systemId: string;
 	private linkGeneration = 0;
+	private refusing = false;
 
 	constructor(options: IncomingRequestsOptions) {
 		this.dlrMerger = options.dlrMerger;
@@ -148,6 +149,7 @@ export class IncomingRequests {
 	/** Drops the segments of every message that never became whole, and of every one still held. */
 	clear(): void {
 		this.linkGeneration++;
+		this.refusing = false;
 		this.held.clear();
 		this.reassembler.clear();
 	}
@@ -217,6 +219,13 @@ export class IncomingRequests {
 	 */
 	private async onMessage(pduObj: PduObject): Promise<void> {
 		if (this.held.full()) {
+			if (!this.refusing) {
+				this.refusing = true;
+				this.log.warn('session - unanswered messages at their bound, refusing new ones until the application answers', {
+					messages: this.held.size,
+				});
+			}
+
 			this.log.verbose('session - unanswered messages at their bound, asking the peer to retry', {
 				cmdName: pduObj.cmdName,
 				seqNr: pduObj.seqNr,
@@ -224,6 +233,11 @@ export class IncomingRequests {
 			await this.session.sendReturn(pduObj, throttledStatus(this.carriedAs(pduObj)));
 
 			return;
+		}
+
+		if (this.refusing) {
+			this.refusing = false;
+			this.log.info('session - unanswered messages below their bound, accepting again', { messages: this.held.size });
 		}
 
 		const concat = concatOf(pduObj);
