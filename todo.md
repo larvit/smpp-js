@@ -187,57 +187,11 @@ dimensions, higher where it is cheap. Maintainer's call, 2026-09-20. A systems-a
 same day returned ALIGN with one blocking-severity finding, which is the first item under Locality
 and is also what the panel ranked hardest — two methods, one answer.
 
-### Correctness, ahead of everything below
+A four-seat scoring run on 2026-09-27 read #30 at 6, 6, 7 and 6, every seat capped by Locality in
+the held-message and shutdown code; #30 merged under the floor on condition that Locality is the
+next work ([decision](docs/decisions.md#internals-and-tests)).
 
-- [ ] **Settle what a repeated tag not marked `multiple` reads as, and pin it in a test.** A vendor
-      tag or a known single-value tag a peer sends twice keeps the last occurrence and drops the
-      rest silently, which goal 3 argues against; listing it would change every such tag's shape.
-      From the architecture review of #25.
-
-- [ ] **Test that a multipart send which errors never fires `messageDlr`.** Goal 2 now says so and
-      README promises it; `session-extras.test.ts` covers a drop *after* the send, not one during it.
-
-- [ ] **Return an `err` where `message` is not a string, rather than throwing.**
-      `sendSms({ message: undefined })` — a forgotten property — reaches `value.replace()` in
-      `defs/encodings.ts` through the alphabet detection `checkOptions()` runs, and the `TypeError`
-      escapes `submitSms()` into the caller's process; `NaN` and `12345` do the same. README promises
-      "Never throws. Every fallible call resolves to `{ err?, … }`" and AGENTS.md hard rule 1 says it
-      again, so the docs are false for the likeliest caller mistake there is. From the stability
-      review of #18.
-
-- [ ] **Derive `sm_length` for a numeric body, or refuse one.** `resolveBody()` in `pdu.ts` reads the
-      length only where the body is a Buffer or a string, so
-      `objToPdu({ cmdName: 'submit_sm', params: { short_message: 12345 } })` writes `sm_length: 0`,
-      then five octets after it, and reports success — and this library's own parser refuses what it
-      built, as "TLV 12594 runs past the end of the PDU". Goals 1 and 2. From the stability review
-      of #18.
-
-- [ ] **Settle which numbers may spell a text field, refuse the rest, and say so where a consumer
-      reads it.** `wantText()` takes every finite number through `String()`, so `message_id: 1e21`
-      writes `1e+21`, `from: 0.1 + 0.2` writes `0.30000000000000004` and `source_addr: -5` writes
-      `-5` — none of them is the id or the address the caller meant, and all three are reported as
-      sent. The numeric branch exists for a digit sequence (`message_id: 123`); the product-owner
-      review of #18 recommends `Number.isSafeInteger(value) && value >= 0` with the refusal naming
-      the fix, since a 64-bit SMSC id loses digits to a JS number before this library ever sees it.
-      Goals 2 then 3: `from: 1e21` is reported as sent to an address that reaches nobody, which is
-      the wrong answer about what happened before it is laxness in what we send. That a number is
-      accepted at all reaches a consumer in no sentence either: only the type comment at
-      `defs/commands.ts:239`, and one CHANGELOG line that stops being visible when
-      0.7.0 is cut, while README's Building bullet reads as the whole rule for a text field. Whether
-      this is a supported spelling or 0.4.0 tolerance decides whether that sentence lands in
-      README.md or in MIGRATION.md — write it in the same change as the rule, so it is worded once.
-      From the stability and product-owner reviews of #18.
-
-### Throughput — goal 6, and the default window is where we are slowest
-
-- [ ] **Close the gap to jsmpp at `maxOutstanding: 10`.** Measured 2026-09-20 against the same sink,
-      100,000 messages each: this library 25,358/s, jsmpp 30,771/s, Cloudhopper 27,945/s — we are
-      last at the one window most callers will ever run, while leading Cloudhopper and trailing jsmpp
-      by only 5% at 50 and 200. So the cost is not the codec, which the higher windows exercise just
-      as hard; it is something per-request that the window hides once enough requests overlap.
-      `benchmarks/` reproduces all three. Goal 6.
-
-### Locality — 5–6 today, and the gate is 7
+### Locality — next, ahead of everything below; 5–6 today, and the gate is 7
 
 - [ ] **Give `IncomingRequests` a port instead of the `Session` it drives.** It holds its owner and
       calls eight members of it 18 times, including `this.session.close()` on an inbound `unbind` —
@@ -295,6 +249,56 @@ and is also what the panel ranked hardest — two methods, one answer.
       'payload' | 'caller'` — and branch once. Ranked hardest by three readers and picked by one as
       the unit they would least want to touch, because a mistake here does not throw, does not fail
       the types, and reaches the peer as somebody's message rendered wrong.
+
+### Correctness
+
+- [ ] **Settle what a repeated tag not marked `multiple` reads as, and pin it in a test.** A vendor
+      tag or a known single-value tag a peer sends twice keeps the last occurrence and drops the
+      rest silently, which goal 3 argues against; listing it would change every such tag's shape.
+      From the architecture review of #25.
+
+- [ ] **Test that a multipart send which errors never fires `messageDlr`.** Goal 2 now says so and
+      README promises it; `session-extras.test.ts` covers a drop *after* the send, not one during it.
+
+- [ ] **Return an `err` where `message` is not a string, rather than throwing.**
+      `sendSms({ message: undefined })` — a forgotten property — reaches `value.replace()` in
+      `defs/encodings.ts` through the alphabet detection `checkOptions()` runs, and the `TypeError`
+      escapes `submitSms()` into the caller's process; `NaN` and `12345` do the same. README promises
+      "Never throws. Every fallible call resolves to `{ err?, … }`" and AGENTS.md hard rule 1 says it
+      again, so the docs are false for the likeliest caller mistake there is. From the stability
+      review of #18.
+
+- [ ] **Derive `sm_length` for a numeric body, or refuse one.** `resolveBody()` in `pdu.ts` reads the
+      length only where the body is a Buffer or a string, so
+      `objToPdu({ cmdName: 'submit_sm', params: { short_message: 12345 } })` writes `sm_length: 0`,
+      then five octets after it, and reports success — and this library's own parser refuses what it
+      built, as "TLV 12594 runs past the end of the PDU". Goals 1 and 2. From the stability review
+      of #18.
+
+- [ ] **Settle which numbers may spell a text field, refuse the rest, and say so where a consumer
+      reads it.** `wantText()` takes every finite number through `String()`, so `message_id: 1e21`
+      writes `1e+21`, `from: 0.1 + 0.2` writes `0.30000000000000004` and `source_addr: -5` writes
+      `-5` — none of them is the id or the address the caller meant, and all three are reported as
+      sent. The numeric branch exists for a digit sequence (`message_id: 123`); the product-owner
+      review of #18 recommends `Number.isSafeInteger(value) && value >= 0` with the refusal naming
+      the fix, since a 64-bit SMSC id loses digits to a JS number before this library ever sees it.
+      Goals 2 then 3: `from: 1e21` is reported as sent to an address that reaches nobody, which is
+      the wrong answer about what happened before it is laxness in what we send. That a number is
+      accepted at all reaches a consumer in no sentence either: only the type comment at
+      `defs/commands.ts:239`, and one CHANGELOG line that stops being visible when
+      0.7.0 is cut, while README's Building bullet reads as the whole rule for a text field. Whether
+      this is a supported spelling or 0.4.0 tolerance decides whether that sentence lands in
+      README.md or in MIGRATION.md — write it in the same change as the rule, so it is worded once.
+      From the stability and product-owner reviews of #18.
+
+### Throughput — goal 6, and the default window is where we are slowest
+
+- [ ] **Close the gap to jsmpp at `maxOutstanding: 10`.** Measured 2026-09-20 against the same sink,
+      100,000 messages each: this library 25,358/s, jsmpp 30,771/s, Cloudhopper 27,945/s — we are
+      last at the one window most callers will ever run, while leading Cloudhopper and trailing jsmpp
+      by only 5% at 50 and 200. So the cost is not the codec, which the higher windows exercise just
+      as hard; it is something per-request that the window hides once enough requests overlap.
+      `benchmarks/` reproduces all three. Goal 6.
 
 ### Shape — 6 today, and the gate is 7
 

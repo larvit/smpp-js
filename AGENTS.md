@@ -315,6 +315,7 @@ the file.
 
 ### [Internals and tests](docs/decisions.md#internals-and-tests)
 
+- #30 merged under the comprehension floor, and Locality is the next work.
 - A listener that rejects is routed by Node's `captureRejections`, not by hand-dispatching.
 - The four-line abort dance is copied across `LinkGate`, `IdleWaiters`, `PendingRequests` and
   `SendWindow` rather than extracted.
