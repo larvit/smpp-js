@@ -778,8 +778,9 @@ rule and an index of the titles below.
 - **#30 merged under the comprehension floor, and Locality is the next work.** Maintainer's call,
   2026-09-27. A four-seat scoring run, depth 1, read the project at 6, 6, 7 and 6 (mean 6.25), every
   seat capped by Locality in the held-message and shutdown code #30 does not touch, where the floor
-  is 7.0. The chunks after #30 lift Locality to 7 before any other work. Serves goal 8's reshapeable
-  internals, which a reader has to understand before reshaping. Valid until a scoring run reads 7.0 or above.
+  is 7.0. The chunks after #30 lift Locality to 7 before any other work. Serves goal 8's
+  reshapeable internals, which a reader has to understand before reshaping. Valid until a scoring
+  run reads 7.0 or above.
 
 - **A listener that rejects is routed by Node's `captureRejections`, not by hand-dispatching.** Both
   emitters construct with `captureRejections: true` and implement
