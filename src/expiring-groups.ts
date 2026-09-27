@@ -54,10 +54,9 @@ export class ExpiringGroups<T> {
 	}
 
 	/** Starts the group's deadline, and the sweeper if this is the only group held. */
-	set(key: string, group: T, weight = 0): void {
+	set(key: string, group: T): void {
 		this.remove(key);
-		this.entries.set(key, { deadline: this.now() + this.timeout, group, weight });
-		this.total += weight;
+		this.entries.set(key, { deadline: this.now() + this.timeout, group, weight: 0 });
 
 		if (this.sweeper) return;
 

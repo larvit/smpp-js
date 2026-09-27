@@ -106,7 +106,8 @@ export class HeldMessages {
 			this.log.warn('heldMessages - replacing a message on a re-used sequence number', { seqNr: Number(key) });
 		}
 
-		this.held.set(key, pduObjs, pduObjs.reduce((sum, pduObj) => sum + retainedOctets(pduObj), 0));
+		this.held.set(key, pduObjs);
+		this.held.weigh(key, pduObjs.reduce((sum, pduObj) => sum + retainedOctets(pduObj), 0));
 
 		return hold;
 	}
