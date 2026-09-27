@@ -1508,6 +1508,7 @@ describe('held message bounds', () => {
 		held.hold(message(2), 1);
 
 		assert.equal(held.size, 2);
+		assert.equal(held.octetsHeld, 2 * 1026, 'the replaced message leaves its octets with it');
 		assert.equal(held.full(), true);
 		assert.equal(first.isHeld(), true);
 
