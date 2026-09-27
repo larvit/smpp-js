@@ -1,5 +1,7 @@
 export type ExpiringGroupsOptions = {
 	max: number;
+	/** What the groups may weigh together before weigh() evicts the oldest. */
+	maxWeight?: number | undefined;
 	/** Injected so expiry can be exercised without a wall clock. */
 	now?: (() => number) | undefined;
 	/** Runs on the sweeper's own timer; the owner reports whatever it takes out. */
@@ -10,6 +12,7 @@ export type ExpiringGroupsOptions = {
 type Entry<T> = {
 	deadline: number;
 	group: T;
+	weight: number;
 };
 
 /**
@@ -19,13 +22,16 @@ type Entry<T> = {
 export class ExpiringGroups<T> {
 	private readonly entries = new Map<string, Entry<T>>();
 	private readonly max: number;
+	private readonly maxWeight: number;
 	private readonly now: () => number;
 	private readonly onSweep: () => void;
 	private readonly timeout: number;
 	private sweeper: NodeJS.Timeout | undefined;
+	private total = 0;
 
 	constructor(options: ExpiringGroupsOptions) {
 		this.max = options.max;
+		this.maxWeight = options.maxWeight ?? Infinity;
 		this.now = options.now ?? Date.now;
 		this.onSweep = options.onSweep;
 		this.timeout = options.timeout;
@@ -39,13 +45,19 @@ export class ExpiringGroups<T> {
 		return this.entries.size;
 	}
 
+	get weight(): number {
+		return this.total;
+	}
+
 	get(key: string): T | undefined {
 		return this.entries.get(key)?.group;
 	}
 
 	/** Starts the group's deadline, and the sweeper if this is the only group held. */
-	set(key: string, group: T): void {
-		this.entries.set(key, { deadline: this.now() + this.timeout, group });
+	set(key: string, group: T, weight = 0): void {
+		this.remove(key);
+		this.entries.set(key, { deadline: this.now() + this.timeout, group, weight });
+		this.total += weight;
 
 		if (this.sweeper) return;
 
@@ -54,8 +66,29 @@ export class ExpiringGroups<T> {
 	}
 
 	delete(key: string): void {
-		this.entries.delete(key);
+		this.remove(key);
 		this.idle();
+	}
+
+	/** Records what a group weighs now, and hands over the oldest groups evicted to bring the total under maxWeight. */
+	weigh(key: string, weight: number): [string, T][] {
+		const entry = this.entries.get(key);
+		const taken: [string, T][] = [];
+
+		if (entry) {
+			this.total += weight - entry.weight;
+			entry.weight = weight;
+		}
+
+		while (this.total > this.maxWeight) {
+			const oldest = this.takeOldest();
+
+			if (!oldest) break;
+
+			taken.push(oldest);
+		}
+
+		return taken;
 	}
 
 	/** Removes every group and hands them over, so an owner that must account for them can. */
@@ -67,6 +100,7 @@ export class ExpiringGroups<T> {
 		}
 
 		this.entries.clear();
+		this.total = 0;
 		this.idle();
 
 		return taken;
@@ -81,7 +115,7 @@ export class ExpiringGroups<T> {
 			if (entry.deadline > now) continue;
 
 			taken.push([key, entry.group]);
-			this.entries.delete(key);
+			this.remove(key);
 		}
 
 		this.idle();
@@ -100,6 +134,15 @@ export class ExpiringGroups<T> {
 		this.delete(key);
 
 		return [key, entry.group];
+	}
+
+	private remove(key: string): void {
+		const entry = this.entries.get(key);
+
+		if (!entry) return;
+
+		this.entries.delete(key);
+		this.total -= entry.weight;
 	}
 
 	private idle(): void {

@@ -20,11 +20,6 @@ function keyOf(pduObjs: PduObject[]): string | undefined {
 	return first ? String(first.seqNr) : undefined;
 }
 
-type Held = {
-	octets: number;
-	pduObjs: PduObject[];
-};
-
 type HoldEntry = {
 	isHeld: () => boolean;
 	release: () => void;
@@ -65,11 +60,10 @@ export class MessageHold {
 
 /** The messages handed to the application that it has not answered yet, held by their segments. */
 export class HeldMessages {
-	private readonly held: ExpiringGroups<Held>;
+	private readonly held: ExpiringGroups<PduObject[]>;
 	private readonly idleWaiters = new IdleWaiters();
 	private readonly log: SmppLog;
 	private readonly maxOctets: number;
-	private octets = 0;
 
 	constructor(options: HeldMessagesOptions) {
 		this.held = new ExpiringGroups({
@@ -83,7 +77,7 @@ export class HeldMessages {
 	}
 
 	get octetsHeld(): number {
-		return this.octets;
+		return this.held.weight;
 	}
 
 	get size(): number {
@@ -94,7 +88,7 @@ export class HeldMessages {
 	full(): boolean {
 		this.sweep();
 
-		return this.held.full || this.octets >= this.maxOctets;
+		return this.held.full || this.held.weight >= this.maxOctets;
 	}
 
 	hold(pduObjs: PduObject[], listeners: number): MessageHold {
@@ -108,17 +102,11 @@ export class HeldMessages {
 
 		this.sweep();
 
-		const replaced = this.held.get(key);
-
-		if (replaced) {
+		if (this.held.get(key)) {
 			this.log.warn('heldMessages - replacing a message on a re-used sequence number', { seqNr: Number(key) });
-			this.delete(key, replaced);
 		}
 
-		const octets = pduObjs.reduce((sum, pduObj) => sum + retainedOctets(pduObj), 0);
-
-		this.held.set(key, { octets, pduObjs });
-		this.octets += octets;
+		this.held.set(key, pduObjs, pduObjs.reduce((sum, pduObj) => sum + retainedOctets(pduObj), 0));
 
 		return hold;
 	}
@@ -126,25 +114,22 @@ export class HeldMessages {
 	private has(pduObjs: PduObject[]): boolean {
 		const key = keyOf(pduObjs);
 
-		return key !== undefined && this.held.get(key)?.pduObjs === pduObjs;
+		return key !== undefined && this.held.get(key) === pduObjs;
 	}
 
 	private release(pduObjs: PduObject[]): void {
 		const key = keyOf(pduObjs);
 
 		// Identity, not the key: a wrapped sequence number must not release someone else's message.
-		const held = key === undefined ? undefined : this.held.get(key);
+		if (key === undefined || this.held.get(key) !== pduObjs) return;
 
-		if (key === undefined || held?.pduObjs !== pduObjs) return;
-
-		this.delete(key, held);
+		this.held.delete(key);
 		this.settle();
 	}
 
 	/** Drops every message: their segments went with the link, so no answer of ours correlates now. */
 	clear(): void {
 		this.held.takeAll();
-		this.octets = 0;
 		this.idleWaiters.settle();
 	}
 
@@ -159,19 +144,10 @@ export class HeldMessages {
 
 		if (expired.length === 0) return;
 
-		for (const [, held] of expired) {
-			this.octets -= held.octets;
-		}
-
 		this.log.warn('heldMessages - messages the application never answered', {
 			messages: expired.length,
 		});
 		this.settle();
-	}
-
-	private delete(key: string, held: Held): void {
-		this.held.delete(key);
-		this.octets -= held.octets;
 	}
 
 	private settle(): void {

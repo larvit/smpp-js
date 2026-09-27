@@ -45,7 +45,6 @@ export type Collected =
 export const defaultMaxOctets = 64 * 1024 * 1024;
 
 type Group = {
-	octets: number;
 	parts: Map<number, PduObject>;
 	smsId: string;
 	total: number;
@@ -88,18 +87,18 @@ export class Reassembler {
 	private readonly maxOctets: number;
 	private readonly newId: () => string;
 	private readonly onLost: (lost: LostGroup) => void;
-	private octets = 0;
 
 	constructor(options: ReassemblerOptions) {
+		this.maxOctets = options.maxOctets ?? defaultMaxOctets;
 		this.groups = new ExpiringGroups<Group>({
 			max: options.max,
+			maxWeight: this.maxOctets,
 			now: options.now,
 			onSweep: () => { this.sweep(); },
 			timeout: options.timeout,
 		});
 		this.log = options.log;
 		this.max = options.max;
-		this.maxOctets = options.maxOctets ?? defaultMaxOctets;
 		this.newId = options.newId ?? uuidv7;
 		this.onLost = options.onLost;
 	}
@@ -118,25 +117,17 @@ export class Reassembler {
 		if (!this.placeable(concat, existing)) return { kept: false, refusal: 'unplaceable' };
 
 		const group = existing ?? this.open(key, concat.total);
-		const replaced = group.parts.get(concat.part);
-		const segment = detach(pduObj);
-		const delta = retainedOctets(segment) - (replaced === undefined ? 0 : retainedOctets(replaced));
 
-		group.parts.set(concat.part, segment);
-		group.octets += delta;
-		this.octets += delta;
+		group.parts.set(concat.part, detach(pduObj));
 
 		if (group.parts.size < group.total) {
-			this.trim(key);
-
 			// Its own arrival overran the octet cap, so the peer keeps it rather than being told we did.
-			if (this.groups.get(key) !== group) return { kept: false, refusal: 'full' };
+			if (!this.trim(key, group)) return { kept: false, refusal: 'full' };
 
 			return { kept: true, smsId: group.smsId };
 		}
 
 		this.groups.delete(key);
-		this.octets -= group.octets;
 
 		return {
 			kept: true,
@@ -149,14 +140,11 @@ export class Reassembler {
 		for (const [, group] of this.groups.takeAll()) {
 			this.lost(group, 'linkGone');
 		}
-
-		this.octets = 0;
 	}
 
 	/** Drops every group past its deadline. Runs before each collect and on its own timer. */
 	sweep(): void {
 		for (const [, group] of this.groups.takeExpired()) {
-			this.octets -= group.octets;
 			this.lost(group, 'expired');
 		}
 	}
@@ -189,37 +177,37 @@ export class Reassembler {
 	private open(key: string, total: number): Group {
 		if (this.groups.full) this.dropOldest();
 
-		const group: Group = { octets: 0, parts: new Map(), smsId: this.newId(), total };
+		const group: Group = { parts: new Map(), smsId: this.newId(), total };
 
 		this.groups.set(key, group);
 
 		return group;
 	}
 
-	/** Drops the oldest groups until the retained payload is back under the octet cap. */
-	private trim(current: string): void {
-		while (this.octets > this.maxOctets) {
-			const oldest = this.takeOldest();
+	/** Drops the oldest groups until the retained payload is back under the octet cap. False if the current one went. */
+	private trim(current: string, group: Group): boolean {
+		let octets = 0;
 
-			if (!oldest) return;
+		for (const part of group.parts.values()) {
+			octets += retainedOctets(part);
+		}
+
+		let survived = true;
+
+		for (const [key, oldest] of this.groups.weigh(current, octets)) {
+			if (key === current) survived = false;
 
 			// The refused segment is in the group but stays with the peer, so it is none of the loss.
-			const answered = oldest[0] === current ? oldest[1].parts.size - 1 : oldest[1].parts.size;
+			const answered = key === current ? oldest.parts.size - 1 : oldest.parts.size;
 
-			if (answered > 0) this.lost(oldest[1], 'evicted', answered);
+			if (answered > 0) this.lost(oldest, 'evicted', answered);
 		}
-	}
 
-	private takeOldest(): [string, Group] | undefined {
-		const oldest = this.groups.takeOldest();
-
-		if (oldest) this.octets -= oldest[1].octets;
-
-		return oldest;
+		return survived;
 	}
 
 	private dropOldest(): void {
-		const oldest = this.takeOldest();
+		const oldest = this.groups.takeOldest();
 
 		if (oldest) this.lost(oldest[1], 'evicted');
 	}
@@ -232,7 +220,7 @@ export class Reassembler {
 			...lost,
 			max: this.max,
 			maxOctets: this.maxOctets,
-			octets: this.octets,
+			octets: this.groups.weight,
 		});
 		this.onLost(lost);
 	}

@@ -2191,6 +2191,8 @@ describe('reassembly bounds', () => {
 
 		assert.ok(reopened.kept);
 		assert.equal(reopened.whole, undefined);
+		assert.ok(collect(reassembler, 3, 1, 2).kept);
+		assert.equal(reassembler.size, 2, 'a segment sent again replaces its octets rather than adding them');
 
 		reassembler.clear();
 	});

@@ -199,12 +199,6 @@ next work ([decision](docs/decisions.md#internals-and-tests)).
 
 ### Locality — next, ahead of everything below; 5–6 today, and the gate is 7
 
-- [ ] **Derive `Reassembler`'s octet total instead of maintaining it at five sites.** `this.octets`
-      and each `group.octets` must agree, adjusted in `collect`, `trim`, `takeOldest`, `sweep` and
-      `clear`, and `collect()` discovers its own eviction by re-reading the map by identity. Push the
-      budget into `ExpiringGroups` as a weighed capacity, and have `trim()` report whether the
-      current group survived. Named by 6 of 9 readers.
-
 - [ ] **Let the two address arrays size a C-Octet String through `cstring.size()`.**
       `sizeDestAddresses()` and `sizeUnsuccessSmes()` spell "len + 1" themselves, and each `offset +=`
       after a write spells it a third time, so `dest_address_array` and `unsuccess_sme_array` each
