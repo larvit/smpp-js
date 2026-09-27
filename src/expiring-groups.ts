@@ -1,10 +1,10 @@
 export type ExpiringGroupsOptions = {
 	max: number;
-	/** What the groups may weigh together before weigh() evicts the oldest. */
+	/** Enforced by weigh() alone; set() never evicts. */
 	maxWeight?: number | undefined;
 	/** Injected so expiry can be exercised without a wall clock. */
 	now?: (() => number) | undefined;
-	/** Runs on the sweeper's own timer; the owner reports whatever it takes out. */
+	/** Must call takeExpired(): the timer itself removes nothing. */
 	onSweep: () => void;
 	timeout: number;
 };
@@ -15,10 +15,7 @@ type Entry<T> = {
 	weight: number;
 };
 
-/**
- * A capped store of groups that expire. Nothing is dropped silently: the owner takes the expired
- * and the evicted out itself, so the accounting and the log line stay where the group is understood.
- */
+/** Enforces neither max nor timeout itself: owners check full and call takeExpired(); only weigh() evicts. */
 export class ExpiringGroups<T> {
 	private readonly entries = new Map<string, Entry<T>>();
 	private readonly max: number;
@@ -53,7 +50,7 @@ export class ExpiringGroups<T> {
 		return this.entries.get(key)?.group;
 	}
 
-	/** Starts the group's deadline, and the sweeper if this is the only group held. */
+	/** Replacing a key restarts its deadline and zeroes its weight; weigh() it again. */
 	set(key: string, group: T): void {
 		this.remove(key);
 		this.entries.set(key, { deadline: this.now() + this.timeout, group, weight: 0 });
@@ -69,7 +66,7 @@ export class ExpiringGroups<T> {
 		this.idle();
 	}
 
-	/** Records what a group weighs now, and hands over the oldest groups evicted to bring the total under maxWeight. */
+	/** The returned groups are already removed, and may include key itself. */
 	weigh(key: string, weight: number): [string, T][] {
 		const entry = this.entries.get(key);
 		const taken: [string, T][] = [];
@@ -90,7 +87,6 @@ export class ExpiringGroups<T> {
 		return taken;
 	}
 
-	/** Removes every group and hands them over, so an owner that must account for them can. */
 	takeAll(): [string, T][] {
 		const taken: [string, T][] = [];
 
@@ -105,7 +101,6 @@ export class ExpiringGroups<T> {
 		return taken;
 	}
 
-	/** Removes every group past its deadline and hands them over. */
 	takeExpired(): [string, T][] {
 		const now = this.now();
 		const taken: [string, T][] = [];
@@ -122,7 +117,6 @@ export class ExpiringGroups<T> {
 		return taken;
 	}
 
-	/** Removes the group held longest and hands it over. Undefined means there was none. */
 	takeOldest(): [string, T] | undefined {
 		const oldest = this.entries.entries().next();
 
