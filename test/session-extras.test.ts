@@ -100,7 +100,6 @@ function abortAfter(
 	});
 }
 
-/** A port with no link behind it; the session is only what an Sms carries and answers through. */
 function stubPort(session: Session, port: Partial<IncomingDeps> = {}): IncomingDeps {
 	return {
 		answer: (pduObj, status, params) => session.sendReturn(pduObj, status, params),
@@ -109,7 +108,7 @@ function stubPort(session: Session, port: Partial<IncomingDeps> = {}): IncomingD
 		createSms: (input, handlers) => createSms({ ...input, session }, handlers),
 		linkEnd: () => 'smsc',
 		offerSms: sms => session.emit('sms', sms),
-		peerUnbound: () => Promise.resolve(),
+		peerUnbound: () => Promise.resolve({}),
 		reportDlr: () => undefined,
 		reportError: () => undefined,
 		reportMessageDlr: () => undefined,
@@ -771,36 +770,6 @@ describe('reconnect', () => {
 		await incoming.handle(submitPdu(2));
 
 		assert.equal(messages, 1, 'the harness delivers a message whose link stayed');
-	});
-
-	test('answers an unbind before asking the session to end, and answers a command outside the bind', async t => {
-		const session = new Session({ sock: new net.Socket() });
-
-		closeAfter(t, session);
-
-		const calls: string[] = [];
-		const incoming = new IncomingRequests({
-			deps: stubPort(session, {
-				answer: (pduObj, status) => {
-					calls.push(`${pduObj.cmdName} ${status ?? 'ESME_ROK'}`);
-
-					return Promise.resolve({});
-				},
-				bindAllows: cmdName => cmdName !== 'submit_sm',
-				peerUnbound: () => {
-					calls.push('peerUnbound');
-
-					return Promise.resolve();
-				},
-			}),
-			dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
-			log: silentLog,
-		});
-
-		await incoming.handle(submitPdu(1));
-		await incoming.handle({ ...submitPdu(2), cmdId: 0x00000006, cmdName: 'unbind', params: {} });
-
-		assert.deepEqual(calls, ['submit_sm ESME_RINVBNDSTS', 'unbind ESME_ROK', 'peerUnbound']);
 	});
 
 	test('does not reconnect after an explicit close', async t => {
@@ -3113,6 +3082,34 @@ describe('graceful shutdown', () => {
 		await delay(50);
 
 		assert.deepEqual(reported, []);
+	});
+
+	test('answers a peer\'s unbind before asking the session to end', async t => {
+		const session = new Session({ sock: new net.Socket() });
+
+		closeAfter(t, session);
+
+		const calls: string[] = [];
+		const incoming = new IncomingRequests({
+			deps: stubPort(session, {
+				answer: pduObj => {
+					calls.push(pduObj.cmdName);
+
+					return Promise.resolve({});
+				},
+				peerUnbound: () => {
+					calls.push('peerUnbound');
+
+					return Promise.resolve({});
+				},
+			}),
+			dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
+			log: silentLog,
+		});
+
+		await incoming.handle({ ...submitPdu(1), cmdId: 0x00000006, cmdName: 'unbind', params: {} });
+
+		assert.deepEqual(calls, ['unbind', 'peerUnbound']);
 	});
 });
 

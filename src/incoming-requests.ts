@@ -57,7 +57,7 @@ export type IncomingDeps = {
 	offerSms: (sms: Sms) => boolean;
 	/** The application's first refusal, answering true where it took the request itself. */
 	onRequest?: ((pduObj: PduObject) => Promise<boolean> | boolean) | undefined;
-	peerUnbound: () => Promise<unknown>;
+	peerUnbound: () => Promise<VoidResult>;
 	reportDlr: (dlr: Dlr, pduObj: PduObject) => void;
 	reportError: (err: Error) => void;
 	reportMessageDlr: (merged: MessageDlr) => void;

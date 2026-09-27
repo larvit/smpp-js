@@ -301,8 +301,7 @@ next work ([decision](docs/decisions.md#internals-and-tests)).
       says "`src/` stays flat until a module has to move for another reason. Valid while that map is
       what a reader navigates by" — and both architects reported that the map is now AGENTS.md rather
       than the tree, which is that premise failing. `todo.md` already carries the opposite
-      instruction under Worth doing. Two records, opposite answers; one has to go. Do it in the same
-      change as the `IncomingRequests` port or the imports are rewritten twice.
+      instruction under Worth doing. Two records, opposite answers; one has to go.
 
 - [ ] **Split `test/session-extras.test.ts` by the question each block answers.** 3,010 lines, 19
       unrelated `describe` blocks whose names are already the file names they should be. With
