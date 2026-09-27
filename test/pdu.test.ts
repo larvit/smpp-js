@@ -3,7 +3,7 @@ import test, { describe } from 'node:test';
 import { PduRefusedError, refusalAnswer } from '../src/pdu-refusal.ts';
 import { isCommand, isResp, objToPdu, pduReturn, pduToObj } from '../src/pdu.ts';
 import { paramText } from '../src/defs/types.ts';
-import { tlvsById } from '../src/defs/tlvs.ts';
+import { isTlvName, tlvsById } from '../src/defs/tlvs.ts';
 
 function encode(...args: Parameters<typeof objToPdu>): Buffer {
 	const { buffer, err } = objToPdu(...args);
@@ -502,6 +502,10 @@ describe('TLVs', () => {
 		const { err } = objToPdu({ cmdName: 'broadcast_sm_resp', params, tlvs: { failed_broadcast_area_identifier: { tagValue: areas } } });
 
 		assert.match(err?.message ?? '', /key it broadcast_area_identifier/);
+		assert.deepEqual(
+			['broadcast_area_identifier', 'failed_broadcast_area_identifier', 'constructor'].map(isTlvName),
+			[true, false, false],
+		);
 	});
 
 	test('refuses a repeatable TLV given one value, and a lone TLV given several', () => {

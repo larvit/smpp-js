@@ -655,7 +655,7 @@ if (isCommand(pduObj, 'submit_sm')) {
 | Messages | `encodeMessage`, `decodeMessage`, `splitMessage`, `bitCount`, `messageOctets`, `concatOf`, `concatInfo`, `detect`, `unencodable`, `messageClassOf`, `dataCodingByEncoding`, `encodingByDataCoding` |
 | Receipts | `dlrFromPdu`, `parseReceipt`, `receiptCodes` |
 | Time and ids | `smppDate`, `smppTime`, `uuidv7` |
-| Spec tables | `cmds`, `consts`, `encodings`, `errors`, `tlvs`, `types`, the `cmdsById`, `constsById`, `errorsById` and `tlvsById` maps, and all of them grouped as `defs`. `isCommandName`, `isErrorName`, `isEncodingName`, `commandNameById` and `errorNameById` narrow a value into them. |
+| Spec tables | `cmds`, `consts`, `encodings`, `errors`, `tlvs`, `types`, the `cmdsById`, `constsById`, `errorsById` and `tlvsById` maps, and all of them grouped as `defs`. `isCommandName`, `isErrorName`, `isEncodingName`, `isTlvName`, `commandNameById` and `errorNameById` narrow a value into them. |
 | Types | Every option, result, event payload and table entry has a named type: `ClientOptions`, `ServerOptions`, `SendSmsOptions`, `SendSmsResult`, `Sms`, `Dlr`, `MessageDlr`, `Receipt`, `PduObject`, `PduHeader`, `SmppLog`, `Result` and the rest in `dist/index.d.ts`. |
 
 ## What changed per release

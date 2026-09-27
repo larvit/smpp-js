@@ -6,7 +6,7 @@ export { cmds, cmdsById, commandNameById, isCommandName } from './defs/commands.
 export { consts, constsById } from './defs/constants.ts';
 export { dataCodingByEncoding, detect, encodingByDataCoding, encodings, isEncodingName, messageClassOf, unencodable } from './defs/encodings.ts';
 export { errorNameById, errors, errorsById, isErrorName } from './defs/errors.ts';
-export { tlvs, tlvsById } from './defs/tlvs.ts';
+export { isTlvName, tlvs, tlvsById } from './defs/tlvs.ts';
 export { types } from './defs/types.ts';
 
 export {

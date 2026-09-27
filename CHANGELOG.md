@@ -72,7 +72,7 @@
   A decimal key naming a tag the table knows, `{ 1063: … }`, is refused in favour of the name, and
   so are `alert_on_msg_delivery` and `failed_broadcast_area_identifier` in favour of
   `alert_on_message_delivery` and `broadcast_area_identifier`, the names they read back under. The
-  two alternate names are gone from `tlvs` too, which is now typed by `TlvName`: index it with one.
+  two alternate names are gone from `tlvs` too, which is now typed by `TlvName`: narrow a `string` with `isTlvName()` before indexing it.
 - `cmds.broadcast_sm_resp.tlvMap` is removed; nothing read it.
 
 ## 0.5.0

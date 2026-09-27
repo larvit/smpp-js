@@ -253,7 +253,7 @@ function readTlv(pdu: Buffer, offset: number): Result<{ octets: number; occurren
 	return { occurrence: { definition, tagId, value }, octets: 4 + tagLength };
 }
 
-function isTlvName(name: string): name is TlvName {
+export function isTlvName(name: string): name is TlvName {
 	return Object.hasOwn(specs, name);
 }
 
