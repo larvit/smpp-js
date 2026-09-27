@@ -93,11 +93,14 @@ export class OutgoingRequests {
 			return Promise.resolve({ err: new Error('Session is shutting down') });
 		}
 
-		return this.pastDrain(input, options);
+		return this.carry(input, options);
 	}
 
-	/** The same path without that refusal, which a receipt for a held message has to take. */
-	async pastDrain(
+	/**
+	 * The same path without the drain's refusal, which a receipt for a held message has to take.
+	 * It ends with the first attempt that reached the socket, or once no next link will carry it.
+	 */
+	async carry(
 		input: PduObjectInput,
 		options: SendOptions,
 	): Promise<Result<{ pduObj: PduObject }>> {
@@ -125,8 +128,7 @@ export class OutgoingRequests {
 
 			const attempt = await this.attempt(input, options).finally(() => { this.window.release(); });
 
-			// Nothing reached the socket, so the next link carries it instead of the caller resending.
-			if (!attempt.retryOnNextLink || this.gate.isUp() || this.gate.refusal()) return attempt.result;
+			if (!this.retriesOnNextLink(attempt)) return attempt.result;
 		}
 	}
 
@@ -149,6 +151,12 @@ export class OutgoingRequests {
 		this.log.warn('outgoingRequests - shutting down with requests unfinished', { timeout, unfinished });
 
 		return { err: new Error(`Shut down with ${String(unfinished)} request(s) unfinished`) };
+	}
+
+	/** Nothing reached the socket, so the next link carries it instead of the caller resending. */
+	private retriesOnNextLink(attempt: Attempt): boolean {
+		// Until the gate is shut it admits the retry straight back onto the dead socket, and the loop spins.
+		return attempt.retryOnNextLink && this.gate.awaitsNextLink();
 	}
 
 	/** Why a request cannot go out at all, as opposed to not yet. */

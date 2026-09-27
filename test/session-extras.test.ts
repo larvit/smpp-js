@@ -1448,6 +1448,18 @@ describe('LinkGate', () => {
 
 		assert.match(held.err?.message ?? '', /Aborted while waiting for a link/);
 	});
+
+	test('awaits the next link only while shut with one on its way', () => {
+		const gate = new LinkGate({ log: silentLog, timeout: 100 });
+
+		assert.equal(gate.awaitsNextLink(), false, 'up');
+		gate.shut(true);
+		assert.equal(gate.awaitsNextLink(), true, 'shut, returning');
+		gate.open();
+		assert.equal(gate.awaitsNextLink(), false, 'reopened');
+		gate.shut(false);
+		assert.equal(gate.awaitsNextLink(), false, 'shut for good');
+	});
 });
 
 describe('SendWindow', () => {

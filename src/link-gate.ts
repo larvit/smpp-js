@@ -42,6 +42,11 @@ export class LinkGate {
 		return this.up;
 	}
 
+	/** Shut, with another link on its way to reopen it. */
+	awaitsNextLink(): boolean {
+		return !this.up && this.returning;
+	}
+
 	/** Why the gate will never admit a request, or undefined while one may still get through. */
 	refusal(): Error | undefined {
 		return this.up || this.returning ? undefined : over();

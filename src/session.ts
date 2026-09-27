@@ -261,7 +261,7 @@ export class Session extends EventEmitter<SessionEvents> {
 			reportError: err => { this.emit('sessionError', err); },
 			reportMessageDlr: merged => { this.emit('messageDlr', merged); },
 			send: input => this.send(input),
-			sendPastDrain: input => this.outgoing.pastDrain(input, {}),
+			sendPastDrain: input => this.outgoing.carry(input, {}),
 			smsListeners: () => this.listenerCount('sms'),
 		};
 	}
