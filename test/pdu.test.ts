@@ -392,7 +392,7 @@ describe('TLVs', () => {
 		assert.deepEqual(unknown.tagValue, Buffer.from('blajfoo', 'ascii'));
 	});
 
-	test('keeps a binary TLV byte for byte through pduToObj and back', () => {
+	test('keeps a binary TLV byte for byte through pduToObj and back, copied off the chunk it arrived in', () => {
 		const payload = Buffer.from('deadbeef00ff', 'hex');
 		const params = {
 			destination_addr: '46709771337',
@@ -400,16 +400,21 @@ describe('TLVs', () => {
 			short_message: 'binary payload follows',
 			source_addr: '46701113311',
 		};
-		const parsed = decode(encode({
+		const pdu = encode({
 			cmdName: 'deliver_sm',
 			params,
 			seqNr: 7,
 			tlvs: { message_payload: { tagValue: payload } },
-		}));
-		const carried = parsed.tlvs.message_payload;
+		});
+		const chunk = Buffer.alloc(64 * 1024);
+
+		pdu.copy(chunk, 100);
+
+		const carried = decode(chunk.subarray(100, 100 + pdu.length)).tlvs.message_payload;
 
 		assert.ok(carried);
 		assert.deepEqual(carried.tagValue, payload);
+		assert.notEqual(carried.tagValue.buffer, chunk.buffer, 'a TLV holds its own octets, not the chunk it arrived in');
 
 		const rebuilt = decode(encode({
 			cmdName: 'deliver_sm',
@@ -442,6 +447,8 @@ describe('TLVs', () => {
 			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { 65536: { tagValue: 'blajfoo' } } }), reason: /out of range/ },
 			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { '05142': { tagValue: 'blajfoo' } } }), reason: /decimal id/ },
 			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { 1063: { tagValue: 2 } } }), reason: /message_state/ },
+			// @ts-expect-error the value goes in a { tagValue } wrapper
+			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { message_state: 2 } }), reason: /give it as \{ tagValue \}/ },
 		];
 
 		for (const { built: { buffer, err }, reason } of refusals) {
@@ -481,15 +488,17 @@ describe('TLVs', () => {
 		assert.deepEqual(pduObj.tlvs.callback_num_pres_ind?.tagValue, [1]);
 	});
 
-	test('reads the failed areas of a broadcast_sm_resp as broadcast_area_identifier', () => {
+	test('writes and reads the failed areas of a broadcast_sm_resp as broadcast_area_identifier', () => {
 		const areas = [Buffer.from('0001', 'hex'), Buffer.from('0002', 'hex')];
-		const pduObj = decode(encode({
-			cmdName: 'broadcast_sm_resp',
-			params: { message_id: '01a0d051-b588-76eb-a5c5-a8cb8b854e68' },
-			tlvs: { failed_broadcast_area_identifier: { tagValue: areas } },
-		}));
+		const params = { message_id: '01a0d051-b588-76eb-a5c5-a8cb8b854e68' };
+		const pduObj = decode(encode({ cmdName: 'broadcast_sm_resp', params, tlvs: { broadcast_area_identifier: { tagValue: areas } } }));
 
 		assert.deepEqual(pduObj.tlvs.broadcast_area_identifier?.tagValue, areas);
+
+		// @ts-expect-error the alternate spelling is read back under the name, so only the name is written
+		const { err } = objToPdu({ cmdName: 'broadcast_sm_resp', params, tlvs: { failed_broadcast_area_identifier: { tagValue: areas } } });
+
+		assert.match(err?.message ?? '', /key it broadcast_area_identifier/);
 	});
 
 	test('refuses a repeatable TLV given one value, and a lone TLV given several', () => {
@@ -544,6 +553,8 @@ describe('TLVs', () => {
 
 		assert.deepEqual([id, state, unknown], ['0199d8a4-5e2c-7b3f-9a61-c4e07f2d8b15', 2, Buffer.from('01', 'hex')]);
 
+		// @ts-expect-error an octet field takes no number, which would go out as its digits
+		assert.ok(objToPdu({ cmdName: 'deliver_sm', params: {}, tlvs: { network_error_code: { tagValue: 5 } } }));
 		// @ts-expect-error message_state is an integer
 		assert.ok(objToPdu({ cmdName: 'deliver_sm', params: {}, tlvs: { message_state: { tagValue: 'ENROUTE' } } }).err);
 	});

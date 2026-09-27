@@ -434,9 +434,7 @@ rule and an index of the titles below.
   `writeParams()` ignores it, so an empty one, an absent one and one the wire cannot carry are the
   same input rather than three. A `data_coding` on a command that declares no such field is honoured
   the other way round, since it is `replace_sm`'s only way to name the alphabet its octets are in.
-  Every entry carrying the payload tag is resolved, by tag id rather
-  than by record key, since `tagIdOf()` lets a caller name it anything and a spelling that escaped
-  the guard would be a second spelling that disagrees about correctness. Rejected: refusing a string
+  Rejected: refusing a string
   `message_payload` outright and demanding
   octets, which contradicts `short_message` on the same PDU. Rejected: guarding every string-valued
   field against `data_coding`, which says nothing about them — a text field on the wire has an

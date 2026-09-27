@@ -66,7 +66,9 @@
   **A TLV input is keyed by its name, or by its decimal id where the table names none, and `tagId`
   is refused.** Write `{ 5142: { tagValue } }` for a vendor tag, not `{ vendor: { tagId: 5142, … } }`.
   A name and a `tagId` could disagree, and `{ message_state: { tagId: 5, … } }` went out as tag 5.
-  A decimal key naming a tag the table knows, `{ 1063: … }`, is refused in favour of the name.
+  A decimal key naming a tag the table knows, `{ 1063: … }`, is refused in favour of the name, and
+  so are `alert_on_msg_delivery` and `failed_broadcast_area_identifier` in favour of
+  `alert_on_message_delivery` and `broadcast_area_identifier`, the names they read back under.
 - `cmds.broadcast_sm_resp.tlvMap` is removed; nothing read it.
 
 ## 0.5.0

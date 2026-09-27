@@ -32,7 +32,8 @@ shape is the same, connect, send, listen for delivery reports, with callbacks re
   `consts.ESM_CLASS.STORE_FORWARD` reads `undefined`, which OR-s into an `esm_class` carrying no mode.
 - **A TLV is keyed by its name, or by its decimal id where the table names none**, and `tagId` on
   an input is refused: `{ 5142: { tagValue } }`, not `{ vendor: { tagId: 5142, tagValue } }`.
-  Unknown tags read back under the same decimal key.
+  Write `alert_on_message_delivery` and `broadcast_area_identifier`, the names they read back
+  under, for `alert_on_msg_delivery` and `failed_broadcast_area_identifier`.
 - **The `error` event is `sessionError`**, and `serverError` on the server handle.
 - **`log`** takes any object with `debug`, `error`, `info`, `verbose` and `warn` methods instead of
   a `larvitutils` one, and is silent by default: [README](README.md#logging).

@@ -110,7 +110,7 @@ type ReadValue<K extends TlvName> = Repeated<K, WireValue<K>>;
 type WriteValue<K extends TlvName> = Specs[K] extends { multiple: true } ? ReadValue<K>
 	: WireValue<K> extends number ? number
 	: WireValue<K> extends string ? number | string
-	: Buffer | number | string;
+	: Buffer | string;
 
 type KnownTlv<K extends TlvName> = { tagId: number; tagName: K; tagValue: ReadValue<K> };
 
@@ -122,22 +122,34 @@ export type Tlvs = { [K in TlvName]?: KnownTlv<K> } & Record<`${number}`, Unknow
 
 export type Tlv = { [K in TlvName]: KnownTlv<K> }[TlvName] | UnknownTlv;
 
-type Alternate = keyof typeof alternates;
-
-type Canonical<K extends Alternate | TlvName> = K extends Alternate ? (typeof alternates)[K]['tag'] : K;
-
 /** Keyed like `Tlvs`, by tag name or by the decimal id of a tag the table does not define. */
-export type TlvInputs = { [K in Alternate | TlvName]?: { tagValue: WriteValue<Canonical<K>> } }
+export type TlvInputs = { [K in TlvName]?: { tagValue: WriteValue<K> } }
 	& Record<`${number}`, { tagValue: Buffer | number | string }>;
 
-function tagIdOf(name: string, input: object): Result<{ tagId: number }> {
+function isTlvInput(input: unknown): input is { tagValue: TlvValue } {
+	if (typeof input !== 'object' || input === null || !('tagValue' in input)) return false;
+
+	const value = input.tagValue;
+
+	if (!Array.isArray(value)) return Buffer.isBuffer(value) || typeof value === 'number' || typeof value === 'string';
+
+	return value.every(one => Buffer.isBuffer(one)) || value.every(one => typeof one === 'number');
+}
+
+function entryOf(name: string, input: unknown): Result<{ tagId: number; tagValue: TlvValue }> {
+	if (!isTlvInput(input)) {
+		return { err: new Error(`TLV "${name}": give it as { tagValue }, holding a Buffer, a number, a string, or an array of Buffers or of numbers`) };
+	}
+
 	if ('tagId' in input) {
 		return { err: new Error(`TLV "${name}": key it by its name, or a tag the table does not define by its decimal id, instead of giving a tagId`) };
 	}
 
-	const named = Object.hasOwn(tlvs, name) ? tlvs[name] : undefined;
+	if (isTlvName(name)) return { tagId: specs[name].id, tagValue: input.tagValue };
 
-	if (named) return { tagId: named.id };
+	const alternate = Object.hasOwn(tlvs, name) ? tlvs[name] : undefined;
+
+	if (alternate) return { err: new Error(`TLV "${name}": key it ${alternate.tag}, the name it reads back under`) };
 
 	if (!/^(0|[1-9]\d*)$/.test(name)) {
 		return { err: new Error(`TLV "${name}": unknown tag name; key a tag the table does not define by its decimal id`) };
@@ -149,20 +161,22 @@ function tagIdOf(name: string, input: object): Result<{ tagId: number }> {
 
 	const known = tlvsById[tagId];
 
-	return known ? { err: new Error(`TLV "${name}": the table names this tag ${known.tag}, key it by that`) } : { tagId };
+	return known
+		? { err: new Error(`TLV "${name}": the table names this tag ${known.tag}, key it by that`) }
+		: { tagId, tagValue: input.tagValue };
 }
 
 /** Each TLV as its four octet header and the value the tag's own wire type writes. */
 export function writeTlvs(inputs: TlvInputs | undefined): Result<{ chunks: Buffer[] }> {
 	const chunks: Buffer[] = [];
 
-	for (const [name, input] of Object.entries(inputs ?? {})) {
-		const tag = tagIdOf(name, input);
+	for (const [name, input] of Object.entries<unknown>(inputs ?? {})) {
+		const tag = entryOf(name, input);
 
 		if (tag.err) return { err: tag.err };
 
 		const definition = tlvsById[tag.tagId];
-		const values = occurrences(input.tagValue, definition?.multiple === true);
+		const values = occurrences(tag.tagValue, definition?.multiple === true);
 
 		if (values.err) return { err: new Error(`TLV "${name}": ${values.err.message}`) };
 
