@@ -1502,15 +1502,14 @@ describe('held message bounds', () => {
 
 	test('is full at its count, and a re-used sequence number replaces rather than adding', () => {
 		const held = new HeldMessages({ log: silentLog, max: 2, maxOctets: 1_000_000, timeout: 10_000 });
-		const first = message(1);
+		const first = held.hold(message(1), 1);
 
-		held.hold(first);
-		held.hold(message(2));
-		held.hold(message(2));
+		held.hold(message(2), 1);
+		held.hold(message(2), 1);
 
 		assert.equal(held.size, 2);
 		assert.equal(held.full(), true);
-		assert.equal(held.has(first), true);
+		assert.equal(first.isHeld(), true);
 
 		held.clear();
 	});
@@ -1519,23 +1518,22 @@ describe('held message bounds', () => {
 	test('is full at its octet cap, until a message leaves by any way out', () => {
 		let now = 0;
 		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 2000, now: () => now, timeout: 10_000 });
-		const answered = message(1);
+		const answered = held.hold(message(1), 1);
 
-		held.hold(answered);
 		assert.equal(held.full(), false);
-		held.hold(message(2));
+		held.hold(message(2), 1);
 		assert.equal(held.full(), true);
 
-		held.release(answered);
+		answered.release();
 		assert.equal(held.full(), false, 'after a release');
-		held.hold(message(3));
+		held.hold(message(3), 1);
 
 		now = 20_000;
 		held.sweep();
 		now = 0;
 		assert.equal(held.full(), false, 'after a sweep');
-		held.hold(message(4));
-		held.hold(message(5));
+		held.hold(message(4), 1);
+		held.hold(message(5), 1);
 
 		held.clear();
 		assert.equal(held.full(), false, 'after a clear');
@@ -1624,11 +1622,11 @@ describe('held message bounds', () => {
 		let now = 0;
 		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 1_000_000, now: () => now, timeout: 60 });
 
-		held.hold(message(1));
+		held.hold(message(1), 1);
 		now = 61;
 
 		// The next message sweeps the one that expired, so only the new one is still waited for.
-		held.hold(message(2));
+		held.hold(message(2), 1);
 
 		assert.equal(held.size, 1);
 
@@ -1640,7 +1638,7 @@ describe('held message bounds', () => {
 		let now = 0;
 		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 1_000_000, now: () => now, timeout: 60 });
 
-		held.hold(message(1));
+		held.hold(message(1), 1);
 
 		const waiting = held.idle(1000, undefined);
 
