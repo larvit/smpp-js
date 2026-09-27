@@ -766,9 +766,9 @@ rule and an index of the titles below.
   `unbind()` takes through `now()`. The gate is told what happened and never reads back into the
   session: a collaborator that has to ask does not own its decision, which is how the first cut ended
   up answering the same question two different ways at admit and at release. For the same reason the
-  retry in `carry()` asks `gate.awaitsNextLink()` rather than `canCarry()`, which also reads the socket — a
-  condition that loops on something the gate does not gate on spins against a gate that admits it
-  straight back. `LinkGate.returning` is a copy of `retrying()` taken at teardown, and stays true
+  retry in `carry()` asks `gate.awaitsNextLink()` rather than `canCarry()`, which also reads the
+  socket — a condition that loops on something the gate does not gate on spins against a gate that
+  admits it straight back. `LinkGate.returning` is a copy of `retrying()` taken at teardown, and stays true
   only because nothing stops the reconnect loop without `emitClose()` following it: `drain()` and
   `end()` are the only callers of `stop()`. A third caller has to shut the gate itself.
 
