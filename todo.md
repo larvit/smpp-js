@@ -199,22 +199,10 @@ next work ([decision](docs/decisions.md#internals-and-tests)).
 
 ### Locality — next, ahead of everything below; 5–6 today, and the gate is 7
 
-- [ ] **Give `IncomingRequests` a port instead of the `Session` it drives.** It holds its owner and
-      calls eight members of it 18 times, including `this.session.close()` on an inbound `unbind` —
-      a collaborator ending its owner's life. `OutgoingRequests` is the mirror half of the same
-      boundary and takes no session at all. AGENTS.md names this as the one way back up; the port
-      removes that exception, and `docs/decisions.md` already states the rule under The session's life: "a collaborator
-      that has to ask does not own its decision". It is also the missing test seam — inbound routing,
-      reassembly dispatch, `onRequest` ordering and bind-direction refusal have no unit test because
-      the class cannot be built without a live socket. Carry the eight members as `IncomingDeps`,
-      exactly as `sendPastDrain` is carried now. No public surface changes. **Do this before the
-      store (goal 9), or the back-edge is baked into the store's published interface.**
-
 - [ ] **Route `sms.ts` through its handlers, all of it.** `createSms()` already injects
       `handlers.send`, and then reaches `sms.session.sendReturn()`, `sms.session.bindAllows()` and
       `sms.session.acceptsOptionalParams()` anyway — two channels to one collaborator. `Sms.session`
-      stays public as data the application reads. The cheaper half of the item above, and the one
-      that shows the shape.
+      stays public as data the application reads.
 
 - [ ] **Give the held-message protocol one name and one home.** `emitSms()` is the unit 8 of 9
       readers named and 4 would least want to modify, and every one proposed the same fix. It runs

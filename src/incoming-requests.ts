@@ -1,18 +1,19 @@
+import type { BindType, LinkEnd } from './session-options.ts';
 import type { Concat } from './concat.ts';
-import type { DlrMerger } from './dlr-merger.ts';
+import type { Dlr } from './dlr.ts';
+import type { DlrMerger, MessageDlr } from './dlr-merger.ts';
 import type { ErrorName } from './defs/errors.ts';
 import type { LostGroup, Refusal } from './reassembly.ts';
-import type { OnRequest } from './session-options.ts';
+import type { ParamValue } from './defs/types.ts';
 import type { PduObject, PduObjectInput } from './pdu.ts';
 import type { Result, VoidResult } from './result.ts';
-import type { Session } from './session.ts';
 import type { SmppLog } from './log.ts';
+import type { Sms, SmsHandlers, SmsInput } from './sms.ts';
 import type { SmsIdFormat } from './sms-id.ts';
 import { HeldMessages } from './held-messages.ts';
 import { Reassembler, decodeSegments } from './reassembly.ts';
 import { bindCommands, defaults, standsInFor } from './session-options.ts';
 import { concatOf } from './concat.ts';
-import { createSms } from './sms.ts';
 import { detach } from './retained-pdu.ts';
 import { dlrFromPdu } from './dlr.ts';
 import { paramText } from './defs/types.ts';
@@ -43,37 +44,56 @@ const lostReasons: Record<LostGroup['reason'], string> = {
 	linkGone: 'the link they arrived on went',
 };
 
+type Send = (input: PduObjectInput) => Promise<Result<{ pduObj: PduObject }>>;
+
+/** What the incoming side asks of the session it serves; the session decides how. */
+export type IncomingDeps = {
+	answer: (pduObj: PduObject, status?: ErrorName, params?: Record<string, ParamValue>) => Promise<VoidResult>;
+	bindAllows: (cmdName: string) => boolean;
+	boundAs: () => BindType | undefined;
+	createSms: (input: Omit<SmsInput, 'session'>, handlers: SmsHandlers) => Sms;
+	linkEnd: () => LinkEnd;
+	/** Answers whether any listener took the message. */
+	offerSms: (sms: Sms) => boolean;
+	/** The application's first refusal, answering true where it took the request itself. */
+	onRequest?: ((pduObj: PduObject) => Promise<boolean> | boolean) | undefined;
+	peerUnbound: () => Promise<unknown>;
+	reportDlr: (dlr: Dlr, pduObj: PduObject) => void;
+	reportError: (err: Error) => void;
+	reportMessageDlr: (merged: MessageDlr) => void;
+	send: Send;
+	/** Past a drain's refusal, for a receipt the drain is itself waiting for. */
+	sendPastDrain: Send;
+	smsListeners: () => number;
+};
+
 export type IncomingRequestsOptions = {
+	deps: IncomingDeps;
 	dlrMerger: DlrMerger;
 	log: SmppLog;
 	maxOctets?: number | undefined;
 	maxReassembly?: number | undefined;
-	onRequest?: OnRequest | undefined;
 	reassemblyTimeout?: number | undefined;
-	/** Past a drain's refusal, for a receipt the drain is itself waiting for. */
-	sendPastDrain: (input: PduObjectInput) => Promise<Result<{ pduObj: PduObject }>>;
-	session: Session;
 	smsIdFormat?: SmsIdFormat | undefined;
 	systemId?: string | undefined;
 };
 
 /** Everything the peer asks of a session: messages, receipts, links and the answers to them. */
 export class IncomingRequests {
+	private readonly deps: IncomingDeps;
 	private readonly dlrMerger: DlrMerger;
 	/** The rejection handler is handed the Sms back as an `unknown`, so its hold is found by identity. */
 	private readonly emitted = new WeakMap<object, () => void>();
 	private readonly held: HeldMessages;
 	private readonly log: SmppLog;
-	private readonly onRequest: OnRequest | undefined;
 	private readonly reassembler: Reassembler;
-	private readonly sendPastDrain: IncomingRequestsOptions['sendPastDrain'];
-	private readonly session: Session;
 	private readonly smsIdFormat: SmsIdFormat;
 	private readonly systemId: string;
 	private linkGeneration = 0;
 	private refusing = false;
 
 	constructor(options: IncomingRequestsOptions) {
+		this.deps = options.deps;
 		this.dlrMerger = options.dlrMerger;
 		this.held = new HeldMessages({
 			log: options.log,
@@ -82,7 +102,6 @@ export class IncomingRequests {
 			timeout: defaults.heldMessageTimeout,
 		});
 		this.log = options.log;
-		this.onRequest = options.onRequest;
 		this.reassembler = new Reassembler({
 			log: options.log,
 			max: options.maxReassembly ?? defaults.maxReassembly,
@@ -90,8 +109,6 @@ export class IncomingRequests {
 			onLost: lost => { this.reportLost(lost); },
 			timeout: options.reassemblyTimeout ?? defaults.reassemblyTimeout,
 		});
-		this.sendPastDrain = options.sendPastDrain;
-		this.session = options.session;
 		this.smsIdFormat = options.smsIdFormat ?? {};
 		this.systemId = options.systemId ?? defaults.systemId;
 	}
@@ -99,7 +116,7 @@ export class IncomingRequests {
 	async handle(pduObj: PduObject): Promise<void> {
 		const generation = this.linkGeneration;
 
-		if (this.onRequest && await this.onRequest(this.session, pduObj)) return;
+		if (this.deps.onRequest && await this.deps.onRequest(pduObj)) return;
 
 		// The link it arrived on went while the hook ran, so nothing we answer now correlates.
 		if (this.linkGeneration !== generation) {
@@ -108,12 +125,12 @@ export class IncomingRequests {
 			return;
 		}
 
-		if (!this.session.bindAllows(pduObj.cmdName)) {
+		if (!this.deps.bindAllows(pduObj.cmdName)) {
 			this.log.info('session - command the peer\'s bind direction does not carry', {
-				bindType: this.session.boundAs ?? '',
+				bindType: this.deps.boundAs() ?? '',
 				cmdName: pduObj.cmdName,
 			});
-			await this.session.sendReturn(pduObj, 'ESME_RINVBNDSTS');
+			await this.deps.answer(pduObj, 'ESME_RINVBNDSTS');
 
 			return;
 		}
@@ -131,15 +148,14 @@ export class IncomingRequests {
 					: this.onDelivery(pduObj));
 				break;
 			case 'enquire_link':
-				await this.session.sendReturn(pduObj);
+				await this.deps.answer(pduObj);
 				break;
 			case 'submit_sm':
 				await this.onMessage(pduObj);
 				break;
 			case 'unbind':
-				await this.session.sendReturn(pduObj);
-				// A peer that has said it is finished will not answer what we still have outstanding.
-				await this.session.close({ signal: AbortSignal.abort() });
+				await this.deps.answer(pduObj);
+				await this.deps.peerUnbound();
 				break;
 			default:
 				await this.unhandled(pduObj);
@@ -175,7 +191,7 @@ export class IncomingRequests {
 	private async unhandled(pduObj: PduObject): Promise<void> {
 		if (bindCommands.includes(pduObj.cmdName)) {
 			this.log.info('session - bind on an already bound session', { cmdName: pduObj.cmdName });
-			await this.session.sendReturn(pduObj, 'ESME_RALYBND', { system_id: this.systemId });
+			await this.deps.answer(pduObj, 'ESME_RALYBND', { system_id: this.systemId });
 
 			return;
 		}
@@ -187,11 +203,11 @@ export class IncomingRequests {
 		}
 
 		this.log.info('session - no handler for command', { cmdName: pduObj.cmdName });
-		await this.session.sendReturn(pduObj, 'ESME_RINVCMDID');
+		await this.deps.answer(pduObj, 'ESME_RINVCMDID');
 	}
 
 	private carriedAs(pduObj: PduObject): string {
-		return standsInFor(pduObj.cmdName, this.session.linkEnd);
+		return standsInFor(pduObj.cmdName, this.deps.linkEnd());
 	}
 
 	/** SMPP carries a mobile-originated message and a delivery receipt on the same command. */
@@ -204,13 +220,13 @@ export class IncomingRequests {
 			return;
 		}
 
-		this.session.emit('dlr', dlr, pduObj);
+		this.deps.reportDlr(dlr, pduObj);
 
 		const merged = this.dlrMerger.collect(dlr);
 
-		if (merged) this.session.emit('messageDlr', merged);
+		if (merged) this.deps.reportMessageDlr(merged);
 
-		await this.session.sendReturn(pduObj);
+		await this.deps.answer(pduObj);
 	}
 
 	private async refusedAtBound(pduObj: PduObject): Promise<boolean> {
@@ -227,7 +243,7 @@ export class IncomingRequests {
 				cmdName: pduObj.cmdName,
 				seqNr: pduObj.seqNr,
 			});
-			await this.session.sendReturn(pduObj, throttledStatus(this.carriedAs(pduObj)));
+			await this.deps.answer(pduObj, throttledStatus(this.carriedAs(pduObj)));
 
 			return true;
 		}
@@ -263,7 +279,7 @@ export class IncomingRequests {
 		const collected = this.reassembler.collect(pduObj, concat);
 
 		if (!collected.kept) {
-			await this.session.sendReturn(
+			await this.deps.answer(
 				pduObj,
 				refusedSegmentStatus(this.carriedAs(pduObj), collected.refusal, concat.spelling),
 			);
@@ -271,7 +287,7 @@ export class IncomingRequests {
 			return;
 		}
 
-		await this.session.sendReturn(
+		await this.deps.answer(
 			pduObj,
 			'ESME_ROK',
 			respIdParams(pduObj.cmdName, segmentId(collected.smsId, concat.part - 1, concat.total)),
@@ -281,7 +297,7 @@ export class IncomingRequests {
 	}
 
 	private reportLost(lost: LostGroup): void {
-		this.session.emit('sessionError', new Error(
+		this.deps.reportError(new Error(
 			`Gave up ${String(lost.parts)} of ${String(lost.total)} segments of an incomplete concatenated message: ${lostReasons[lost.reason]}`,
 		));
 	}
@@ -295,22 +311,21 @@ export class IncomingRequests {
 		// A turn later, so a listener sending its receipt straight after the response still holds.
 		const release = (): void => { setImmediate(() => { this.held.release(pduObjs); }); };
 
-		const sms = createSms({
+		const sms = this.deps.createSms({
 			answeredAs,
 			from: paramText(first.params.source_addr),
 			message: decodeSegments(pduObjs),
 			pduObjs,
-			session: this.session,
 			to: paramText(first.params.destination_addr),
 		}, {
 			lostLink: () => this.linkGeneration !== generation,
 			onAnswered: release,
 			// Past the refusal only while a drain is still waiting for this message; an ordinary send after.
-			send: input => (this.held.has(pduObjs) ? this.sendPastDrain(input) : this.session.send(input)),
+			send: input => (this.held.has(pduObjs) ? this.deps.sendPastDrain(input) : this.deps.send(input)),
 		});
 
 		// A rejection leaves the other listeners running, so only the last one to fail gives the message up.
-		let working = this.session.listenerCount('sms');
+		let working = this.deps.smsListeners();
 
 		this.held.hold(pduObjs);
 		this.emitted.set(sms, () => {
@@ -320,6 +335,6 @@ export class IncomingRequests {
 		});
 
 		// A message nobody took is not work a shutdown can wait for.
-		if (!this.session.emit('sms', sms)) this.held.release(pduObjs);
+		if (!this.deps.offerSms(sms)) this.held.release(pduObjs);
 	}
 }

@@ -4,6 +4,7 @@ import test, { describe } from 'node:test';
 import type { Collected, LostGroup } from '../src/reassembly.ts';
 import type { Dlr } from '../src/dlr.ts';
 import type { ErrorName } from '../src/defs/errors.ts';
+import type { IncomingDeps } from '../src/incoming-requests.ts';
 import type { MessageState } from '../src/defs/constants.ts';
 import type { MessageDlr } from '../src/session.ts';
 import type { PduObject, PduObjectInput } from '../src/pdu.ts';
@@ -97,6 +98,26 @@ function abortAfter(
 
 		await session?.close({ signal: AbortSignal.abort() });
 	});
+}
+
+/** A port with no link behind it; the session is only what an Sms carries and answers through. */
+function stubPort(session: Session, port: Partial<IncomingDeps> = {}): IncomingDeps {
+	return {
+		answer: (pduObj, status, params) => session.sendReturn(pduObj, status, params),
+		bindAllows: () => true,
+		boundAs: () => 'transceiver',
+		createSms: (input, handlers) => createSms({ ...input, session }, handlers),
+		linkEnd: () => 'smsc',
+		offerSms: sms => session.emit('sms', sms),
+		peerUnbound: () => Promise.resolve(),
+		reportDlr: () => undefined,
+		reportError: () => undefined,
+		reportMessageDlr: () => undefined,
+		send: () => Promise.resolve({ err: new Error('never sent') }),
+		sendPastDrain: () => Promise.resolve({ err: new Error('never sent') }),
+		smsListeners: () => session.listenerCount('sms'),
+		...port,
+	};
 }
 
 function submitPdu(seqNr: number, cmdStatus: ErrorName = 'ESME_ROK'): PduObject {
@@ -729,14 +750,11 @@ describe('reconnect', () => {
 		const session = new Session({ sock: new net.Socket() });
 
 		closeAfter(t, session);
-		session.boundAs = 'transceiver';
 
 		const incoming = new IncomingRequests({
+			deps: stubPort(session, { onRequest: async () => { await delay(10); return false; } }),
 			dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
 			log: silentLog,
-			onRequest: async () => { await delay(10); return false; },
-			sendPastDrain: () => Promise.resolve({ err: new Error('never sent') }),
-			session,
 		});
 		let messages = 0;
 
@@ -753,6 +771,36 @@ describe('reconnect', () => {
 		await incoming.handle(submitPdu(2));
 
 		assert.equal(messages, 1, 'the harness delivers a message whose link stayed');
+	});
+
+	test('answers an unbind before asking the session to end, and answers a command outside the bind', async t => {
+		const session = new Session({ sock: new net.Socket() });
+
+		closeAfter(t, session);
+
+		const calls: string[] = [];
+		const incoming = new IncomingRequests({
+			deps: stubPort(session, {
+				answer: (pduObj, status) => {
+					calls.push(`${pduObj.cmdName} ${status ?? 'ESME_ROK'}`);
+
+					return Promise.resolve({});
+				},
+				bindAllows: cmdName => cmdName !== 'submit_sm',
+				peerUnbound: () => {
+					calls.push('peerUnbound');
+
+					return Promise.resolve();
+				},
+			}),
+			dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
+			log: silentLog,
+		});
+
+		await incoming.handle(submitPdu(1));
+		await incoming.handle({ ...submitPdu(2), cmdId: 0x00000006, cmdName: 'unbind', params: {} });
+
+		assert.deepEqual(calls, ['submit_sm ESME_RINVBNDSTS', 'unbind ESME_ROK', 'peerUnbound']);
 	});
 
 	test('does not reconnect after an explicit close', async t => {
@@ -1528,14 +1576,12 @@ describe('held message bounds', () => {
 		const session = new Session({ sock: new net.Socket() });
 
 		closeAfter(t, session);
-		session.boundAs = 'transceiver';
 
 		const warnings: string[] = [];
 		const incoming = new IncomingRequests({
+			deps: stubPort(session),
 			dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
 			log: { ...silentLog, warn: message => { warnings.push(message); } },
-			sendPastDrain: () => Promise.resolve({ err: new Error('never sent') }),
-			session,
 		});
 		const answers: (ErrorName | undefined)[] = [];
 		const received: Sms[] = [];
@@ -1584,13 +1630,11 @@ describe('held message bounds', () => {
 		const session = new Session({ sock: new net.Socket() });
 
 		closeAfter(t, session);
-		session.boundAs = 'transceiver';
 
 		const incoming = new IncomingRequests({
+			deps: stubPort(session),
 			dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
 			log: silentLog,
-			sendPastDrain: () => Promise.resolve({ err: new Error('never sent') }),
-			session,
 		});
 		const chunk = Buffer.alloc(64 * 1024);
 		const carried = submitPdu(1);

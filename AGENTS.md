@@ -88,7 +88,8 @@ src/
 
 Imports point one way: `defs` knows nothing above it but `result.ts`, `pdu` uses `defs`, `session`
 uses `pdu`, and `client`/`server` use `session`. The one way back up is the `Session` handed to
-`IncomingRequests` and `createSms()`, imported as a type only.
+`createSms()`, imported as a type only; `IncomingRequests` reaches its session through the
+`IncomingDeps` port.
 
 **Parameter order is wire order.** The key order inside `cmds.*.params` is the order the fields are
 written to and read from the buffer. Never sort those alphabetically — the alphabetical-ordering
