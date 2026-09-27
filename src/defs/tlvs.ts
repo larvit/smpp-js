@@ -166,8 +166,8 @@ function entryOf(name: string, input: unknown): Result<{ tagId: number; tagValue
 
 	if (keyed.err) return { err: keyed.err };
 
-	if ('tagId' in input && input.tagId !== keyed.tagId) {
-		return { err: new Error(`TLV "${name}": tagId ${String(input.tagId)} is not the tag its key names, ${String(keyed.tagId)}; drop the tagId`) };
+	if ('tagId' in input && input.tagId !== undefined && input.tagId !== keyed.tagId) {
+		return { err: new Error(`TLV "${name}": its tagId is not ${String(keyed.tagId)}, the tag its key names; drop the tagId`) };
 	}
 
 	return { tagId: keyed.tagId, tagValue: input.tagValue };
