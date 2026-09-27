@@ -59,8 +59,8 @@
   for the first occurrence. `objToPdu()`, `session.send()` and `session.sendReturn()` take
   `{ tagValue: [value] }` for them and refuse a lone value before anything goes out.
 - `pduObj.tlvs` and every `tlvs` input are typed per tag, as `Tlvs` and `TlvInputs`:
-  `receipted_message_id` reads as a `string`, `callback_num` as a `Buffer[]`, and a value of the wrong
-  type for its tag fails to compile. Annotate with `Tlvs` or `TlvInputs` where you wrote
+  `receipted_message_id` reads as a `string`, `message_state` as a `number`, and a value the tag
+  cannot carry fails to compile. Annotate with `Tlvs` or `TlvInputs` where you wrote
   `Record<string, Tlv>` or `Record<string, TlvInput>`; `TlvInput` is gone.
 
   **A TLV input is keyed by its name, or by its decimal id where the table names none, and a `tagId`
@@ -68,9 +68,11 @@
   `{ vendor: { tagId: 5142, … } }`; `{ message_state: { tagId: 5, … } }` used to go out as tag 5. A
   parsed PDU's `tlvs` still relay as they are. A number for an octet TLV, vendor tags included, is
   refused, where it went out as its ASCII digits.
+
   A decimal key naming a tag the table knows, `{ 1063: … }`, is refused in favour of the name, and
   so are `alert_on_msg_delivery` and `failed_broadcast_area_identifier` in favour of
-  `alert_on_message_delivery` and `broadcast_area_identifier`, the names they read back under.
+  `alert_on_message_delivery` and `broadcast_area_identifier`, the names they read back under. The
+  two alternate names are gone from `tlvs` too.
 - `cmds.broadcast_sm_resp.tlvMap` is removed; nothing read it.
 
 ## 0.5.0

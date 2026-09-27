@@ -93,7 +93,7 @@ ways the next experiment must see. One fix per defect class, as its own change:
 1. A worktree on a branch off `origin/main` (never `origin/v0.4.0`, the 0.4.0 code), named
    for the defect.
 2. Regression tests in `test/` first, naming the behaviour with the reproducer from the findings;
-   then the implementation; then the decision record in the root `AGENTS.md` where the fix settles
+   then the implementation; then the decision record in `docs/decisions.md` where the fix settles
    a question of the wire or the session's life.
 3. `/larv-review` on the branch, with the pull request based on `main`. When it marks the PR
    ready, fast-forward it.

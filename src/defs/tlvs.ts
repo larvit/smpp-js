@@ -83,13 +83,13 @@ type Specs = typeof specs;
 
 export type TlvName = keyof Specs;
 
-// Alternate spellings; the definition behind each keeps its canonical name.
-const alternates = {
-	alert_on_msg_delivery: specs.alert_on_message_delivery,
-	failed_broadcast_area_identifier: specs.broadcast_area_identifier,
+// SMPP 5.0's other spellings, which only name the tag to key instead.
+const alternates: Record<string, TlvName> = {
+	alert_on_msg_delivery: 'alert_on_message_delivery',
+	failed_broadcast_area_identifier: 'broadcast_area_identifier',
 };
 
-export const tlvs: Record<TlvName, TlvDefinition> & Record<string, TlvDefinition> = { ...specs, ...alternates };
+export const tlvs: Record<TlvName, TlvDefinition> & Record<string, TlvDefinition> = specs;
 
 export const tlvsById: Record<number, TlvDefinition> = {};
 
@@ -114,7 +114,6 @@ type WriteValue<K extends TlvName> = Specs[K] extends { multiple: true } ? ReadV
 
 type KnownTlv<K extends TlvName> = { tagId: number; tagName: K; tagValue: ReadValue<K> };
 
-/** A tag the TLV table does not define. */
 type UnknownTlv = { tagId: number; tagName: undefined; tagValue: Buffer };
 
 /** Keyed by tag name, or by its decimal id where the table defines no name. */
@@ -122,7 +121,7 @@ export type Tlvs = { [K in TlvName]?: KnownTlv<K> } & Partial<Record<`${number}`
 
 export type Tlv = { [K in TlvName]: KnownTlv<K> }[TlvName] | UnknownTlv;
 
-/** Keyed like `Tlvs`, by tag name or by the decimal id of a tag the table does not define. */
+/** Keyed like `Tlvs`. */
 export type TlvInputs = { [K in TlvName]?: { tagValue: WriteValue<K> } }
 	& Partial<Record<`${number}`, { tagValue: Buffer | string }>>;
 
@@ -139,9 +138,9 @@ function isTlvInput(input: unknown): input is { tagValue: TlvValue } {
 function keyedTagId(name: string): Result<{ tagId: number }> {
 	if (isTlvName(name)) return { tagId: specs[name].id };
 
-	const alternate = Object.hasOwn(tlvs, name) ? tlvs[name] : undefined;
+	const alternate = Object.hasOwn(alternates, name) ? alternates[name] : undefined;
 
-	if (alternate) return { err: new Error(`TLV "${name}": key it ${alternate.tag}, the name it reads back under`) };
+	if (alternate) return { err: new Error(`TLV "${name}": key it ${alternate}, the name it reads back under`) };
 
 	if (!/^(0|[1-9]\d*)$/.test(name)) {
 		return { err: new Error(`TLV "${name}": unknown tag name; key a tag the table does not define by its decimal id`) };
@@ -156,7 +155,6 @@ function keyedTagId(name: string): Result<{ tagId: number }> {
 	return known ? { err: new Error(`TLV "${name}": the table names this tag ${known.tag}, key it by that`) } : { tagId };
 }
 
-/** The key names the tag; a `tagId` beside it, as a parsed TLV carries, has to agree. */
 function entryOf(name: string, input: unknown): Result<{ tagId: number; tagValue: TlvValue }> {
 	if (!isTlvInput(input)) {
 		return { err: new Error(`TLV "${name}": give it as { tagValue }, holding a Buffer, a number, a string, or an array of Buffers or of numbers`) };

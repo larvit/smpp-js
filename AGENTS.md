@@ -14,8 +14,7 @@ not for structure or style.
 
 The goals, in priority order, live in
 [README.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/README.md#goals) — they say where this library is heading, which an outside
-reader judges it by. The README states the audience alongside them. Everything below cites a goal by
-number.
+reader judges it by. The README states the audience alongside them.
 
 
 ## Hard rules
@@ -83,7 +82,7 @@ src/
 		constants.ts     consts + constsById, and the SMPP version constants
 		encodings.ts     GSM 03.38, LATIN1, UCS2, detection, data_coding resolution
 		errors.ts        errors + errorsById (ESME_*)
-		tlvs.ts          TLV definitions, tlvsById, the input shape, and reading and writing a TLV stream
+		tlvs.ts          TLV definitions, tlvsById, the typed read and input shapes, and reading and writing a TLV stream
 		types.ts         Wire types: int8/int16/int32/string/cstring/buffer/arrays
 ```
 
@@ -162,8 +161,8 @@ decision under [The wire](docs/decisions.md#the-wire).
 - Hard tabs. Alphabetical ordering for keys, imports and lists unless order is logic-significant.
   Two deliberate exceptions: command parameters are in wire order (above), and the `errors` and TLV
   tables are ordered by their numeric id so they can be diffed against the spec and gaps stay visible.
-- Comments are the exception, not the default — see the root `CLAUDE.md` rules. Do not write file
-  preambles or restate what the code says.
+- Comments are the exception, not the default. Do not write file preambles or restate what the
+  code says.
 - Test data uses real randomised UUID v7 values, never `aaaa-0000` placeholders.
 - Fixtures that encode the wire are shared so no two files can drift on it: `test/raw-pdus.ts` builds
   the octets a test writes straight to a socket, the PDUs `objToPdu()` refuses to build included. So

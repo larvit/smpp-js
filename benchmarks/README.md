@@ -59,8 +59,8 @@ Against real peers, same driver, window 50, 20,000 messages:
 | SMSC | msgs/s | failed |
 | --- | --- | --- |
 | this library's sink | 37,125 | 0 |
-| Jasmin 0.10 | 2,207 | 0 |
-| SMPPSim 3.0.0 | — | 19,000 of 20,000 |
+| Jasmin 0.11.0 | 2,207 | 0 |
+| SMPPSim 2.6.11 | — | 19,000 of 20,000 |
 
 ## Against the other client libraries
 

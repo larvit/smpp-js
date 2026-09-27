@@ -1,6 +1,6 @@
 # interop-tests
 
-Eight real SMPP implementations, run against this library in both directions, with every session
+Ten real SMPP implementations, run against this library in both directions, with every session
 decoded independently by tshark so no result rests on our own view of the wire. It exists because
 the unit suite and this library's own dummy peers agree with themselves; these peers do not.
 
@@ -40,7 +40,7 @@ These bind to our server:
 
 | Peer | What it is for | Run |
 | --- | --- | --- |
-| **Kannel 1.4.5** | The most deployed real ESME there is; parses our receipts with the parser most operators' customers run, and declares 3.4 or 3.3 on demand | `debian:bookworm-slim` + the distribution package; four `.conf` variants under `peers/kannel/` |
+| **Kannel 1.4.5** | The most deployed real ESME there is; parses our receipts with the parser most operators' customers run, and declares 3.4 or 3.3 on demand | `debian:bookworm-20260824-slim` + the distribution package; four `.conf` variants under `peers/kannel/` |
 | **jsmpp** | Strict and low-level: the driver builds UDH, `sar_*` and `message_payload` bytes by hand, and rejects an answer it dislikes | Maven build at a pinned commit, `peers/jsmpp/` |
 | **Cloudhopper** | The one peer with real windowing knobs, plus a TLS client | Maven build at a pinned commit, `peers/cloudhopper/`. Its 2015-era TLS client cannot do 1.3, so that scenario caps the server at 1.2 |
 | **python-smpplib 2.2.4** | An independent GSM 03.38 table to cross-check ours character by character | `python:3.12.14-slim-bookworm`, `peers/python/` |

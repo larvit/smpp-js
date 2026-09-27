@@ -194,10 +194,6 @@ and is also what the panel ranked hardest — two methods, one answer.
       rest silently, which goal 3 argues against; listing it would change every such tag's shape.
       From the architecture review of #25.
 
-- [ ] **Refuse a TLV input naming one tag under both its spellings.** `broadcast_area_identifier`
-      and `failed_broadcast_area_identifier` in one `tlvs` record both write, so the peer receives
-      the union of two lists the caller may have meant as one. From the architecture review of #25.
-
 - [ ] **Test that a multipart send which errors never fires `messageDlr`.** Goal 2 now says so and
       README promises it; `session-extras.test.ts` covers a drop *after* the send, not one during it.
 
@@ -396,6 +392,15 @@ and is also what the panel ranked hardest — two methods, one answer.
       the claim rots silently. Goals 1 and 9.
 
 ## Worth doing, not blocking
+
+- [ ] **Move the decisions out of AGENTS.md's fixtures paragraph and the two tooling READMEs.** The
+      one dummy SMSC, `smscPeer()` staying separate and which copied helpers are tolerated
+      (AGENTS.md Conventions), and why Kannel is absent from `benchmarks/README.md`, go to
+      `docs/decisions.md` with index lines. Move the planned work written into
+      `interop-tests/AGENTS.md` (an expected count per peer) and `benchmarks/README.md` (the default
+      window gap) to this file. Give the `run.py`-in-background footgun in `interop-tests/AGENTS.md`
+      a rule of its own. Delete AGENTS.md's "message_id values … are UUID v7" line. From the prose
+      pass of #30.
 
 - [ ] **Make the dumbclient soak's memory sample evidence of no library leak again.** Its rss ends at
       its maximum (298 MiB, heapUsed 81 MiB after 173,820 messages), which the harness's own per-id
