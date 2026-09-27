@@ -199,15 +199,6 @@ next work ([decision](docs/decisions.md#internals-and-tests)).
 
 ### Locality — next, ahead of everything below; 5–6 today, and the gate is 7
 
-- [ ] **Give the held-message protocol one name and one home.** `emitSms()` is the unit 8 of 9
-      readers named and 4 would least want to modify, and every one proposed the same fix. It runs
-      five mechanisms in one scope: a hold keyed by array identity, a `working` counter seeded from
-      `listenerCount('sms')`, a `WeakMap` keyed by the `Sms` object, a `setImmediate`-deferred
-      release, and a captured `linkGeneration` — with the counter decremented from `session.ts`'s
-      `captureRejectionSymbol` in another file. A `MessageHold` owning `hold/release/listenerGaveUp`
-      collapses three files into one readable object. Every way of getting it wrong is silent: a hung
-      shutdown, or a receipt refused.
-
 - [ ] **Derive `Reassembler`'s octet total instead of maintaining it at five sites.** `this.octets`
       and each `group.octets` must agree, adjusted in `collect`, `trim`, `takeOldest`, `sweep` and
       `clear`, and `collect()` discovers its own eviction by re-reading the map by identity. Push the

@@ -52,7 +52,7 @@ src/
 	dlr-merger.ts        DlrMerger: per-segment receipts counted into one MessageDlr
 	error-from.ts        An untyped value as error material: errorFrom() an Error, namedValue() a name
 	expiring-groups.ts   ExpiringGroups: the capped, expiring store both of those share
-	held-messages.ts     HeldMessages: capped, expiring messages the application has not answered
+	held-messages.ts     HeldMessages: capped, expiring messages the application has not answered, one MessageHold each
 	idle-waiters.ts      IdleWaiters: waiting for a count to fall to zero, and what is left of a budget
 	incoming-requests.ts Every request the peer sends: messages, receipts, links, unknown commands
 	link-gate.ts         LinkGate: where a request with no link to go out on waits for the next one

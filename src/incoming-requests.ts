@@ -10,6 +10,7 @@ import type { Result, VoidResult } from './result.ts';
 import type { SmppLog } from './log.ts';
 import type { Sms, SmsHandlers, SmsInput } from './sms.ts';
 import type { SmsIdFormat } from './sms-id.ts';
+import type { MessageHold } from './held-messages.ts';
 import { HeldMessages } from './held-messages.ts';
 import { Reassembler, decodeSegments } from './reassembly.ts';
 import { bindCommands, defaults, standsInFor } from './session-options.ts';
@@ -83,9 +84,9 @@ export type IncomingRequestsOptions = {
 export class IncomingRequests {
 	private readonly deps: IncomingDeps;
 	private readonly dlrMerger: DlrMerger;
-	/** The rejection handler is handed the Sms back as an `unknown`, so its hold is found by identity. */
-	private readonly emitted = new WeakMap<object, () => void>();
 	private readonly held: HeldMessages;
+	/** The rejection handler is handed the Sms back as an `unknown`, so its hold is found by identity. */
+	private readonly holds = new WeakMap<object, MessageHold>();
 	private readonly log: SmppLog;
 	private readonly reassembler: Reassembler;
 	private readonly smsIdFormat: SmsIdFormat;
@@ -175,7 +176,7 @@ export class IncomingRequests {
 	listenerRejected(sms: unknown): void {
 		if (typeof sms !== 'object' || sms === null) return;
 
-		this.emitted.get(sms)?.();
+		this.holds.get(sms)?.listenerGaveUp();
 	}
 
 	/** Waits out the messages the application still holds, and says how many it never answered. */
@@ -309,8 +310,7 @@ export class IncomingRequests {
 		if (!first) return;
 
 		const generation = this.linkGeneration;
-		// A turn later, so a listener sending its receipt straight after the response still holds.
-		const release = (): void => { setImmediate(() => { this.held.release(pduObjs); }); };
+		const hold = this.held.hold(pduObjs, this.deps.smsListeners());
 
 		const sms = this.deps.createSms({
 			answeredAs,
@@ -323,22 +323,13 @@ export class IncomingRequests {
 			answer: (pduObj, status, params) => this.deps.answer(pduObj, status, params),
 			bindAllows: cmdName => this.deps.bindAllows(cmdName),
 			lostLink: () => this.linkGeneration !== generation,
-			onAnswered: release,
+			onAnswered: () => { hold.answered(); },
 			// Past the refusal only while a drain is still waiting for this message; an ordinary send after.
-			send: input => (this.held.has(pduObjs) ? this.deps.sendPastDrain(input) : this.deps.send(input)),
+			send: input => (hold.isHeld() ? this.deps.sendPastDrain(input) : this.deps.send(input)),
 		});
 
-		// A rejection leaves the other listeners running, so only the last one to fail gives the message up.
-		let working = this.deps.smsListeners();
+		this.holds.set(sms, hold);
 
-		this.held.hold(pduObjs);
-		this.emitted.set(sms, () => {
-			working--;
-
-			if (working <= 0) release();
-		});
-
-		// A message nobody took is not work a shutdown can wait for.
-		if (!this.deps.offerSms(sms)) this.held.release(pduObjs);
+		if (!this.deps.offerSms(sms)) hold.untaken();
 	}
 }
