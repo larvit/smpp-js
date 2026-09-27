@@ -630,9 +630,10 @@ if (isCommand(pduObj, 'submit_sm')) {
   naming the character, its code point and where it is.
 - Every text field is latin1: addresses, `system_id`, `message_id`, `service_type` and the C-Octet
   String TLVs. A character past `U+00FF` is refused, as is a `U+0000` in a C-Octet String.
-- `tlvs` is keyed and typed like `pduObj.tlvs`, as `TlvInputs`: `{ message_state: { tagValue: 2 } }`,
-  or `{ 5142: { tagValue: octets } }` for a tag the table does not define. Any other key, a decimal
-  id the table names, and a `tagId` are refused.
+- `tlvs` is keyed and typed like `pduObj.tlvs`, as `TlvInputs`, so a parsed PDU's `tlvs` relay as
+  they are: `{ message_state: { tagValue: 2 } }`, or `{ 5142: { tagValue: octets } }` for a tag the
+  table does not define. Any other key, a decimal id the table names, a `tagId` disagreeing with its
+  key, and a number for an octet TLV are refused.
 - The five repeatable TLVs take an array, written as one TLV per element; a lone value or an empty
   array is refused.
 - A `Buffer` goes out exactly as given under any `data_coding`: binary payloads, hand-built user

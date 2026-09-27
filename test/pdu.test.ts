@@ -443,7 +443,10 @@ describe('TLVs', () => {
 		const refusals = [
 			// @ts-expect-error nils is no tag name
 			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { nils: { tagValue: 'blajfoo' } } }), reason: /decimal id/ },
-			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { 5142: { tagId: 5142, tagValue: 'blajfoo' } } }), reason: /instead of giving a tagId/ },
+			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { 5142: { tagId: 5143, tagValue: 'blajfoo' } } }), reason: /tagId 5143/ },
+			// @ts-expect-error the key names the tag
+			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { message_state: { tagId: 5, tagValue: 2 } } }), reason: /tagId 5/ },
+			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { 5142: { tagValue: 300 } } }), reason: /Buffer/ },
 			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { 65536: { tagValue: 'blajfoo' } } }), reason: /out of range/ },
 			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { '05142': { tagValue: 'blajfoo' } } }), reason: /decimal id/ },
 			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { 1063: { tagValue: 2 } } }), reason: /message_state/ },
@@ -535,6 +538,21 @@ describe('TLVs', () => {
 			pdu.writeUInt32BE(pdu.length, 0);
 			assert.ok(Object.hasOwn(decode(pdu).tlvs, tag), tag);
 		}
+	});
+
+	test('relays a parsed PDU\'s TLVs back out as they arrived', () => {
+		const params = { destination_addr: '46709771337', short_message: 'hi', source_addr: '46701113311' };
+		const parsed = decode(encode({
+			cmdName: 'deliver_sm',
+			params,
+			tlvs: {
+				5142: { tagValue: Buffer.from('01', 'hex') },
+				callback_num: { tagValue: [Buffer.from('0146709771337', 'hex')] },
+				receipted_message_id: { tagValue: '0199d8a4-5e2c-7b3f-9a61-c4e07f2d8b15' },
+			},
+		}));
+
+		assert.deepEqual(decode(encode({ cmdName: 'deliver_sm', params, tlvs: parsed.tlvs })).tlvs, parsed.tlvs);
 	});
 
 	test('types each known TLV by its tag, and an unknown one as octets', () => {

@@ -106,7 +106,7 @@ type WireValue<K extends TlvName> = Specs[K]['type']['default'];
 
 type ReadValue<K extends TlvName> = Repeated<K, WireValue<K>>;
 
-/** A lone text field also takes a number, and a lone octet field text, which goes out as latin1. */
+/** A lone text field also takes a number, and an octet field text, which goes out as latin1. */
 type WriteValue<K extends TlvName> = Specs[K] extends { multiple: true } ? ReadValue<K>
 	: WireValue<K> extends number ? number
 	: WireValue<K> extends string ? number | string
@@ -118,13 +118,13 @@ type KnownTlv<K extends TlvName> = { tagId: number; tagName: K; tagValue: ReadVa
 type UnknownTlv = { tagId: number; tagName: undefined; tagValue: Buffer };
 
 /** Keyed by tag name, or by its decimal id where the table defines no name. */
-export type Tlvs = { [K in TlvName]?: KnownTlv<K> } & Record<`${number}`, UnknownTlv>;
+export type Tlvs = { [K in TlvName]?: KnownTlv<K> } & Partial<Record<`${number}`, UnknownTlv>>;
 
 export type Tlv = { [K in TlvName]: KnownTlv<K> }[TlvName] | UnknownTlv;
 
 /** Keyed like `Tlvs`, by tag name or by the decimal id of a tag the table does not define. */
 export type TlvInputs = { [K in TlvName]?: { tagValue: WriteValue<K> } }
-	& Record<`${number}`, { tagValue: Buffer | number | string }>;
+	& Partial<Record<`${number}`, { tagValue: Buffer | string }>>;
 
 function isTlvInput(input: unknown): input is { tagValue: TlvValue } {
 	if (typeof input !== 'object' || input === null || !('tagValue' in input)) return false;
@@ -136,16 +136,8 @@ function isTlvInput(input: unknown): input is { tagValue: TlvValue } {
 	return value.every(one => Buffer.isBuffer(one)) || value.every(one => typeof one === 'number');
 }
 
-function entryOf(name: string, input: unknown): Result<{ tagId: number; tagValue: TlvValue }> {
-	if (!isTlvInput(input)) {
-		return { err: new Error(`TLV "${name}": give it as { tagValue }, holding a Buffer, a number, a string, or an array of Buffers or of numbers`) };
-	}
-
-	if ('tagId' in input) {
-		return { err: new Error(`TLV "${name}": key it by its name, or a tag the table does not define by its decimal id, instead of giving a tagId`) };
-	}
-
-	if (isTlvName(name)) return { tagId: specs[name].id, tagValue: input.tagValue };
+function keyedTagId(name: string): Result<{ tagId: number }> {
+	if (isTlvName(name)) return { tagId: specs[name].id };
 
 	const alternate = Object.hasOwn(tlvs, name) ? tlvs[name] : undefined;
 
@@ -161,9 +153,24 @@ function entryOf(name: string, input: unknown): Result<{ tagId: number; tagValue
 
 	const known = tlvsById[tagId];
 
-	return known
-		? { err: new Error(`TLV "${name}": the table names this tag ${known.tag}, key it by that`) }
-		: { tagId, tagValue: input.tagValue };
+	return known ? { err: new Error(`TLV "${name}": the table names this tag ${known.tag}, key it by that`) } : { tagId };
+}
+
+/** The key names the tag; a `tagId` beside it, as a parsed TLV carries, has to agree. */
+function entryOf(name: string, input: unknown): Result<{ tagId: number; tagValue: TlvValue }> {
+	if (!isTlvInput(input)) {
+		return { err: new Error(`TLV "${name}": give it as { tagValue }, holding a Buffer, a number, a string, or an array of Buffers or of numbers`) };
+	}
+
+	const keyed = keyedTagId(name);
+
+	if (keyed.err) return { err: keyed.err };
+
+	if ('tagId' in input && input.tagId !== keyed.tagId) {
+		return { err: new Error(`TLV "${name}": tagId ${String(input.tagId)} is not the tag its key names, ${String(keyed.tagId)}; drop the tagId`) };
+	}
+
+	return { tagId: keyed.tagId, tagValue: input.tagValue };
 }
 
 /** Each TLV as its four octet header and the value the tag's own wire type writes. */
@@ -205,6 +212,10 @@ function occurrences(value: TlvValue, multiple: boolean): Result<{ values: Param
 }
 
 function writeTlv(tagId: number, type: WireType, value: ParamValue): Result<{ chunk: Buffer }> {
+	if (type === tlvDefault && typeof value === 'number') {
+		return { err: new Error('holds octets, which a number would write as its digits; give a Buffer or a string') };
+	}
+
 	const sized = type.size(value);
 
 	if (sized.err) return { err: sized.err };

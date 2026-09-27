@@ -30,8 +30,9 @@ shape is the same, connect, send, listen for delivery reports, with callbacks re
   `consts.MESSAGING_MODE`**, which also names `SMSC_DEFAULT`. They are bits 1-0 of `esm_class`, not
   whole values of it. Read them from the new group, or pass `messagingMode` to `sendSms()`. A stale
   `consts.ESM_CLASS.STORE_FORWARD` reads `undefined`, which OR-s into an `esm_class` carrying no mode.
-- **A TLV is keyed by its name, or by its decimal id where the table names none**, and `tagId` on
-  an input is refused: `{ 5142: { tagValue } }`, not `{ vendor: { tagId: 5142, tagValue } }`.
+- **A TLV is keyed by its name, or by its decimal id where the table names none**, and a `tagId`
+  disagreeing with its key is refused: `{ 5142: { tagValue } }`, not
+  `{ vendor: { tagId: 5142, tagValue } }`. A number for an octet TLV is refused; give a Buffer.
   Write `alert_on_message_delivery` and `broadcast_area_identifier`, the names they read back
   under, for `alert_on_msg_delivery` and `failed_broadcast_area_identifier`.
 - **The `error` event is `sessionError`**, and `serverError` on the server handle.

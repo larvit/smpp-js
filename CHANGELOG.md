@@ -63,9 +63,11 @@
   type for its tag fails to compile. Annotate with `Tlvs` or `TlvInputs` where you wrote
   `Record<string, Tlv>` or `Record<string, TlvInput>`; `TlvInput` is gone.
 
-  **A TLV input is keyed by its name, or by its decimal id where the table names none, and `tagId`
-  is refused.** Write `{ 5142: { tagValue } }` for a vendor tag, not `{ vendor: { tagId: 5142, … } }`.
-  A name and a `tagId` could disagree, and `{ message_state: { tagId: 5, … } }` went out as tag 5.
+  **A TLV input is keyed by its name, or by its decimal id where the table names none, and a `tagId`
+  that disagrees with its key is refused.** Write `{ 5142: { tagValue } }` for a vendor tag, not
+  `{ vendor: { tagId: 5142, … } }`; `{ message_state: { tagId: 5, … } }` used to go out as tag 5. A
+  parsed PDU's `tlvs` still relay as they are. A number for an octet TLV, vendor tags included, is
+  refused, where it went out as its ASCII digits.
   A decimal key naming a tag the table knows, `{ 1063: … }`, is refused in favour of the name, and
   so are `alert_on_msg_delivery` and `failed_broadcast_area_identifier` in favour of
   `alert_on_message_delivery` and `broadcast_area_identifier`, the names they read back under.

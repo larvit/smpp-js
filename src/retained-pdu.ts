@@ -38,6 +38,8 @@ export function retainedOctets(pduObj: PduObject): number {
 	}
 
 	for (const tlv of Object.values(pduObj.tlvs)) {
+		if (tlv === undefined) continue;
+
 		const listed = Array.isArray(tlv.tagValue) ? tlv.tagValue.length : 0;
 
 		octets += tlvOctets(tlv.tagValue) + (1 + listed) * tlvObjectOverhead;
