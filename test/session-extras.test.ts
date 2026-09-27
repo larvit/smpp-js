@@ -102,6 +102,7 @@ function abortAfter(
 
 function stubPort(session: Session, port: Partial<IncomingDeps> = {}): IncomingDeps {
 	return {
+		acceptsOptionalParams: () => true,
 		answer: (pduObj, status, params) => session.sendReturn(pduObj, status, params),
 		bindAllows: () => true,
 		boundAs: () => 'transceiver',
@@ -1653,11 +1654,9 @@ describe('held message bounds', () => {
 describe('sendResp()', () => {
 	// A response the wire never carried leaves the peer owed one, so nothing may count it answered.
 	test('does not count a response that never reached the wire as an answer', async t => {
-		const sock = new net.Socket();
-		const session = new Session({ sock });
+		const session = new Session({ sock: new net.Socket() });
 
 		closeAfter(t, session);
-		sock.destroy();
 
 		let answered = 0;
 		const sms = createSms({
@@ -1667,6 +1666,9 @@ describe('sendResp()', () => {
 			session,
 			to: '46709771337',
 		}, {
+			acceptsOptionalParams: () => true,
+			answer: () => Promise.resolve({ err: new Error('Socket is closed') }),
+			bindAllows: () => true,
 			lostLink: () => false,
 			onAnswered: () => { answered++; },
 			send: () => Promise.resolve({ err: new Error('never sent') }),
@@ -1692,6 +1694,9 @@ describe('sendDlr()', () => {
 			session,
 			to: '46709771337',
 		}, {
+			acceptsOptionalParams: () => true,
+			answer: () => Promise.resolve({}),
+			bindAllows: () => true,
 			lostLink: () => false,
 			onAnswered: () => undefined,
 			send: () => {
