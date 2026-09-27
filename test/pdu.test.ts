@@ -554,7 +554,7 @@ describe('TLVs', () => {
 		assert.deepEqual([id, state, unknown], ['0199d8a4-5e2c-7b3f-9a61-c4e07f2d8b15', 2, Buffer.from('01', 'hex')]);
 
 		// @ts-expect-error an octet field takes no number, which would go out as its digits
-		assert.ok(objToPdu({ cmdName: 'deliver_sm', params: {}, tlvs: { network_error_code: { tagValue: 5 } } }));
+		objToPdu({ cmdName: 'deliver_sm', params: {}, tlvs: { network_error_code: { tagValue: 5 } } });
 		// @ts-expect-error message_state is an integer
 		assert.ok(objToPdu({ cmdName: 'deliver_sm', params: {}, tlvs: { message_state: { tagValue: 'ENROUTE' } } }).err);
 	});
