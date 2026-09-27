@@ -89,7 +89,7 @@ const alternates: Record<string, TlvName> = {
 	failed_broadcast_area_identifier: 'broadcast_area_identifier',
 };
 
-export const tlvs: Record<TlvName, TlvDefinition> & Record<string, TlvDefinition> = specs;
+export const tlvs: Record<TlvName, TlvDefinition> = specs;
 
 export const tlvsById: Record<number, TlvDefinition> = {};
 
