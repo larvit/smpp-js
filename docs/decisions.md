@@ -761,12 +761,12 @@ rule and an index of the titles below.
   round trip before the bind is answered, so gating on `closed` let a send arriving in that window go
   out unbound and come back `ESME_RINVBNDSTS`. `LinkGate` owns the answer instead — `shut(returning)`
   on every teardown, `open()` only once `comeBackUp()` has a bound link — and
-  `OutgoingRequests.linkDown()` reads it rather than `closed`. The bind itself cannot wait for what it
+  `OutgoingRequests.canCarry()` reads it rather than `closed`. The bind itself cannot wait for what it
   creates, so `pastDrain()` lets the three bind commands past the gate and the window, the same door
   `unbind()` takes through `now()`. The gate is told what happened and never reads back into the
   session: a collaborator that has to ask does not own its decision, which is how the first cut ended
   up answering the same question two different ways at admit and at release. For the same reason the
-  retry in `pastDrain()` asks `gate.isUp()` rather than `linkDown()`, which also reads the socket — a
+  retry in `pastDrain()` asks `gate.isUp()` rather than `canCarry()`, which also reads the socket — a
   condition that loops on something the gate does not gate on spins against a gate that admits it
   straight back. `LinkGate.returning` is a copy of `retrying()` taken at teardown, and stays true
   only because nothing stops the reconnect loop without `emitClose()` following it: `drain()` and

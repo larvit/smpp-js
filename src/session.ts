@@ -333,7 +333,8 @@ export class Session extends EventEmitter<SessionEvents> {
 		this.reconnectLoop?.stop();
 		this.outgoing.stopAccepting();
 
-		if (this.outgoing.linkDown()) return {};
+		// No link, so nothing is on the wire to wait out.
+		if (!this.outgoing.canCarry()) return {};
 
 		const timeout = this.options.shutdownTimeout ?? defaults.shutdownTimeout;
 		const deadline = timeout > 0 ? Date.now() + timeout : 0;
@@ -341,8 +342,7 @@ export class Session extends EventEmitter<SessionEvents> {
 		const messages = await this.incoming.drain(this.answering(timeout), signal);
 		const requests = await this.outgoing.drain(leftOf(deadline), signal);
 
-		// The window empties on a teardown too, which settles everything the link was carrying.
-		if (this.outgoing.linkDown()) {
+		if (this.outgoing.droppedWhileDraining()) {
 			return { err: new Error('The session closed before the drain finished') };
 		}
 

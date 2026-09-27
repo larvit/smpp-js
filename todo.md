@@ -199,15 +199,10 @@ next work ([decision](docs/decisions.md#internals-and-tests)).
 
 ### Locality — next, ahead of everything below; 5–6 today, and the gate is 7
 
-- [ ] **Split the two questions `OutgoingRequests.linkDown()` answers.** `Session.drain()` calls it
-      twice for opposite conclusions — "nothing to drain, success" and "the link died under us,
-      failure" — and `outgoing-requests.ts` reads it a third way. Two named predicates. Named by 7
-      of 9 readers, who each reconstructed the ordering by hand.
-
 - [ ] **Name `pastDrain()`'s retry condition and what makes the loop end.** The exit is a
       three-term disjunction over two collaborators, whose comment covers the first term only, and
       the method is named for what it bypasses. Do not change what it asks: `gate.isUp()` rather than
-      `linkDown()` is deliberate and recorded.
+      `canCarry()` is deliberate and recorded.
 
 - [ ] **Replace `resolveBody`'s `settles` boolean with the decision it stands for.** One boolean
       chooses both whether to overwrite `data_coding` and which params to read it from, across four

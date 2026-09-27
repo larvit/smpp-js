@@ -51,9 +51,14 @@ export class OutgoingRequests {
 		this.window = new SendWindow({ limit: options.maxOutstanding, log: options.log });
 	}
 
-	/** Read through a method: a drop can land while a request is awaiting. */
-	linkDown(): boolean {
-		return !this.gate.isUp() || this.transport.sock.destroyed;
+	/** Whether a request made now reaches the socket. Read through a method: a drop can land while one awaits. */
+	canCarry(): boolean {
+		return this.gate.isUp() && !this.transport.sock.destroyed;
+	}
+
+	/** The link went while draining, so the teardown settled what the drain waited on, not the peer. */
+	droppedWhileDraining(): boolean {
+		return this.draining && !this.canCarry();
 	}
 
 	/** A link is up and bound, so everything held for one goes out on it. */
@@ -84,8 +89,8 @@ export class OutgoingRequests {
 
 		if (wrong) return Promise.resolve({ err: wrong });
 
-		// A drain on a live link. A link that is down is the gate's answer, which says closed instead.
-		if (this.draining && !this.linkDown()) {
+		// With no link, the gate answers instead, and says closed.
+		if (this.draining && this.canCarry()) {
 			return Promise.resolve({ err: new Error('Session is shutting down') });
 		}
 
