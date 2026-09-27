@@ -324,12 +324,11 @@ export class IncomingRequests {
 			bindAllows: cmdName => this.deps.bindAllows(cmdName),
 			lostLink: () => this.linkGeneration !== generation,
 			onAnswered: () => { hold.answered(); },
-			// Past the refusal only while a drain is still waiting for this message; an ordinary send after.
 			send: input => (hold.isHeld() ? this.deps.sendPastDrain(input) : this.deps.send(input)),
 		});
 
 		this.holds.set(sms, hold);
 
-		if (!this.deps.offerSms(sms)) hold.untaken();
+		if (!this.deps.offerSms(sms)) hold.release();
 	}
 }
