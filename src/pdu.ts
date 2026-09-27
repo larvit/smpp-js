@@ -3,7 +3,7 @@ import type { ErrorName } from './defs/errors.ts';
 import type { ParamValue } from './defs/types.ts';
 import type { PduHeader } from './pdu-refusal.ts';
 import type { Result, VoidResult } from './result.ts';
-import type { Tlv, TlvInput } from './defs/tlvs.ts';
+import type { TlvInput, TlvInputs, Tlvs } from './defs/tlvs.ts';
 import { PduRefusedError, framingRefusal } from './pdu-refusal.ts';
 import { cmds, commandNameById, respNameFor } from './defs/commands.ts';
 import { hasUdh } from './defs/constants.ts';
@@ -23,7 +23,7 @@ export type PduObjectInput<C extends CommandName = CommandName> = {
 	cmdStatus?: ErrorName;
 	params?: PduParamsInput<C>;
 	seqNr?: number;
-	tlvs?: Record<string, TlvInput> | undefined;
+	tlvs?: TlvInputs | undefined;
 };
 
 /**
@@ -43,10 +43,10 @@ export type PduObject = {
 	 * the peer put in `message_payload` is not here; `messageOctets()` is what reads either.
 	 */
 	shortMessageOctets: Buffer | undefined;
-	tlvs: Record<string, Tlv>;
+	tlvs: Tlvs;
 };
 
-export type { TlvInput };
+export type { TlvInput, TlvInputs };
 
 const respBit = 0x80000000;
 
@@ -293,7 +293,7 @@ function readOptionalParams(
 	pdu: Buffer,
 	start: number,
 	afterShortMessage: boolean,
-): Result<{ tlvs: Record<string, Tlv> }> {
+): Result<{ tlvs: Tlvs }> {
 	const plain = parseTlvs(pdu, start);
 
 	if (!plain.err && plain.offset === pdu.length) return { tlvs: plain.tlvs };
@@ -418,7 +418,7 @@ export function pduReturn(
 	pdu: Buffer | PduObject,
 	status: ErrorName = 'ESME_ROK',
 	params: Record<string, ParamValue> = {},
-	tlvs?: Record<string, TlvInput>,
+	tlvs?: TlvInputs,
 ): Result<{ buffer: Buffer }> {
 	if (Buffer.isBuffer(pdu)) {
 		const parsed = pduToObj(pdu);

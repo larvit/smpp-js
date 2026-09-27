@@ -1,6 +1,6 @@
 import type { ErrorName } from './defs/errors.ts';
 import type { MessageState } from './defs/constants.ts';
-import type { PduObject, PduObjectInput, TlvInput } from './pdu.ts';
+import type { PduObject, PduObjectInput, TlvInputs } from './pdu.ts';
 import type { Result, VoidResult } from './result.ts';
 import type { Session } from './session.ts';
 import { UnansweredError } from './unanswered-error.ts';
@@ -179,7 +179,7 @@ function receiptText(sms: Sms, smsId: string, status: MessageState): string {
 	].join(' ');
 }
 
-function receiptTlvs(smsId: string, status: MessageState): Record<string, TlvInput> {
+function receiptTlvs(smsId: string, status: MessageState): TlvInputs {
 	return {
 		message_state: { tagValue: consts.MESSAGE_STATE[status] },
 		receipted_message_id: { tagValue: smsId },

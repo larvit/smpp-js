@@ -1,5 +1,5 @@
 import type { CloseOptions, OnRequest } from './session-options.ts';
-import type { PduObject, TlvInput } from './pdu.ts';
+import type { PduObject, TlvInputs } from './pdu.ts';
 import type { Result, VoidResult } from './result.ts';
 import type { Server as NetServer, Socket } from 'node:net';
 import type { Server as TlsServer, TlsOptions } from 'node:tls';
@@ -162,7 +162,7 @@ async function authenticate(
 }
 
 /** An ESME reads a missing sc_interface_version as this SMSC having none. */
-function bindRespTlvs(session: Session, options: ServerOptions): Record<string, TlvInput> | undefined {
+function bindRespTlvs(session: Session, options: ServerOptions): TlvInputs | undefined {
 	if (!session.acceptsOptionalParams()) return undefined;
 
 	return {

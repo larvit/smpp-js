@@ -613,6 +613,9 @@ if (isCommand(pduObj, 'submit_sm')) {
   and hands back the UDH where the PDU carries one.
 - `concatOf(pduObj)`: the `part`, `total` and `reference` a PDU declares and the `spelling` that
   carried them, `'udh'` or `'sar'`, or `undefined` for a whole message.
+- `pduObj.tlvs` is typed per tag, as `Tlvs`: `receipted_message_id` a string, `message_state` a
+  number, `message_payload` a `Buffer`. A tag the table does not define is a `Buffer` keyed by its
+  decimal id, `tlvs['5142']`.
 - `callback_num`, `callback_num_atag`, `callback_num_pres_ind`, `broadcast_area_identifier` and
   `broadcast_error_status` may repeat in one PDU, so each reads as an array of every occurrence in wire
   order: `number[]` for `callback_num_pres_ind` and `broadcast_error_status`, `Buffer[]` for the rest.
@@ -627,6 +630,8 @@ if (isCommand(pduObj, 'submit_sm')) {
   naming the character, its code point and where it is.
 - Every text field is latin1: addresses, `system_id`, `message_id`, `service_type` and the C-Octet
   String TLVs. A character past `U+00FF` is refused, as is a `U+0000` in a C-Octet String.
+- `tlvs` is typed per tag, as `TlvInputs`, so `{ message_state: { tagValue: 'ENROUTE' } }` fails to
+  compile. A tag the table does not define takes a `tagId`.
 - The five repeatable TLVs take an array, written as one TLV per element; a lone value or an empty
   array is refused.
 - A `Buffer` goes out exactly as given under any `data_coding`: binary payloads, hand-built user

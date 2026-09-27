@@ -79,14 +79,17 @@ const specs = tlvSpecs({
 	its_session_info: { id: 0x1383, tag: 'its_session_info', type: tlv.buffer },
 });
 
-export type TlvName = keyof typeof specs;
+type Specs = typeof specs;
 
-export const tlvs: Record<TlvName, TlvDefinition> & Record<string, TlvDefinition> = {
-	...specs,
-	// Alternate spellings; the definition behind each keeps its canonical name.
+export type TlvName = keyof Specs;
+
+// Alternate spellings; the definition behind each keeps its canonical name.
+const alternates = {
 	alert_on_msg_delivery: specs.alert_on_message_delivery,
 	failed_broadcast_area_identifier: specs.broadcast_area_identifier,
 };
+
+export const tlvs: Record<TlvName, TlvDefinition> & Record<string, TlvDefinition> = { ...specs, ...alternates };
 
 export const tlvsById: Record<number, TlvDefinition> = {};
 
@@ -97,17 +100,42 @@ for (const definition of Object.values<TlvDefinition>(specs)) {
 /** Fallback for tags this table does not know: keep the raw octets. */
 export const tlvDefault: WireType<Buffer> = tlv.buffer;
 
-export type Tlv = {
-	tagId: number;
-	tagName: string | undefined;
-	tagValue: TlvValue;
-};
+type Repeated<K extends TlvName, V> = Specs[K] extends { multiple: true } ? V[] : V;
+
+type WireValue<K extends TlvName> = Specs[K]['type']['default'];
+
+export type TlvReadValue<K extends TlvName> = Repeated<K, WireValue<K>>;
+
+/** A lone text field also takes a number, and a lone octet field text, which goes out as latin1. */
+export type TlvWriteValue<K extends TlvName> = Specs[K] extends { multiple: true } ? TlvReadValue<K>
+	: WireValue<K> extends number ? number
+	: WireValue<K> extends string ? number | string
+	: Buffer | number | string;
+
+type OneTlv<K extends TlvName> = { tagId: number; tagName: K; tagValue: TlvReadValue<K> };
+
+export type Tlv<K extends TlvName = TlvName> = { [N in K]: OneTlv<N> }[K];
+
+/** A tag the TLV table does not define, keyed by its decimal id. */
+export type UnknownTlv = { tagId: number; tagName: undefined; tagValue: Buffer };
+
+type KnownTlvs = { [K in TlvName]?: OneTlv<K> };
+
+export type Tlvs = KnownTlvs & Record<`${number}`, UnknownTlv>;
 
 export type TlvInput = {
 	/** Resolved from the record key; pass it for a tag the TLV table does not define. */
 	tagId?: number | undefined;
 	tagValue: TlvValue;
 };
+
+type Alternate = keyof typeof alternates;
+
+type Canonical<K extends Alternate | TlvName> = K extends Alternate ? (typeof alternates)[K]['tag'] : K;
+
+export type TlvInputs = {
+	[K in Alternate | TlvName]?: { tagId?: number | undefined; tagValue: TlvWriteValue<Canonical<K>> };
+} & Record<string, TlvInput>;
 
 export function tagIdOf(name: string, input: TlvInput): Result<{ tagId: number }> {
 	const tagId = input.tagId ?? tlvs[name]?.id;
@@ -198,10 +226,38 @@ function readTlv(pdu: Buffer, offset: number): Result<{ octets: number; occurren
 	return { occurrence: { definition, tagId, value: read.value }, octets: 4 + tagLength };
 }
 
+function isTlvName(name: string): name is TlvName {
+	return Object.hasOwn(specs, name);
+}
+
+function readsAs(definition: TlvDefinition, value: unknown): boolean {
+	const kind = definition.type.default;
+	const fits = (one: unknown): boolean => typeof one === typeof kind && Buffer.isBuffer(one) === Buffer.isBuffer(kind);
+
+	return definition.multiple === true ? Array.isArray(value) && value.every(fits) : fits(value);
+}
+
+function isTlvShape(tlv: unknown): tlv is { tagId: number; tagName: unknown; tagValue: unknown } {
+	return typeof tlv === 'object' && tlv !== null && 'tagId' in tlv && typeof tlv.tagId === 'number'
+		&& 'tagName' in tlv && 'tagValue' in tlv;
+}
+
+function isTlv(key: string, tlv: unknown): boolean {
+	if (!isTlvShape(tlv)) return false;
+	if (tlv.tagName === undefined) return /^\d+$/.test(key) && Buffer.isBuffer(tlv.tagValue);
+
+	return tlv.tagName === key && isTlvName(key) && readsAs(specs[key], tlv.tagValue);
+}
+
+/** Every entry keyed by its tag name, or an unknown tag by its decimal id, holding what its table type reads. */
+export function isTlvs(record: Record<string, unknown>): record is Tlvs {
+	return Object.entries(record).every(([key, tlv]) => isTlv(key, tlv));
+}
+
 /** Keyed by tag name, a repeatable tag listing every occurrence in wire order and any other keeping its last. */
-function keyedTlvs(occurrences: Occurrence[]): Record<string, Tlv> {
+function keyedTlvs(occurrences: Occurrence[]): Result<{ tlvs: Tlvs }> {
 	const repeated = new Map<string, { tagId: number; values: Occurrence['value'][] }>();
-	const tlvs: Record<string, Tlv> = {};
+	const tlvs: Record<string, unknown> = {};
 
 	for (const { definition, tagId, value } of occurrences) {
 		const key = definition?.tag ?? tagId.toString();
@@ -217,19 +273,13 @@ function keyedTlvs(occurrences: Occurrence[]): Record<string, Tlv> {
 	}
 
 	for (const [key, { tagId, values }] of repeated) {
-		const buffers = values.filter(value => Buffer.isBuffer(value));
-
-		tlvs[key] = {
-			tagId,
-			tagName: key,
-			tagValue: buffers.length === values.length ? buffers : values.filter(value => typeof value === 'number'),
-		};
+		tlvs[key] = { tagId, tagName: key, tagValue: values };
 	}
 
-	return tlvs;
+	return isTlvs(tlvs) ? { tlvs } : { err: new Error('A TLV did not read as its table type') };
 }
 
-export function parseTlvs(pdu: Buffer, start: number): Result<{ offset: number; tlvs: Record<string, Tlv> }> {
+export function parseTlvs(pdu: Buffer, start: number): Result<{ offset: number; tlvs: Tlvs }> {
 	const occurrences: Occurrence[] = [];
 	let offset = start;
 
@@ -242,5 +292,7 @@ export function parseTlvs(pdu: Buffer, start: number): Result<{ offset: number; 
 		offset += read.octets;
 	}
 
-	return { offset, tlvs: keyedTlvs(occurrences) };
+	const keyed = keyedTlvs(occurrences);
+
+	return keyed.err ? { err: keyed.err } : { offset, tlvs: keyed.tlvs };
 }

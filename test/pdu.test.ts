@@ -475,6 +475,10 @@ describe('TLVs', () => {
 			},
 		}));
 
+		const firstRead: Buffer | undefined = pduObj.tlvs.callback_num?.tagValue[0];
+		const presentation: number | undefined = pduObj.tlvs.callback_num_pres_ind?.tagValue[0];
+
+		assert.deepEqual([firstRead, presentation], [first, 1]);
 		assert.deepEqual(pduObj.tlvs.callback_num?.tagValue, [first, second]);
 		assert.deepEqual(pduObj.tlvs.callback_num_pres_ind?.tagValue, [1]);
 	});
@@ -493,16 +497,36 @@ describe('TLVs', () => {
 	test('refuses a repeatable TLV given one value, and a lone TLV given several', () => {
 		const params = { destination_addr: '46709771337', short_message: 'hi', source_addr: '46701113311' };
 
-		for (const tlvs of [
-			{ callback_num: { tagValue: Buffer.from('01', 'hex') } },
-			{ callback_num: { tagValue: [] } },
-			{ source_port: { tagValue: [1234, 1235] } },
+		for (const { buffer, err } of [
+			// @ts-expect-error callback_num repeats, so it takes an array
+			objToPdu({ cmdName: 'submit_sm', params, tlvs: { callback_num: { tagValue: Buffer.from('01', 'hex') } } }),
+			objToPdu({ cmdName: 'submit_sm', params, tlvs: { callback_num: { tagValue: [] } } }),
+			// @ts-expect-error source_port does not repeat
+			objToPdu({ cmdName: 'submit_sm', params, tlvs: { source_port: { tagValue: [1234, 1235] } } }),
 		]) {
-			const { buffer, err } = objToPdu({ cmdName: 'submit_sm', params, tlvs });
-
 			assert.equal(buffer, undefined);
 			assert.ok(err instanceof Error);
 		}
+	});
+
+	test('types each known TLV by its tag, and an unknown one as octets', () => {
+		const pduObj = decode(encode({
+			cmdName: 'deliver_sm',
+			params: { destination_addr: '46709771337', short_message: 'hi', source_addr: '46701113311' },
+			tlvs: {
+				5142: { tagId: 5142, tagValue: Buffer.from('01', 'hex') },
+				message_state: { tagValue: 2 },
+				receipted_message_id: { tagValue: '0199d8a4-5e2c-7b3f-9a61-c4e07f2d8b15' },
+			},
+		}));
+		const id: string | undefined = pduObj.tlvs.receipted_message_id?.tagValue;
+		const state: number | undefined = pduObj.tlvs.message_state?.tagValue;
+		const unknown: Buffer | undefined = pduObj.tlvs['5142']?.tagValue;
+
+		assert.deepEqual([id, state, unknown], ['0199d8a4-5e2c-7b3f-9a61-c4e07f2d8b15', 2, Buffer.from('01', 'hex')]);
+
+		// @ts-expect-error message_state is an integer
+		assert.ok(objToPdu({ cmdName: 'deliver_sm', params: {}, tlvs: { message_state: { tagValue: 'ENROUTE' } } }).err);
 	});
 
 	test('round-trips a receipt with message_state and receipted_message_id', () => {

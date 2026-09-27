@@ -1,7 +1,7 @@
 import type { ErrorName } from './defs/errors.ts';
 import type { MessageDlr } from './dlr-merger.ts';
 import type { ParamValue } from './defs/types.ts';
-import type { PduObject, PduObjectInput, TlvInput } from './pdu.ts';
+import type { PduObject, PduObjectInput, TlvInputs } from './pdu.ts';
 import type { PduRefusedError } from './pdu-refusal.ts';
 import type { BindType, CloseOptions, LinkEnd, ReconnectOptions, SendOptions, SessionEvents, SessionOptions } from './session-options.ts';
 import type { Result, VoidResult } from './result.ts';
@@ -175,7 +175,7 @@ export class Session extends EventEmitter<SessionEvents> {
 		pdu: PduObject,
 		status: ErrorName = 'ESME_ROK',
 		params: Record<string, ParamValue> = {},
-		tlvs?: Record<string, TlvInput>,
+		tlvs?: TlvInputs,
 	): Promise<VoidResult> {
 		return Promise.resolve(
 			this.answer(pduReturn(pdu, status, params, tlvs), pdu.cmdName, pdu.seqNr),

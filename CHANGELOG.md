@@ -58,6 +58,11 @@
   `Buffer.isBuffer()` or `typeof` check written for 0.5.0 now reads it as absent. Read `tagValue[0]`
   for the first occurrence. `objToPdu()`, `session.send()` and `session.sendReturn()` take
   `{ tagValue: [value] }` for them and refuse a lone value before anything goes out.
+- `pduObj.tlvs` and every `tlvs` input are typed per tag, as `Tlvs` and `TlvInputs`:
+  `receipted_message_id` reads as a `string`, `callback_num` as a `Buffer[]`, and a value of the wrong
+  type for its tag fails to compile. An unknown tag reads as a `Buffer` under its decimal id. Code
+  that narrowed `tagValue` with `typeof` still compiles; a `Record<string, Tlv>` annotation does not,
+  so use `Tlvs`.
 - `cmds.broadcast_sm_resp.tlvMap` is removed; nothing read it.
 
 ## 0.5.0

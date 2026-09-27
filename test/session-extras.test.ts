@@ -1808,7 +1808,7 @@ describe('where a segment says it is concatenated', () => {
 	});
 
 	test('reads no concatenation where a sar_* TLV is missing', () => {
-		const lone = {
+		const lone: PduObject = {
 			...sarSegment(5, 1, 2),
 			tlvs: { sar_msg_ref_num: { tagId: 0x020c, tagName: 'sar_msg_ref_num', tagValue: 5 } },
 		};
