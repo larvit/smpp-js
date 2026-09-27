@@ -490,6 +490,15 @@ rule and an index of the titles below.
   text field, which would buy one spelling by taking a legitimate octet away from the
   length-prefixed Octet String, whose length octet is what ends it.
 
+- **A TLV input is keyed by its tag name, or by its decimal id where the table names none, and a
+  `tagId` beside the key is accepted only where it agrees.** Settled in the architecture and
+  product-owner reviews of [#30](https://gitea.larvit.se/larvit/smpp-js/pulls/30), 2026-09-27. The
+  key is the one spelling, because a name and a `tagId` that disagreed sent the `tagId`'s tag under
+  a record keyed as another. A parsed TLV carries its `tagId`, and goal 8's passthrough means a
+  parsed PDU's `tlvs` relay as they are, so an agreeing copy is read past rather than refused.
+  Rejected: refusing every `tagId`, which breaks relaying. Rejected: a `tagId` overriding the key,
+  the 0.5.0 behaviour. Valid while parsed TLVs carry `tagId`.
+
 ## The session's life
 
 - **A close arriving after our own `unbind` is a clean unbind, not an error.** Maintainer's call,

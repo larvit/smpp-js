@@ -280,6 +280,8 @@ the file.
 - A GSM 03.38 message declares `data_coding` 0x00, and an inbound 0x01 is still read as GSM.
 - Every text field on the wire is latin1, and what the field cannot carry is refused rather than
   truncated.
+- A TLV input is keyed by its tag name, or by its decimal id where the table names none, and a
+  `tagId` beside the key is accepted only where it agrees.
 
 ### [The session's life](docs/decisions.md#the-sessions-life)
 

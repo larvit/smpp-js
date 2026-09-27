@@ -443,9 +443,9 @@ describe('TLVs', () => {
 		const refusals = [
 			// @ts-expect-error nils is no tag name
 			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { nils: { tagValue: 'blajfoo' } } }), reason: /decimal id/ },
-			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { 5142: { tagId: 5143, tagValue: 'blajfoo' } } }), reason: /its tagId is not 5142/ },
+			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { 5142: { tagId: 5143, tagValue: 'blajfoo' } } }), reason: /does not match 5142/ },
 			// @ts-expect-error the key names the tag
-			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { message_state: { tagId: 5, tagValue: 2 } } }), reason: /its tagId is not 1063/ },
+			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { message_state: { tagId: 5, tagValue: 2 } } }), reason: /does not match 1063/ },
 			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { 5142: { tagValue: 300 } } }), reason: /Buffer/ },
 			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { 65536: { tagValue: 'blajfoo' } } }), reason: /out of range/ },
 			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { '05142': { tagValue: 'blajfoo' } } }), reason: /decimal id/ },
