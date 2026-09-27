@@ -135,7 +135,9 @@ function tagIdOf(name: string, input: object): Result<{ tagId: number }> {
 		return { err: new Error(`TLV "${name}": key it by its name, or a tag the table does not define by its decimal id, instead of giving a tagId`) };
 	}
 
-	if (Object.hasOwn(tlvs, name)) return { tagId: tlvs[name]?.id ?? 0 };
+	const named = Object.hasOwn(tlvs, name) ? tlvs[name] : undefined;
+
+	if (named) return { tagId: named.id };
 
 	if (!/^(0|[1-9]\d*)$/.test(name)) {
 		return { err: new Error(`TLV "${name}": unknown tag name; key a tag the table does not define by its decimal id`) };
