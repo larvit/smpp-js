@@ -395,6 +395,7 @@ export class Session extends EventEmitter<SessionEvents> {
 		else this.emitClose();
 	}
 
+	// Copied into the gate at teardown, so stopping the loop anywhere but drain() and end() has to shut the gate too.
 	private retrying(): boolean {
 		return this.reconnectLoop !== undefined && !this.reconnectLoop.isStopped();
 	}

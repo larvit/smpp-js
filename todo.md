@@ -321,7 +321,8 @@ next work ([decision](docs/decisions.md#internals-and-tests)).
 
 - [ ] **Make `LinkGate.isUp()`'s doc true or its state match it.** It says a link attached but not
       yet bound cannot carry a request, while `up` starts `true`, so the first link and a server
-      session are up before any bind. From the comprehension panel of #25.
+      session are up before any bind. The gate decision in `docs/decisions.md` makes the same claim
+      in its title, and carries the same fix. From the comprehension panel of #25.
 
 - [ ] **Move `checkSessionOptions()`'s doc comment to what it describes.** It explains why a count
       below 1 is refused, which is `checkLimits`' job, and says nothing of the function it heads.
