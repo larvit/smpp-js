@@ -3,14 +3,14 @@ import type { ErrorName } from './defs/errors.ts';
 import type { ParamValue } from './defs/types.ts';
 import type { PduHeader } from './pdu-refusal.ts';
 import type { Result, VoidResult } from './result.ts';
-import type { TlvInput, TlvInputs, Tlvs } from './defs/tlvs.ts';
+import type { TlvInputs, Tlvs } from './defs/tlvs.ts';
 import { PduRefusedError, framingRefusal } from './pdu-refusal.ts';
 import { cmds, commandNameById, respNameFor } from './defs/commands.ts';
 import { hasUdh } from './defs/constants.ts';
 import { decodeMessage, encodeBody } from './message.ts';
 import { errorNameById, errors, isErrorName } from './defs/errors.ts';
 import { paramNumber, valueText } from './defs/types.ts';
-import { parseTlvs, tagIdOf, tlvs, writeTlvs } from './defs/tlvs.ts';
+import { parseTlvs, writeTlvs } from './defs/tlvs.ts';
 
 /** The highest sequence number this library hands out; SMPP 3.4 4.7.1 reserves 0x7fffffff. */
 export const maxSeqNr = 2147483646;
@@ -46,7 +46,7 @@ export type PduObject = {
 	tlvs: Tlvs;
 };
 
-export type { TlvInput, TlvInputs };
+export type { TlvInputs };
 
 const respBit = 0x80000000;
 
@@ -68,28 +68,11 @@ export function isCommand<C extends CommandName>(
 
 type ResolvedBody = {
 	params: Record<string, ParamValue | undefined>;
-	tlvs: Record<string, TlvInput> | undefined;
+	tlvs: TlvInputs | undefined;
 };
 
 function codingOf(params: Record<string, ParamValue | undefined>): number | undefined {
 	return typeof params.data_coding === 'number' ? params.data_coding : undefined;
-}
-
-type CarriedBody = { name: string; text: string; tlv: TlvInput };
-
-/** Every entry carrying body text, under whatever names their tagIds are keyed to. */
-function carriedBodies(input: Record<string, TlvInput> | undefined): CarriedBody[] {
-	const carried: CarriedBody[] = [];
-
-	for (const [name, tlv] of Object.entries(input ?? {})) {
-		const tag = tagIdOf(name, tlv);
-
-		if (!tag.err && tag.tagId === tlvs.message_payload.id && typeof tlv.tagValue === 'string') {
-			carried.push({ name, text: tlv.tagValue, tlv });
-		}
-	}
-
-	return carried;
 }
 
 /** messageOctets() reads short_message wherever it holds an octet, and the TLV only where it does not. */
@@ -105,19 +88,21 @@ function writtenBody(definition: CommandDefinition, value: ParamValue | undefine
 /** Encoded in place, settling data_coding where `settles` says no mandatory field will carry it. */
 function resolveCarried(
 	resolved: ResolvedBody,
-	inputs: Record<string, TlvInput> | undefined,
+	inputs: TlvInputs | undefined,
 	dataCoding: number | undefined,
 	settles: boolean,
 ): VoidResult {
-	for (const carried of carriedBodies(inputs)) {
-		const encoded = encodeBody(carried.text, dataCoding);
+	const text = inputs?.message_payload?.tagValue;
 
-		if (encoded.err) return { err: new Error(`TLV "${carried.name}": ${encoded.err.message}`) };
+	if (typeof text !== 'string') return {};
 
-		if (settles) resolved.params.data_coding = encoded.dataCoding;
+	const encoded = encodeBody(text, dataCoding);
 
-		resolved.tlvs = { ...resolved.tlvs, [carried.name]: { ...carried.tlv, tagValue: encoded.buffer } };
-	}
+	if (encoded.err) return { err: new Error(`TLV "message_payload": ${encoded.err.message}`) };
+
+	if (settles) resolved.params.data_coding = encoded.dataCoding;
+
+	resolved.tlvs = { ...resolved.tlvs, message_payload: { tagValue: encoded.buffer } };
 
 	return {};
 }
@@ -125,7 +110,7 @@ function resolveCarried(
 /** data_coding names the alphabet of the body, and short_message settles it where it carries octets. */
 function resolveBody(
 	params: Record<string, ParamValue | undefined>,
-	tlvs: Record<string, TlvInput> | undefined,
+	tlvs: TlvInputs | undefined,
 	definition: CommandDefinition,
 ): Result<ResolvedBody> {
 	const message = writtenBody(definition, params.short_message);
@@ -197,7 +182,7 @@ function buildBody(
 	cmdName: CommandName,
 	cmdStatus: ErrorName,
 	params: Record<string, ParamValue | undefined>,
-	tlvs: Record<string, TlvInput> | undefined,
+	tlvs: TlvInputs | undefined,
 ): Result<{ body: Buffer }> {
 	if (errors[cmdStatus] !== 0 && definition.id >= respBit) return { body: Buffer.alloc(0) };
 
@@ -221,7 +206,7 @@ function buildPdu(
 	cmdStatus: ErrorName,
 	seqNr: number,
 	params: Record<string, ParamValue | undefined>,
-	tlvs: Record<string, TlvInput> | undefined,
+	tlvs: TlvInputs | undefined,
 ): Result<{ buffer: Buffer }> {
 	const definition = cmds[cmdName];
 

@@ -173,18 +173,17 @@ describe('a body the PDU\'s own data_coding cannot carry', () => {
 		assert.match(built.err.message, /U\+3042/);
 	});
 
-	test('refuses the body TLV under whatever name the caller keyed its tagId to', () => {
+	test('refuses the body TLV keyed by its id, so only message_payload is written as text', () => {
 		const built = objToPdu({
 			cmdName: 'data_sm',
-			params: { data_coding: 0x03, destination_addr: to, source_addr: from },
-			tlvs: { body: { tagId: 0x0424, tagValue: 'あいう' } },
+			params: { data_coding: 0x08, destination_addr: to, source_addr: from },
+			tlvs: { 1060: { tagValue: 'あいう' }, message_payload: { tagValue: 'あいう' } },
 		});
 
 		assert.ok(built.err instanceof Error);
 		assert.equal(built.buffer, undefined);
-		assert.match(built.err.message, /"body"/);
-		assert.match(built.err.message, /LATIN1/);
-		assert.match(built.err.message, /U\+3042/);
+		assert.match(built.err.message, /"1060"/);
+		assert.match(built.err.message, /message_payload/);
 	});
 
 	test('leaves data_coding to short_message wherever it carries octets, as messageOctets() reads it', () => {
@@ -203,22 +202,6 @@ describe('a body the PDU\'s own data_coding cannot carry', () => {
 		assert.ok(pduObj);
 		assert.equal(pduObj.params.data_coding, 0, 'the TLV must not name an alphabet for octets nothing reads it as');
 		assert.deepEqual(messageOctets(pduObj), short);
-	});
-
-	test('encodes every entry carrying the body tag, so a second one cannot go out truncated', () => {
-		const built = objToPdu({
-			cmdName: 'data_sm',
-			params: { data_coding: 0x08, destination_addr: to, source_addr: from },
-			tlvs: { alias: { tagId: 0x0424, tagValue: 'あいう' }, message_payload: { tagValue: 'あいう' } },
-		});
-
-		assert.equal(built.err, undefined);
-		assert.ok(built.buffer);
-
-		const hex = built.buffer.toString('hex');
-
-		assert.equal(hex.split('304230443046').length - 1, 2, 'both entries carry the UCS2 octets');
-		assert.ok(!hex.includes('424446'), 'no entry goes out as the low octets of its code points');
 	});
 
 	test('leaves the alphabet to the body TLV wherever short_message carries no octets', () => {

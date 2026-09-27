@@ -1,19 +1,13 @@
 import type { ParamValue } from './defs/types.ts';
 import type { PduObject } from './pdu.ts';
-import { detachedTlv, tlvOctets } from './defs/types.ts';
-import { isTlvs } from './defs/tlvs.ts';
+import { tlvOctets } from './defs/types.ts';
 
 /** Wire reads hand back views, so retaining one PDU would pin the whole chunk it arrived in. */
 export function detach(pduObj: PduObject): PduObject {
 	const params: Record<string, ParamValue> = {};
-	const tlvs: Record<string, unknown> = {};
 
 	for (const [name, value] of Object.entries(pduObj.params)) {
 		params[name] = Buffer.isBuffer(value) ? Buffer.from(value) : value;
-	}
-
-	for (const [name, tlv] of Object.entries(pduObj.tlvs)) {
-		tlvs[name] = { ...tlv, tagValue: detachedTlv(tlv.tagValue) };
 	}
 
 	// short_message holds the same octets wherever it was not decoded, so one copy covers both.
@@ -21,7 +15,7 @@ export function detach(pduObj: PduObject): PduObject {
 		? params.short_message
 		: pduObj.shortMessageOctets && Buffer.from(pduObj.shortMessageOctets);
 
-	return { ...pduObj, params, shortMessageOctets: octets, tlvs: isTlvs(tlvs) ? tlvs : pduObj.tlvs };
+	return { ...pduObj, params, shortMessageOctets: octets };
 }
 
 // Measured heap beyond the octets, so a PDU of empty fields or empty TLVs is not free.

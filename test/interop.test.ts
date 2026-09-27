@@ -95,8 +95,8 @@ describe('our encoder against the reference parser', () => {
 			},
 			seqNr: 77,
 			tlvs: {
-				message_state: { tagId: 0x0427, tagValue: 2 },
-				receipted_message_id: { tagId: 0x001E, tagValue: 'abc123' },
+				message_state: { tagValue: 2 },
+				receipted_message_id: { tagValue: 'abc123' },
 			},
 		}));
 

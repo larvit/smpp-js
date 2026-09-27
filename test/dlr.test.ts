@@ -4,7 +4,7 @@ import { consts } from '../src/defs/constants.ts';
 import { dlrFromPdu, parseReceipt, receiptCodes } from '../src/dlr.ts';
 import { encodeMessage } from '../src/message.ts';
 import { objToPdu, pduToObj } from '../src/pdu.ts';
-import type { PduObject, TlvInput } from '../src/pdu.ts';
+import type { PduObject, TlvInputs } from '../src/pdu.ts';
 
 const receiptText = 'id:0195f0c7 sub:001 dlvrd:001 submit date:2508251430 done date:2508251431 stat:DELIVRD err:000 text:hello there';
 
@@ -14,7 +14,7 @@ const textReceipt = `id:${textReceiptId} sub:001 dlvrd:001 submit date:250905143
 
 function deliverSm(
 	message: Buffer | string,
-	tlvs?: Record<string, TlvInput>,
+	tlvs?: TlvInputs,
 	esmClass: number = consts.ESM_CLASS.MC_DELIVERY_RECEIPT,
 	dataCoding = 0,
 ): PduObject {

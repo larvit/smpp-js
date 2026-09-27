@@ -104,55 +104,54 @@ type Repeated<K extends TlvName, V> = Specs[K] extends { multiple: true } ? V[] 
 
 type WireValue<K extends TlvName> = Specs[K]['type']['default'];
 
-export type TlvReadValue<K extends TlvName> = Repeated<K, WireValue<K>>;
+type ReadValue<K extends TlvName> = Repeated<K, WireValue<K>>;
 
 /** A lone text field also takes a number, and a lone octet field text, which goes out as latin1. */
-export type TlvWriteValue<K extends TlvName> = Specs[K] extends { multiple: true } ? TlvReadValue<K>
+type WriteValue<K extends TlvName> = Specs[K] extends { multiple: true } ? ReadValue<K>
 	: WireValue<K> extends number ? number
 	: WireValue<K> extends string ? number | string
 	: Buffer | number | string;
 
-type OneTlv<K extends TlvName> = { tagId: number; tagName: K; tagValue: TlvReadValue<K> };
+type KnownTlv<K extends TlvName> = { tagId: number; tagName: K; tagValue: ReadValue<K> };
 
-export type Tlv<K extends TlvName = TlvName> = { [N in K]: OneTlv<N> }[K];
+/** A tag the TLV table does not define. */
+type UnknownTlv = { tagId: number; tagName: undefined; tagValue: Buffer };
 
-/** A tag the TLV table does not define, keyed by its decimal id. */
-export type UnknownTlv = { tagId: number; tagName: undefined; tagValue: Buffer };
+/** Keyed by tag name, or by its decimal id where the table defines no name. */
+export type Tlvs = { [K in TlvName]?: KnownTlv<K> } & Record<`${number}`, UnknownTlv>;
 
-type KnownTlvs = { [K in TlvName]?: OneTlv<K> };
-
-export type Tlvs = KnownTlvs & Record<`${number}`, UnknownTlv>;
-
-export type TlvInput = {
-	/** Resolved from the record key; pass it for a tag the TLV table does not define. */
-	tagId?: number | undefined;
-	tagValue: TlvValue;
-};
+export type Tlv = { [K in TlvName]: KnownTlv<K> }[TlvName] | UnknownTlv;
 
 type Alternate = keyof typeof alternates;
 
 type Canonical<K extends Alternate | TlvName> = K extends Alternate ? (typeof alternates)[K]['tag'] : K;
 
-export type TlvInputs = {
-	[K in Alternate | TlvName]?: { tagId?: number | undefined; tagValue: TlvWriteValue<Canonical<K>> };
-} & Record<string, TlvInput>;
+/** Keyed like `Tlvs`, by tag name or by the decimal id of a tag the table does not define. */
+export type TlvInputs = { [K in Alternate | TlvName]?: { tagValue: WriteValue<Canonical<K>> } }
+	& Record<`${number}`, { tagValue: Buffer | number | string }>;
 
-export function tagIdOf(name: string, input: TlvInput): Result<{ tagId: number }> {
-	const tagId = input.tagId ?? tlvs[name]?.id;
-
-	if (tagId === undefined) {
-		return { err: new Error(`TLV "${name}": unknown tag name, give it a tagId`) };
+function tagIdOf(name: string, input: object): Result<{ tagId: number }> {
+	if ('tagId' in input) {
+		return { err: new Error(`TLV "${name}": key it by its name, or a tag the table does not define by its decimal id, instead of giving a tagId`) };
 	}
 
-	if (!Number.isInteger(tagId) || tagId < 0 || tagId > 0xFFFF) {
-		return { err: new Error(`TLV "${name}": tagId ${String(tagId)} out of range 0-65535`) };
+	if (Object.hasOwn(tlvs, name)) return { tagId: tlvs[name]?.id ?? 0 };
+
+	if (!/^(0|[1-9]\d*)$/.test(name)) {
+		return { err: new Error(`TLV "${name}": unknown tag name; key a tag the table does not define by its decimal id`) };
 	}
 
-	return { tagId };
+	const tagId = Number(name);
+
+	if (tagId > 0xFFFF) return { err: new Error(`TLV "${name}": tag id out of range 0-65535`) };
+
+	const known = tlvsById[tagId];
+
+	return known ? { err: new Error(`TLV "${name}": the table names this tag ${known.tag}, key it by that`) } : { tagId };
 }
 
 /** Each TLV as its four octet header and the value the tag's own wire type writes. */
-export function writeTlvs(inputs: Record<string, TlvInput> | undefined): Result<{ chunks: Buffer[] }> {
+export function writeTlvs(inputs: TlvInputs | undefined): Result<{ chunks: Buffer[] }> {
 	const chunks: Buffer[] = [];
 
 	for (const [name, input] of Object.entries(inputs ?? {})) {
@@ -223,7 +222,10 @@ function readTlv(pdu: Buffer, offset: number): Result<{ octets: number; occurren
 
 	if (read.err) return { err: read.err };
 
-	return { occurrence: { definition, tagId, value: read.value }, octets: 4 + tagLength };
+	// Copied, so holding a TLV pins no more than its own octets.
+	const value = Buffer.isBuffer(read.value) ? Buffer.from(read.value) : read.value;
+
+	return { occurrence: { definition, tagId, value }, octets: 4 + tagLength };
 }
 
 function isTlvName(name: string): name is TlvName {
@@ -249,8 +251,7 @@ function isTlv(key: string, tlv: unknown): boolean {
 	return tlv.tagName === key && isTlvName(key) && readsAs(specs[key], tlv.tagValue);
 }
 
-/** Every entry keyed by its tag name, or an unknown tag by its decimal id, holding what its table type reads. */
-export function isTlvs(record: Record<string, unknown>): record is Tlvs {
+function isTlvs(record: Record<string, unknown>): record is Tlvs {
 	return Object.entries(record).every(([key, tlv]) => isTlv(key, tlv));
 }
 
@@ -276,7 +277,7 @@ function keyedTlvs(occurrences: Occurrence[]): Result<{ tlvs: Tlvs }> {
 		tlvs[key] = { tagId, tagName: key, tagValue: values };
 	}
 
-	return isTlvs(tlvs) ? { tlvs } : { err: new Error('A TLV did not read as its table type') };
+	return isTlvs(tlvs) ? { tlvs } : { err: new Error('A TLV did not read as its table type, a defect in this library') };
 }
 
 export function parseTlvs(pdu: Buffer, start: number): Result<{ offset: number; tlvs: Tlvs }> {

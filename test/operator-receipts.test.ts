@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
 import type { Dlr, Receipt } from '../src/dlr.ts';
 import type { MessageDlr } from '../src/session.ts';
-import type { PduObject, TlvInput } from '../src/pdu.ts';
+import type { PduObject, TlvInputs } from '../src/pdu.ts';
 import { bindToSmsc, dummySmsc } from './dummy-smsc.ts';
 import { consts } from '../src/defs/constants.ts';
 import { dlrFromPdu, parseReceipt, receiptCodes, transientStates } from '../src/dlr.ts';
@@ -16,7 +16,7 @@ import { objToPdu, pduToObj } from '../src/pdu.ts';
 
 function deliverSm(
 	body: string,
-	tlvs?: Record<string, TlvInput>,
+	tlvs?: TlvInputs,
 	esmClass: number = consts.ESM_CLASS.MC_DELIVERY_RECEIPT,
 ): PduObject {
 	const { buffer } = objToPdu({
@@ -53,7 +53,7 @@ type ReceiptFixture = {
 	name: string;
 	receipt: Receipt;
 	source: string;
-	tlvs?: Record<string, TlvInput>;
+	tlvs?: TlvInputs;
 };
 
 const fixtures: readonly ReceiptFixture[] = [

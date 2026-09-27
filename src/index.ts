@@ -64,10 +64,10 @@ export type { CommandName, PduParams, PduParamsInput } from './defs/commands.ts'
 export type { ConstGroup, MessageState, SubmitMessagingMode } from './defs/constants.ts';
 export type { Encoding, EncodingName, Unencodable } from './defs/encodings.ts';
 export type { ErrorName } from './defs/errors.ts';
-export type { PduObject, PduObjectInput, TlvInput, TlvInputs } from './pdu.ts';
+export type { PduObject, PduObjectInput, TlvInputs } from './pdu.ts';
 export type { PduHeader } from './pdu-refusal.ts';
 export type { SplitOptions } from './message.ts';
-export type { Tlv, TlvDefinition, TlvName, TlvReadValue, TlvWriteValue, Tlvs, UnknownTlv } from './defs/tlvs.ts';
+export type { Tlv, TlvDefinition, TlvName, Tlvs } from './defs/tlvs.ts';
 export type { DestAddress, ParamValue, TlvValue, UnsuccessSme, WireType } from './defs/types.ts';
 
 /** The spec tables, grouped the way `larvitsmpp.defs` was in 0.4.0. */

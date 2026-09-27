@@ -3,6 +3,7 @@ import test, { describe } from 'node:test';
 import { PduRefusedError, refusalAnswer } from '../src/pdu-refusal.ts';
 import { isCommand, isResp, objToPdu, pduReturn, pduToObj } from '../src/pdu.ts';
 import { paramText } from '../src/defs/types.ts';
+import { tlvsById } from '../src/defs/tlvs.ts';
 
 function encode(...args: Parameters<typeof objToPdu>): Buffer {
 	const { buffer, err } = objToPdu(...args);
@@ -377,7 +378,7 @@ describe('TLVs', () => {
 			},
 			seqNr: 393,
 			tlvs: {
-				5142: { tagId: 5142, tagValue: Buffer.from('blajfoo', 'ascii') },
+				5142: { tagValue: Buffer.from('blajfoo', 'ascii') },
 				receipted_message_id: { tagValue: '293f293' },
 			},
 		}));
@@ -432,25 +433,22 @@ describe('TLVs', () => {
 		assert.deepEqual(pduObj.tlvs.source_port, { tagId: 0x020A, tagName: 'source_port', tagValue: 1234 });
 	});
 
-	test('refuses an unknown tag name rather than putting a wrong tag on the wire', () => {
-		const { buffer, err } = objToPdu({
-			cmdName: 'deliver_sm',
-			params: { destination_addr: '46709771337', short_message: 'hi', source_addr: '46701113311' },
-			tlvs: { nils: { tagValue: 'blajfoo' } },
-		});
+	test('refuses a TLV keyed any way but by its name, or by its decimal id where the table names none', () => {
+		const params = { destination_addr: '46709771337', short_message: 'hi', source_addr: '46701113311' };
+		const refusals = [
+			// @ts-expect-error nils is no tag name
+			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { nils: { tagValue: 'blajfoo' } } }), reason: /decimal id/ },
+			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { 5142: { tagId: 5142, tagValue: 'blajfoo' } } }), reason: /instead of giving a tagId/ },
+			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { 65536: { tagValue: 'blajfoo' } } }), reason: /out of range/ },
+			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { '05142': { tagValue: 'blajfoo' } } }), reason: /decimal id/ },
+			{ built: objToPdu({ cmdName: 'deliver_sm', params, tlvs: { 1063: { tagValue: 2 } } }), reason: /message_state/ },
+		];
 
-		assert.equal(buffer, undefined);
-		assert.ok(err instanceof Error);
-	});
-
-	test('refuses a tag id that does not fit the two octet field', () => {
-		const { err } = objToPdu({
-			cmdName: 'deliver_sm',
-			params: { destination_addr: '46709771337', short_message: 'hi', source_addr: '46701113311' },
-			tlvs: { nils: { tagId: 0x10000, tagValue: 'blajfoo' } },
-		});
-
-		assert.ok(err instanceof Error);
+		for (const { built: { buffer, err }, reason } of refusals) {
+			assert.equal(buffer, undefined);
+			assert.ok(err instanceof Error);
+			assert.match(err.message, reason);
+		}
 	});
 
 	test('refuses a TLV too long for the two octet length field', () => {
@@ -509,12 +507,33 @@ describe('TLVs', () => {
 		}
 	});
 
+	test('reads every tag in the table as the type its entry declares', () => {
+		const bare = encode({ cmdName: 'deliver_sm', params: { destination_addr: '46709771337', source_addr: '46701113311' } });
+
+		for (const { id, tag, type } of Object.values(tlvsById)) {
+			const sized = type.size(type.default);
+
+			assert.ok(sized.size !== undefined);
+
+			const tlv = Buffer.alloc(4 + sized.size);
+
+			tlv.writeUInt16BE(id, 0);
+			tlv.writeUInt16BE(sized.size, 2);
+			assert.equal(type.write(type.default, tlv, 4).err, undefined);
+
+			const pdu = Buffer.concat([bare, tlv]);
+
+			pdu.writeUInt32BE(pdu.length, 0);
+			assert.ok(Object.hasOwn(decode(pdu).tlvs, tag), tag);
+		}
+	});
+
 	test('types each known TLV by its tag, and an unknown one as octets', () => {
 		const pduObj = decode(encode({
 			cmdName: 'deliver_sm',
 			params: { destination_addr: '46709771337', short_message: 'hi', source_addr: '46701113311' },
 			tlvs: {
-				5142: { tagId: 5142, tagValue: Buffer.from('01', 'hex') },
+				5142: { tagValue: Buffer.from('01', 'hex') },
 				message_state: { tagValue: 2 },
 				receipted_message_id: { tagValue: '0199d8a4-5e2c-7b3f-9a61-c4e07f2d8b15' },
 			},
@@ -541,8 +560,8 @@ describe('TLVs', () => {
 			},
 			seqNr: 323,
 			tlvs: {
-				message_state: { tagId: 1063, tagValue: 2 },
-				receipted_message_id: { tagId: 30, tagValue: 450 },
+				message_state: { tagValue: 2 },
+				receipted_message_id: { tagValue: 450 },
 			},
 		}));
 

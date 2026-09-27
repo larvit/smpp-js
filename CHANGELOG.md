@@ -60,9 +60,13 @@
   `{ tagValue: [value] }` for them and refuse a lone value before anything goes out.
 - `pduObj.tlvs` and every `tlvs` input are typed per tag, as `Tlvs` and `TlvInputs`:
   `receipted_message_id` reads as a `string`, `callback_num` as a `Buffer[]`, and a value of the wrong
-  type for its tag fails to compile. An unknown tag reads as a `Buffer` under its decimal id. Code
-  that narrowed `tagValue` with `typeof` still compiles; a `Record<string, Tlv>` annotation does not,
-  so use `Tlvs`.
+  type for its tag fails to compile. Annotate with `Tlvs` or `TlvInputs` where you wrote
+  `Record<string, Tlv>` or `Record<string, TlvInput>`; `TlvInput` is gone.
+
+  **A TLV input is keyed by its name, or by its decimal id where the table names none, and `tagId`
+  is refused.** Write `{ 5142: { tagValue } }` for a vendor tag, not `{ vendor: { tagId: 5142, … } }`.
+  A name and a `tagId` could disagree, and `{ message_state: { tagId: 5, … } }` went out as tag 5.
+  A decimal key naming a tag the table knows, `{ 1063: … }`, is refused in favour of the name.
 - `cmds.broadcast_sm_resp.tlvMap` is removed; nothing read it.
 
 ## 0.5.0

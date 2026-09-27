@@ -32,16 +32,6 @@ export function tlvOctets(value: TlvValue): number {
 	return octets;
 }
 
-/** A value holding no view into the PDU it was read from. */
-export function detachedTlv(value: TlvValue): TlvValue {
-	if (Buffer.isBuffer(value)) return Buffer.from(value);
-	if (!Array.isArray(value)) return value;
-
-	const buffers = value.filter(one => Buffer.isBuffer(one));
-
-	return buffers.length === value.length ? buffers.map(one => Buffer.from(one)) : value;
-}
-
 /**
  * One field on the wire. `read` reports how many octets it consumed so callers never have to
  * re-derive a length that could disagree with what was actually written.
