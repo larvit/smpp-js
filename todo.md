@@ -199,11 +199,6 @@ next work ([decision](docs/decisions.md#internals-and-tests)).
 
 ### Locality — next, ahead of everything below; 5–6 today, and the gate is 7
 
-- [ ] **Route `sms.ts` through its handlers, all of it.** `createSms()` already injects
-      `handlers.send`, and then reaches `sms.session.sendReturn()`, `sms.session.bindAllows()` and
-      `sms.session.acceptsOptionalParams()` anyway — two channels to one collaborator. `Sms.session`
-      stays public as data the application reads.
-
 - [ ] **Give the held-message protocol one name and one home.** `emitSms()` is the unit 8 of 9
       readers named and 4 would least want to modify, and every one proposed the same fix. It runs
       five mechanisms in one scope: a hold keyed by array identity, a `working` counter seeded from

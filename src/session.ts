@@ -247,6 +247,7 @@ export class Session extends EventEmitter<SessionEvents> {
 
 	private incomingDeps(onRequest: OnRequest | undefined): IncomingDeps {
 		return {
+			acceptsOptionalParams: () => this.acceptsOptionalParams(),
 			answer: (pduObj, status, params) => this.sendReturn(pduObj, status, params),
 			bindAllows: cmdName => this.bindAllows(cmdName),
 			boundAs: () => this.boundAs,

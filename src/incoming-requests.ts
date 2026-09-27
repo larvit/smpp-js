@@ -48,6 +48,7 @@ type Send = (input: PduObjectInput) => Promise<Result<{ pduObj: PduObject }>>;
 
 /** What the incoming side asks of the session it serves; the session decides how. */
 export type IncomingDeps = {
+	acceptsOptionalParams: () => boolean;
 	answer: (pduObj: PduObject, status?: ErrorName, params?: Record<string, ParamValue>) => Promise<VoidResult>;
 	bindAllows: (cmdName: string) => boolean;
 	boundAs: () => BindType | undefined;
@@ -318,6 +319,9 @@ export class IncomingRequests {
 			pduObjs,
 			to: paramText(first.params.destination_addr),
 		}, {
+			acceptsOptionalParams: () => this.deps.acceptsOptionalParams(),
+			answer: (pduObj, status, params) => this.deps.answer(pduObj, status, params),
+			bindAllows: cmdName => this.deps.bindAllows(cmdName),
 			lostLink: () => this.linkGeneration !== generation,
 			onAnswered: release,
 			// Past the refusal only while a drain is still waiting for this message; an ordinary send after.
