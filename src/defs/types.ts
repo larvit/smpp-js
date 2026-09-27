@@ -399,11 +399,11 @@ function sizeDestAddresses(addresses: DestAddress[]): Result<{ size: number }> {
 	let size = 1;
 
 	for (const dest of addresses) {
-		const text = 'dl_name' in dest ? cstring.size(dest.dl_name) : cstring.size(dest.destination_addr);
+		const [header, text] = 'dl_name' in dest ? [1, cstring.size(dest.dl_name)] : [3, cstring.size(dest.destination_addr)];
 
 		if (text.err) return { err: text.err };
 
-		size += ('dl_name' in dest ? 1 : 3) + text.size;
+		size += header + text.size;
 	}
 
 	return { size };
