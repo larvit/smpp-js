@@ -96,10 +96,7 @@ export class OutgoingRequests {
 		return this.carry(input, options);
 	}
 
-	/**
-	 * The same path without the drain's refusal, which a receipt for a held message has to take.
-	 * It ends with the first attempt that reached the socket, or once no next link will carry it.
-	 */
+	/** The same path without the drain's refusal, which a receipt for a held message has to take. */
 	async carry(
 		input: PduObjectInput,
 		options: SendOptions,
