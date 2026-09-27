@@ -291,6 +291,8 @@ describe('dest_address_array', () => {
 
 	test('sizes every dest_address structure', () => {
 		assert.deepEqual(types.dest_address_array.size(expected), { size: 13 });
+		assert.ok(types.dest_address_array.size([{ dl_name: 'a\u0000b' }]).err instanceof Error);
+		assert.ok(types.dest_address_array.size([{ dest_addr_npi: 0, dest_addr_ton: 0, destination_addr: '一' }]).err instanceof Error);
 	});
 
 	test('writes every dest_address structure', () => {
@@ -335,6 +337,12 @@ describe('unsuccess_sme_array', () => {
 
 	test('sizes every unsuccess_sme structure', () => {
 		assert.deepEqual(types.unsuccess_sme_array.size(expected), { size: 21 });
+
+		const unwritable: UnsuccessSme[] = [
+			{ dest_addr_npi: 0, dest_addr_ton: 0, destination_addr: 'a\u0000b', error_status_code: 0 },
+		];
+
+		assert.ok(types.unsuccess_sme_array.size(unwritable).err instanceof Error);
 	});
 
 	test('writes every unsuccess_sme structure', () => {

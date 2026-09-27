@@ -385,14 +385,52 @@ export const buffer: WireType<Buffer> = {
 	},
 };
 
-function sizeDestAddresses(addresses: DestAddress[]): number {
+function writeSizedCstring(value: ParamValue, buf: Buffer, offset: number): Result<{ size: number }> {
+	const { err, size } = cstring.size(value);
+
+	if (err) return { err };
+
+	const written = cstring.write(value, buf, offset);
+
+	return written.err ? { err: written.err } : { size };
+}
+
+function sizeDestAddresses(addresses: DestAddress[]): Result<{ size: number }> {
 	let size = 1;
 
 	for (const dest of addresses) {
-		size += 'dl_name' in dest ? dest.dl_name.length + 2 : dest.destination_addr.length + 4;
+		const text = 'dl_name' in dest ? cstring.size(dest.dl_name) : cstring.size(dest.destination_addr);
+
+		if (text.err) return { err: text.err };
+
+		size += ('dl_name' in dest ? 1 : 3) + text.size;
 	}
 
-	return size;
+	return { size };
+}
+
+function writeDestAddress(dest: DestAddress, buf: Buffer, offset: number): Result<{ size: number }> {
+	if ('dl_name' in dest) {
+		buf.writeUInt8(2, offset);
+
+		const name = writeSizedCstring(dest.dl_name, buf, offset + 1);
+
+		return name.err ? { err: name.err } : { size: 1 + name.size };
+	}
+
+	buf.writeUInt8(1, offset);
+
+	const ton = writeInt8(dest.dest_addr_ton, buf, offset + 1);
+
+	if (ton.err) return { err: ton.err };
+
+	const npi = writeInt8(dest.dest_addr_npi, buf, offset + 2);
+
+	if (npi.err) return { err: npi.err };
+
+	const addr = writeSizedCstring(dest.destination_addr, buf, offset + 3);
+
+	return addr.err ? { err: addr.err } : { size: 3 + addr.size };
 }
 
 export const dest_address_array: WireType<DestAddress[]> = {
@@ -441,14 +479,18 @@ export const dest_address_array: WireType<DestAddress[]> = {
 	size(value) {
 		const { addresses, err } = wantDestAddresses(value);
 
-		return err ? { err } : { size: sizeDestAddresses(addresses) };
+		return err ? { err } : sizeDestAddresses(addresses);
 	},
 	write(value, buf, offset) {
 		const { addresses, err } = wantDestAddresses(value);
 
 		if (err) return { err };
 
-		const rangeErr = outOfRange(buf, offset, sizeDestAddresses(addresses));
+		const total = sizeDestAddresses(addresses);
+
+		if (total.err) return { err: total.err };
+
+		const rangeErr = outOfRange(buf, offset, total.size);
 
 		if (rangeErr) return { err: rangeErr };
 
@@ -457,45 +499,29 @@ export const dest_address_array: WireType<DestAddress[]> = {
 		if (count.err) return { err: count.err };
 
 		for (const dest of addresses) {
-			if ('dl_name' in dest) {
-				buf.writeUInt8(2, offset++);
+			const written = writeDestAddress(dest, buf, offset);
 
-				const name = cstring.write(dest.dl_name, buf, offset);
+			if (written.err) return { err: written.err };
 
-				if (name.err) return { err: name.err };
-
-				offset += dest.dl_name.length + 1;
-			} else {
-				buf.writeUInt8(1, offset++);
-
-				const ton = writeInt8(dest.dest_addr_ton, buf, offset++);
-
-				if (ton.err) return { err: ton.err };
-
-				const npi = writeInt8(dest.dest_addr_npi, buf, offset++);
-
-				if (npi.err) return { err: npi.err };
-
-				const addr = cstring.write(dest.destination_addr, buf, offset);
-
-				if (addr.err) return { err: addr.err };
-
-				offset += dest.destination_addr.length + 1;
-			}
+			offset += written.size;
 		}
 
 		return {};
 	},
 };
 
-function sizeUnsuccessSmes(smes: UnsuccessSme[]): number {
+function sizeUnsuccessSmes(smes: UnsuccessSme[]): Result<{ size: number }> {
 	let size = 1;
 
 	for (const sme of smes) {
-		size += sme.destination_addr.length + 7;
+		const addr = cstring.size(sme.destination_addr);
+
+		if (addr.err) return { err: addr.err };
+
+		size += addr.size + 6;
 	}
 
-	return size;
+	return { size };
 }
 
 export const unsuccess_sme_array: WireType<UnsuccessSme[]> = {
@@ -540,14 +566,18 @@ export const unsuccess_sme_array: WireType<UnsuccessSme[]> = {
 	size(value) {
 		const { err, smes } = wantUnsuccessSmes(value);
 
-		return err ? { err } : { size: sizeUnsuccessSmes(smes) };
+		return err ? { err } : sizeUnsuccessSmes(smes);
 	},
 	write(value, buf, offset) {
 		const { err, smes } = wantUnsuccessSmes(value);
 
 		if (err) return { err };
 
-		const rangeErr = outOfRange(buf, offset, sizeUnsuccessSmes(smes));
+		const total = sizeUnsuccessSmes(smes);
+
+		if (total.err) return { err: total.err };
+
+		const rangeErr = outOfRange(buf, offset, total.size);
 
 		if (rangeErr) return { err: rangeErr };
 
@@ -564,11 +594,11 @@ export const unsuccess_sme_array: WireType<UnsuccessSme[]> = {
 
 			if (npi.err) return { err: npi.err };
 
-			const addr = cstring.write(sme.destination_addr, buf, offset);
+			const addr = writeSizedCstring(sme.destination_addr, buf, offset);
 
 			if (addr.err) return { err: addr.err };
 
-			offset += sme.destination_addr.length + 1;
+			offset += addr.size;
 
 			const status = writeInt32(sme.error_status_code, buf, offset);
 

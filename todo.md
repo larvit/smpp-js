@@ -199,14 +199,6 @@ next work ([decision](docs/decisions.md#internals-and-tests)).
 
 ### Locality — next, ahead of everything below; 5–6 today, and the gate is 7
 
-- [ ] **Let the two address arrays size a C-Octet String through `cstring.size()`.**
-      `sizeDestAddresses()` and `sizeUnsuccessSmes()` spell "len + 1" themselves, and each `offset +=`
-      after a write spells it a third time, so `dest_address_array` and `unsuccess_sme_array` each
-      know the cost in three places. Route both through `cstring.size()` and advance the offset by
-      what it returns. That also makes `size()` refuse where `write()` already does, so the error
-      arrives from the first call rather than the second; today the pair only fails closed because
-      `writeParams()` and `writeTlvs()` both bail on the write. From the stability review of #16.
-
 - [ ] **Split the two questions `OutgoingRequests.linkDown()` answers.** `Session.drain()` calls it
       twice for opposite conclusions — "nothing to drain, success" and "the link died under us,
       failure" — and `outgoing-requests.ts` reads it a third way. Two named predicates. Named by 7
