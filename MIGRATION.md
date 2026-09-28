@@ -13,7 +13,8 @@ shape is the same, connect, send, listen for delivery reports, with callbacks re
   a `session` event. It no longer calls back once per connection.
 - **The id a message is answered with goes to `sendResp({ smsId })`.** `sms.smsId` is read-only: the
   id the segments were answered with, the id `sendResp()` was given, or the generated UUID v7.
-  Assigning to it throws a `TypeError`, since modules are strict mode.
+  Assigning to it throws a `TypeError` in an ES module or strict-mode script, and is ignored in
+  sloppy-mode CommonJS.
 - **`smsIds` from `sendSms()` is `(string | undefined)[]`**, one entry per segment, positional with
   `pduObjs`, `undefined` where the SMSC took the segment without naming an id.
 - **`checkuserpass` is `authenticate`**, takes `{ password, session, systemId, systemType }` and

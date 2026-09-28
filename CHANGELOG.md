@@ -78,7 +78,8 @@
   removed: read `session.boundAs !== undefined`. A session you wire yourself records the bind it
   accepted or had accepted with `session.bound(bindType, declaredVersion)`, which returns `err` for a
   bind type or version it cannot record. An assignment to either field does not compile in
-  TypeScript, and throws a `TypeError` in strict-mode JavaScript, which every module is.
+  TypeScript, throws a `TypeError` in an ES module or strict-mode script, and is ignored in
+  sloppy-mode CommonJS.
 
 ## 0.5.0
 

@@ -429,8 +429,10 @@ const { err, pduObj } = await session.send({
   end accepted it, on every link it binds. `bindType` is `receiver`, `transceiver` or `transmitter`;
   `declaredVersion` is 0-255, or `undefined` where the peer declared none. Anything else returns `err`
   and records nothing.
-- An ESME records the bind from its `bind_resp`, in `reconnect.onConnected` on every rebind:
-  `session.bound('transmitter', pduObj.tlvs.sc_interface_version?.tagValue)`.
+- An ESME wired by hand sends its own `bind_<bindType>` through `session.send()`, after it is
+  constructed and again in `reconnect.onConnected`, and records each accepted one with
+  `session.bound(bindType, pduObj.tlvs.sc_interface_version?.tagValue)`, where `bindType` is the one
+  it sent and `pduObj` the `bind_resp` that `send()` resolved with.
 
 ## Receiving in depth
 
