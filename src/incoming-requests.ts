@@ -10,7 +10,6 @@ import type { Result, VoidResult } from './result.ts';
 import type { SmppLog } from './log.ts';
 import type { Sms, SmsHandlers, SmsInput } from './sms.ts';
 import type { SmsIdFormat } from './sms-id.ts';
-import type { MessageHold } from './held-messages.ts';
 import { HeldMessages } from './held-messages.ts';
 import { Reassembler, decodeSegments } from './reassembly.ts';
 import { bindCommands, defaults, standsInFor } from './session-options.ts';
@@ -85,8 +84,6 @@ export class IncomingRequests {
 	private readonly deps: IncomingDeps;
 	private readonly dlrMerger: DlrMerger;
 	private readonly held: HeldMessages;
-	/** The rejection handler is handed the Sms back as an `unknown`, so its hold is found by identity. */
-	private readonly holds = new WeakMap<object, MessageHold>();
 	private readonly log: SmppLog;
 	private readonly reassembler: Reassembler;
 	private readonly smsIdFormat: SmsIdFormat;
@@ -172,11 +169,8 @@ export class IncomingRequests {
 		this.reassembler.clear();
 	}
 
-	/** One `sms` listener gave up on a message; the last one to do so is what releases the hold. */
 	listenerRejected(sms: unknown): void {
-		if (typeof sms !== 'object' || sms === null) return;
-
-		this.holds.get(sms)?.listenerGaveUp();
+		this.held.listenerRejected(sms);
 	}
 
 	/** Waits out the messages the application still holds, and says how many it never answered. */
@@ -310,9 +304,8 @@ export class IncomingRequests {
 		if (!first) return;
 
 		const generation = this.linkGeneration;
-		const hold = this.held.hold(pduObjs, this.deps.smsListeners());
 
-		const sms = this.deps.createSms({
+		this.held.offer(pduObjs, this.deps.smsListeners(), hold => this.deps.createSms({
 			answeredAs,
 			from: paramText(first.params.source_addr),
 			message: decodeSegments(pduObjs),
@@ -325,10 +318,6 @@ export class IncomingRequests {
 			lostLink: () => this.linkGeneration !== generation,
 			onAnswered: () => { hold.answered(); },
 			send: input => (hold.isHeld() ? this.deps.sendPastDrain(input) : this.deps.send(input)),
-		});
-
-		this.holds.set(sms, hold);
-
-		if (!this.deps.offerSms(sms)) hold.release();
+		}), sms => this.deps.offerSms(sms));
 	}
 }

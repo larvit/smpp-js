@@ -5,6 +5,7 @@ import type { Collected, LostGroup } from '../src/reassembly.ts';
 import type { Dlr } from '../src/dlr.ts';
 import type { ErrorName } from '../src/defs/errors.ts';
 import type { IncomingDeps } from '../src/incoming-requests.ts';
+import type { MessageHold } from '../src/held-messages.ts';
 import type { MessageState } from '../src/defs/constants.ts';
 import type { MessageDlr } from '../src/session.ts';
 import type { PduObject, PduObjectInput } from '../src/pdu.ts';
@@ -1518,17 +1519,22 @@ describe('held message bounds', () => {
 		return [submitPdu(seqNr)];
 	}
 
+	function offer(held: HeldMessages, seqNr: number): MessageHold {
+		return held.offer(message(seqNr), 1, () => ({}), () => true);
+	}
+
 	test('is full at its count, and a re-used sequence number replaces rather than adding', () => {
 		const held = new HeldMessages({ log: silentLog, max: 2, maxOctets: 1_000_000, timeout: 10_000 });
-		const first = held.hold(message(1), 1);
+		const first = offer(held, 1);
+		const replaced = offer(held, 2);
 
-		held.hold(message(2), 1);
-		held.hold(message(2), 1);
+		offer(held, 2);
 
 		assert.equal(held.size, 2);
 		assert.equal(held.octetsHeld, 2 * 1026, 'the replaced message leaves its octets with it');
 		assert.equal(held.full(), true);
 		assert.equal(first.isHeld(), true);
+		assert.equal(replaced.isHeld(), false);
 
 		held.clear();
 	});
@@ -1537,22 +1543,22 @@ describe('held message bounds', () => {
 	test('is full at its octet cap, until a message leaves by any way out', () => {
 		let now = 0;
 		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 2000, now: () => now, timeout: 10_000 });
-		const answered = held.hold(message(1), 1);
+		const answered = offer(held, 1);
 
 		assert.equal(held.full(), false);
-		held.hold(message(2), 1);
+		offer(held, 2);
 		assert.equal(held.full(), true);
 
 		answered.release();
 		assert.equal(held.full(), false, 'after a release');
-		held.hold(message(3), 1);
+		offer(held, 3);
 
 		now = 20_000;
 		held.sweep();
 		now = 0;
 		assert.equal(held.full(), false, 'after a sweep');
-		held.hold(message(4), 1);
-		held.hold(message(5), 1);
+		offer(held, 4);
+		offer(held, 5);
 
 		held.clear();
 		assert.equal(held.full(), false, 'after a clear');
@@ -1641,11 +1647,11 @@ describe('held message bounds', () => {
 		let now = 0;
 		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 1_000_000, now: () => now, timeout: 60 });
 
-		held.hold(message(1), 1);
+		offer(held, 1);
 		now = 61;
 
 		// The next message sweeps the one that expired, so only the new one is still waited for.
-		held.hold(message(2), 1);
+		offer(held, 2);
 
 		assert.equal(held.size, 1);
 
@@ -1657,7 +1663,7 @@ describe('held message bounds', () => {
 		let now = 0;
 		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 1_000_000, now: () => now, timeout: 60 });
 
-		held.hold(message(1), 1);
+		offer(held, 1);
 
 		const waiting = held.idle(1000, undefined);
 

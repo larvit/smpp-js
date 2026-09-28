@@ -25,7 +25,11 @@ type HoldEntry = {
 	release: () => void;
 };
 
-/** One message offered to the application, held until it is answered or every listener gives up. */
+/**
+ * One message offered to the application. A drain waits on it until the first of: `answered()`,
+ * every listener that took it rejecting, no listener taking it or one throwing, a later message on
+ * its sequence number, its deadline, or the link going.
+ */
 export class MessageHold {
 	private readonly entry: HoldEntry;
 	private working: number;
@@ -52,7 +56,7 @@ export class MessageHold {
 		if (this.working <= 0) this.answered();
 	}
 
-	/** At once, for a message nobody took: that is not work a shutdown can wait for. */
+	/** At once, for a message nobody took or a listener threw on: that is not work a shutdown can wait for. */
 	release(): void {
 		this.entry.release();
 	}
@@ -64,6 +68,8 @@ export class HeldMessages {
 	private readonly idleWaiters = new IdleWaiters();
 	private readonly log: SmppLog;
 	private readonly maxOctets: number;
+	/** A rejecting listener hands the message back as an `unknown`, so its hold is found by identity. */
+	private readonly offered = new WeakMap<object, MessageHold>();
 
 	constructor(options: HeldMessagesOptions) {
 		this.held = new ExpiringGroups({
@@ -91,7 +97,7 @@ export class HeldMessages {
 		return this.held.full || this.held.weight >= this.maxOctets;
 	}
 
-	hold(pduObjs: PduObject[], listeners: number): MessageHold {
+	private hold(pduObjs: PduObject[], listeners: number): MessageHold {
 		const hold = new MessageHold({
 			isHeld: () => this.has(pduObjs),
 			release: () => { this.release(pduObjs); },
@@ -110,6 +116,29 @@ export class HeldMessages {
 		this.held.weigh(key, pduObjs.reduce((sum, pduObj) => sum + retainedOctets(pduObj), 0));
 
 		return hold;
+	}
+
+	offer<T extends object>(
+		pduObjs: PduObject[],
+		listeners: number,
+		build: (hold: MessageHold) => T,
+		emit: (message: T) => boolean,
+	): MessageHold {
+		const hold = this.hold(pduObjs, listeners);
+		const message = build(hold);
+
+		this.offered.set(message, hold);
+
+		if (!emit(message)) hold.release();
+
+		return hold;
+	}
+
+	/** One listener gave up on a message; the last one to do so is what releases it. */
+	listenerRejected(message: unknown): void {
+		if (typeof message !== 'object' || message === null) return;
+
+		this.offered.get(message)?.listenerGaveUp();
 	}
 
 	private has(pduObjs: PduObject[]): boolean {

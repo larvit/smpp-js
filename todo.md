@@ -204,9 +204,6 @@ and 5. Every seat ranked the session's lifecycle hardest and least wanted to mod
 
 - [ ] **Lift Locality to 7, and confirm it with a scoring run.** A run reading 7.0 or above also
       retires the #30 decision. The sub-items are what the 2026-09-28 run named, most seats first.
-- [ ] **Give the held-message flow one place a reader can follow it.** Whether a drain still waits
-      on a message is spread over `emitSms()`, `MessageHold`, the session's rejection route and
-      `Sms.isHeld()`. Four seats.
 - [ ] **Shrink the `IncomingDeps` closure bag.** 16 lambdas, six of them repeated in
       `SmsHandlers`, which makes every inbound call path indirect. Two seats.
 
@@ -267,6 +264,11 @@ and 5. Every seat ranked the session's lifecycle hardest and least wanted to mod
 - [ ] **Keep a bare ESC out of GSM detection.** `gsmRegex` in `defs/encodings.ts` admits `\x1B`,
       so `"\x1B("` is detected as GSM, goes out as 0x1B 0x28 and arrives as `{`. From the
       2026-09-28 scoring run.
+
+- [ ] **Count an `sms` listener that throws as one giving up, as a rejection already is.** A
+      synchronous throw makes `Session.emit` return false, and `HeldMessages.offer()` then releases
+      the hold at once, so a drain stops waiting on an async listener still answering beside it.
+      Goal 2. From the stability review of #45.
 
 ### Throughput — goal 6, and the default window is where we are slowest
 
