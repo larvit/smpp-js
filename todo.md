@@ -282,6 +282,12 @@ and 5. Every seat ranked the session's lifecycle hardest and least wanted to mod
 
 ### Shape — 6 today, and the gate is 7
 
+- [ ] **Answer "is this a bind command" in one place.** `bindCommands` (read by
+      `incoming-requests.ts`, `outgoing-requests.ts` and `test/session.test.ts`) and
+      `bindTypeFromCommand()` (read by `server.ts` and `checkedBind()`) each list the three bind
+      commands, so a fourth added to one is missed by the other. Derive the list from the function,
+      or the reverse. From the stability review of #42.
+
 - [ ] **Group `src/` into a second level, and retire whichever record loses.** 34 files on one
       plane, where `src/defs/` at 7 proves the shape is known one level down. `docs/decisions.md`
       says "`src/` stays flat until a module has to move for another reason. Valid while that map is
