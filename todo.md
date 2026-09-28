@@ -190,14 +190,18 @@ A nine-reader comprehension panel read the whole project on 2026-09-20 and score
 mean 6.8. Navigation (7–8) capped nobody. **Locality capped every unit reader at 5–6 and Shape
 capped both architects at 6**, and those two are what this release lifts. The gate is 7 on all four
 dimensions, higher where it is cheap. Maintainer's call, 2026-09-20. A systems-architect review the
-same day returned ALIGN with one blocking-severity finding, which is the first item under Locality
-and is also what the panel ranked hardest — two methods, one answer.
+same day returned ALIGN with one blocking-severity finding, `resolveBody`'s `settles` boolean, which
+the panel also ranked hardest; it is now a named `CodingSource`.
 
 A four-seat scoring run on 2026-09-27 read #30 at 6, 6, 7 and 6, every seat capped by Locality in
 the held-message and shutdown code; #30 merged under the floor on condition that Locality is the
 next work ([decision](docs/decisions.md#internals-and-tests)).
 
 ### Locality — next, ahead of everything below; 5–6 today, and the gate is 7
+
+- [ ] **Lift the held-message and shutdown code to Locality 7, and confirm it with a scoring run.**
+      The 2026-09-27 run capped every seat there; a run reading 7.0 or above also retires the #30
+      decision.
 
 ### Correctness
 
@@ -292,10 +296,10 @@ next work ([decision](docs/decisions.md#internals-and-tests)).
 
 - [ ] **Move the one-line facts out of the decision log and back to the code.** Five of nine readers
       independently reported being sent to `docs/decisions.md` for a question they hit while reading,
-      with no link from the code; one counted roughly fifty index redirects. The four worth inlining
+      with no link from the code; one counted roughly fifty index redirects. The three left to inline
       as one line each: that `segmentUnits`' three numbers are in two units (septets and octets),
-      which body settles `data_coding`, that a receipt's body is read as octets whatever its
-      `data_coding` says, and the `<base>-<n>` id notation. The reasoning stays in the log; the
+      that a receipt's body is read as octets whatever its `data_coding` says, and the `<base>-<n>`
+      id notation. The reasoning stays in the log; the
       definition belongs at the code.
 
 - [ ] **Document the two delivery-receipt merge bounds.** `maxDlrMerges` (1000) and

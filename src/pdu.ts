@@ -75,23 +75,23 @@ type ResolvedBody = {
  * What the PDU's data_coding describes, and so what may set it: short_message wherever it holds an
  * octet, since messageOctets() reads it there, and message_payload only where it does not.
  */
-type CodingSource = 'caller' | 'message_payload' | 'short_message';
+type CodingSource = 'message_payload' | 'short_message';
 
 function codingOf(params: Record<string, ParamValue | undefined>): number | undefined {
 	return typeof params.data_coding === 'number' ? params.data_coding : undefined;
 }
 
-/** Only the short_message the command's own table will write, since writeParams() ignores any other. */
 function resolveShortMessage(
 	params: Record<string, ParamValue | undefined>,
 	definition: CommandDefinition,
 ): Result<{ params: Record<string, ParamValue | undefined>; source: CodingSource }> {
+	// Only the short_message the command's own table will write, since writeParams() ignores any other.
 	const message = definition.params?.short_message === undefined ? undefined : params.short_message;
 
 	if (Buffer.isBuffer(message)) {
 		return {
 			params: params.sm_length === undefined ? { ...params, sm_length: message.length } : params,
-			source: message.length > 0 ? 'caller' : 'message_payload',
+			source: message.length > 0 ? 'short_message' : 'message_payload',
 		};
 	}
 
