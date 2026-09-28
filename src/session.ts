@@ -1,10 +1,9 @@
 import type { ErrorName } from './defs/errors.ts';
-import type { IncomingDeps } from './incoming-requests.ts';
 import type { MessageDlr } from './dlr-merger.ts';
 import type { ParamValue } from './defs/types.ts';
 import type { PduObject, PduObjectInput, TlvInputs } from './pdu.ts';
 import type { PduRefusedError } from './pdu-refusal.ts';
-import type { BindType, CloseOptions, LinkEnd, OnRequest, ReconnectOptions, SendOptions, SessionBind, SessionEvents, SessionOptions } from './session-options.ts';
+import type { BindType, CloseOptions, LinkEnd, ReconnectOptions, SendOptions, SessionBind, SessionEvents, SessionOptions } from './session-options.ts';
 import type { Result, VoidResult } from './result.ts';
 import type { SendSmsOptions, SendSmsResult } from './send-sms.ts';
 import type { SmppLog } from './log.ts';
@@ -24,7 +23,6 @@ import { isResp, objToPdu, pduReturn } from './pdu.ts';
 import { refusalAnswer } from './pdu-refusal.ts';
 import { guardedLog } from './log.ts';
 import { submitSms, unsent } from './send-sms.ts';
-import { createSms } from './sms.ts';
 import { ConcatReference } from './udh.ts';
 
 export type {
@@ -116,16 +114,6 @@ export class Session extends EventEmitter<SessionEvents> {
 			max: defaults.maxDlrMerges,
 			timeout: defaults.dlrMergeTimeout,
 		});
-		this.incoming = new IncomingRequests({
-			deps: this.incomingDeps(options.onRequest),
-			dlrMerger: this.dlrMerger,
-			log: this.log,
-			maxOctets: options.maxOctets,
-			maxReassembly: options.maxReassembly,
-			reassemblyTimeout: options.reassemblyTimeout,
-			smsIdFormat: options.smsIdFormat,
-			systemId: options.systemId,
-		});
 		this.reconnectLoop = this.loopFor(options.reconnect);
 		this.timers = new LinkTimers({
 			enquireLinkInterval: options.enquireLinkInterval,
@@ -141,6 +129,18 @@ export class Session extends EventEmitter<SessionEvents> {
 			maxOutstanding: options.maxOutstanding ?? defaults.maxOutstanding,
 			responseTimeout: options.responseTimeout ?? defaults.responseTimeout,
 			transport: this.transport,
+		});
+		this.incoming = new IncomingRequests({
+			dlrMerger: this.dlrMerger,
+			log: this.log,
+			maxOctets: options.maxOctets,
+			maxReassembly: options.maxReassembly,
+			onRequest: options.onRequest,
+			reassemblyTimeout: options.reassemblyTimeout,
+			sendPastDrain: input => this.outgoing.requestPastDrain(input, {}),
+			session: this,
+			smsIdFormat: options.smsIdFormat,
+			systemId: options.systemId,
 		});
 
 		this.resetTimers();
@@ -255,27 +255,6 @@ export class Session extends EventEmitter<SessionEvents> {
 		this.end();
 
 		return drained;
-	}
-
-	private incomingDeps(onRequest: OnRequest | undefined): IncomingDeps {
-		return {
-			acceptsOptionalParams: () => this.acceptsOptionalParams(),
-			answer: (pduObj, status, params) => this.sendReturn(pduObj, status, params),
-			bindAllows: cmdName => this.bindAllows(cmdName),
-			boundAs: () => this.boundAs,
-			createSms: (input, handlers) => createSms({ ...input, session: this }, handlers),
-			linkEnd: () => this.linkEnd,
-			offerSms: sms => this.emit('sms', sms),
-			onRequest: onRequest && (pduObj => onRequest(this, pduObj)),
-			// A peer that has said it is finished will not answer what we still have outstanding.
-			peerUnbound: () => this.close({ signal: AbortSignal.abort() }),
-			reportDlr: (dlr, pduObj) => { this.emit('dlr', dlr, pduObj); },
-			reportError: err => { this.emit('sessionError', err); },
-			reportMessageDlr: merged => { this.emit('messageDlr', merged); },
-			send: input => this.send(input),
-			sendPastDrain: input => this.outgoing.requestPastDrain(input, {}),
-			smsListeners: () => this.listenerCount('sms'),
-		};
 	}
 
 	private transportFor(sock: Socket): PduTransport {

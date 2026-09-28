@@ -8,8 +8,8 @@ rule and an index of the titles below.
 
 - **`Session` is publicly constructible, which is what makes `SessionOptions` and `ReconnectOptions`
   public too.** Raised twice as a leak; it is not one. The collaborators `session.ts` delegates to
-  (`Reassembler`, `PendingRequests`, `SendWindow`, `ReconnectLoop`, `LinkTimers`, `LinkGate`,
-  `DlrMerger`, `PduTransport`, `submitSms`) stay unpublished so they can be reshaped.
+  (`IncomingRequests`, `OutgoingRequests`, `ReconnectLoop`, `LinkTimers`, `DlrMerger`,
+  `PduTransport`, `submitSms`) stay unpublished so they can be reshaped.
 
 - **`acceptsOptionalParams()` and `bindAllows()` are predicates, not chokepoints.** The library's own
   senders consult them; `session.send({ tlvs })` is passed through as written, because silently
@@ -98,9 +98,9 @@ rule and an index of the titles below.
   optional-parameter threshold.** That threshold is fixed at 0x34 by the spec, so an implementation
   that must declare 5.0 throughout can, without moving it.
 
-- **A peer that declared no version is pre-3.4, and `undefined` means no bind yet.** `acceptBind()`
-  records what the ESME declared and the client's `bind()` records the `sc_interface_version` the
-  SMSC answered with; a peer that declared nothing is recorded as `undeclaredInterfaceVersion` (0x00)
+- **A peer that declared no version is pre-3.4, and `undefined` means no bind yet.** `bound()`
+  records what the peer declared, the ESME's `interface_version` or the SMSC's
+  `sc_interface_version`; a peer that declared nothing is recorded as `undeclaredInterfaceVersion` (0x00)
   and sent no optional parameters, which is how the spec reads an absent `sc_interface_version`.
 
 - **`esm_class` decides what a `deliver_sm` is, and the body is read only when it names nothing.**
@@ -510,7 +510,7 @@ rule and an index of the titles below.
   Maintainer's call, 2026-08-31: without the split, an application that opens a replacement client on
   `close` ends up holding two binds on one account. `teardown()` picks the event by whether the
   reconnect loop is still live, and `end()` stops that loop before tearing down, so every deliberate
-  shutdown emits `close`. A retry that opens a socket and then loses it clears `closed` through
+  shutdown emits `close`. A retry that opens a socket and then loses it resets `lifecycle` through
   `attach()`, which is why a second drop emits again.
 
 - **An answer belongs to the link the message arrived on; a receipt does not.** Maintainer's call,
@@ -773,12 +773,13 @@ rule and an index of the titles below.
 
 ## Internals and tests
 
-- **#30 merged under the comprehension floor, and Locality is the next work.** Maintainer's call,
+- **#30 and #46 merged under the comprehension floor, and Locality is the next work.** Maintainer's call,
   2026-09-27. A four-seat scoring run, depth 1, read the project at 6, 6, 7 and 6 (mean 6.25), every
   seat capped by Locality in the held-message and shutdown code #30 does not touch, where the floor
   is 7.0. The chunks after #30 lift Locality to 7 before any other work. Serves goal 8's
   reshapeable internals, which a reader has to understand before reshaping. Valid until a scoring
-  run reads 7.0 or above.
+  run reads 7.0 or above. #46, maintainer's call 2026-09-28, merged as a step of that work at 6, 6, 7
+  and 7, Locality 5, 5, 6 and 6, up from 6, 6, 7 and 6 and Locality 5, 5, 6 and 5 the same day.
 
 - **A listener that rejects is routed by Node's `captureRejections`, not by hand-dispatching.** Both
   emitters construct with `captureRejections: true` and implement

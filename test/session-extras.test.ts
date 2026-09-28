@@ -4,7 +4,7 @@ import test, { describe } from 'node:test';
 import type { Collected, LostGroup } from '../src/reassembly.ts';
 import type { Dlr } from '../src/dlr.ts';
 import type { ErrorName } from '../src/defs/errors.ts';
-import type { IncomingDeps } from '../src/incoming-requests.ts';
+import type { IncomingRequestsOptions } from '../src/incoming-requests.ts';
 import type { MessageHold } from '../src/held-messages.ts';
 import type { MessageState } from '../src/defs/constants.ts';
 import type { MessageDlr } from '../src/session.ts';
@@ -101,24 +101,14 @@ function abortAfter(
 	});
 }
 
-function stubPort(session: Session, port: Partial<IncomingDeps> = {}): IncomingDeps {
-	return {
-		acceptsOptionalParams: () => true,
-		answer: (pduObj, status, params) => session.sendReturn(pduObj, status, params),
-		bindAllows: () => true,
-		boundAs: () => 'transceiver',
-		createSms: (input, handlers) => createSms({ ...input, session }, handlers),
-		linkEnd: () => 'smsc',
-		offerSms: sms => session.emit('sms', sms),
-		peerUnbound: () => Promise.resolve({}),
-		reportDlr: () => undefined,
-		reportError: () => undefined,
-		reportMessageDlr: () => undefined,
-		send: () => Promise.resolve({ err: new Error('never sent') }),
+function incomingOn(session: Session, options: Partial<IncomingRequestsOptions> = {}): IncomingRequests {
+	return new IncomingRequests({
+		dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
+		log: silentLog,
 		sendPastDrain: () => Promise.resolve({ err: new Error('never sent') }),
-		smsListeners: () => session.listenerCount('sms'),
-		...port,
-	};
+		session,
+		...options,
+	});
 }
 
 function submitPdu(seqNr: number, cmdStatus: ErrorName = 'ESME_ROK'): PduObject {
@@ -758,11 +748,7 @@ describe('reconnect', () => {
 
 		closeAfter(t, session);
 
-		const incoming = new IncomingRequests({
-			deps: stubPort(session, { onRequest: async () => { await delay(10); return false; } }),
-			dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
-			log: silentLog,
-		});
+		const incoming = incomingOn(session, { onRequest: async () => { await delay(10); return false; } });
 		let messages = 0;
 
 		session.on('sms', () => { messages++; });
@@ -1571,11 +1557,7 @@ describe('held message bounds', () => {
 		closeAfter(t, session);
 
 		const warnings: string[] = [];
-		const incoming = new IncomingRequests({
-			deps: stubPort(session),
-			dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
-			log: { ...silentLog, warn: message => { warnings.push(message); } },
-		});
+		const incoming = incomingOn(session, { log: { ...silentLog, warn: message => { warnings.push(message); } } });
 		const answers: (ErrorName | undefined)[] = [];
 		const received: Sms[] = [];
 
@@ -1624,11 +1606,7 @@ describe('held message bounds', () => {
 
 		closeAfter(t, session);
 
-		const incoming = new IncomingRequests({
-			deps: stubPort(session),
-			dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
-			log: silentLog,
-		});
+		const incoming = incomingOn(session);
 		const chunk = Buffer.alloc(64 * 1024);
 		const carried = submitPdu(1);
 		let received: Sms | undefined;
@@ -1682,6 +1660,9 @@ describe('sendResp()', () => {
 		closeAfter(t, session);
 
 		let answered = 0;
+
+		session.sendReturn = () => Promise.resolve({ err: new Error('Socket is closed') });
+
 		const sms = createSms({
 			from: '46701113311',
 			message: 'never answered',
@@ -1689,9 +1670,6 @@ describe('sendResp()', () => {
 			session,
 			to: '46709771337',
 		}, {
-			acceptsOptionalParams: () => true,
-			answer: () => Promise.resolve({ err: new Error('Socket is closed') }),
-			bindAllows: () => true,
 			lostLink: () => false,
 			onAnswered: () => { answered++; },
 			send: () => Promise.resolve({ err: new Error('never sent') }),
@@ -1717,9 +1695,6 @@ describe('sendDlr()', () => {
 			session,
 			to: '46709771337',
 		}, {
-			acceptsOptionalParams: () => true,
-			answer: () => Promise.resolve({}),
-			bindAllows: () => true,
 			lostLink: () => false,
 			onAnswered: () => undefined,
 			send: () => {
@@ -3120,26 +3095,23 @@ describe('graceful shutdown', () => {
 		closeAfter(t, session);
 
 		const calls: string[] = [];
-		const incoming = new IncomingRequests({
-			deps: stubPort(session, {
-				answer: pduObj => {
-					calls.push(pduObj.cmdName);
+		const incoming = incomingOn(session);
+		const close = session.close.bind(session);
 
-					return Promise.resolve({});
-				},
-				peerUnbound: () => {
-					calls.push('peerUnbound');
+		session.sendReturn = pduObj => {
+			calls.push(pduObj.cmdName);
 
-					return Promise.resolve({});
-				},
-			}),
-			dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
-			log: silentLog,
-		});
+			return Promise.resolve({});
+		};
+		session.close = options => {
+			calls.push('close');
+
+			return close(options);
+		};
 
 		await incoming.handle({ ...submitPdu(1), cmdId: 0x00000006, cmdName: 'unbind', params: {} });
 
-		assert.deepEqual(calls, ['unbind', 'peerUnbound']);
+		assert.deepEqual(calls, ['unbind', 'close']);
 	});
 });
 

@@ -203,9 +203,13 @@ A second four-seat run on 2026-09-28, after #35–#40, read 6, 6, 7 and 6 again,
 and 5. Every seat ranked the session's lifecycle hardest and least wanted to modify it.
 
 - [ ] **Lift Locality to 7, and confirm it with a scoring run.** A run reading 7.0 or above also
-      retires the #30 decision. The sub-items are what the 2026-09-28 run named, most seats first.
-- [ ] **Shrink the `IncomingDeps` closure bag.** 16 lambdas, six of them repeated in
-      `SmsHandlers`, which makes every inbound call path indirect. Two seats.
+      retires the #30 and #46 decision. The sub-items are what the 2026-09-28 run named, most seats first.
+- [ ] **Give the link's liveness one owner.** A third run the same day, after #46, read 6, 6, 7 and
+      7, Locality 5, 5, 6 and 6; all four seats ranked `drain()`/`end()`/`teardown()`/`retrying()`
+      in `session.ts` hardest, because whether the link lives is kept in `Session.lifecycle`,
+      `ReconnectLoop.halted`, `LinkGate.up`/`returning`, `OutgoingRequests.draining` and
+      `IncomingRequests.linkGeneration`, held in step by statement order and the comment above
+      `retrying()`. Four seats.
 
 ### Correctness
 
@@ -350,6 +354,21 @@ and 5. Every seat ranked the session's lifecycle hardest and least wanted to mod
       one sentence each.
 
 ### Doc claims this review falsified
+
+- [ ] **Log-cap every interop peer and probe Kannel by protocol, as `interop-tests/AGENTS.md` says
+      every peer is.** `compose.kannel.yaml` and `compose.smscsim.yaml` carry no `logging:` block,
+      and Kannel's healthcheck is the bare TCP probe that file warns against. From the prose sweep
+      of #46.
+
+- [ ] **Cut what the prose sweep of #46 found restated or misplaced.** `docs/decisions.md` entries
+      of 30–45 lines carrying pre-fix history (133–160, 217–255, 362–402, 404–440, 442–472,
+      593–624, 626–662); AGENTS.md's 14-line shared-fixtures bullet, whose tolerated-copies
+      reasoning is a decision; the defect table rows MIGRATION.md already carries; README's
+      `error`-event reason (hard rule 3 owns it) and the Audience bullets restating goal 8 and
+      Install; the `'use strict'` clause in both MIGRATION.md and CHANGELOG.md; the node-smpp
+      cross-check in MIGRATION.md; the planned work in `interop-tests/AGENTS.md` (an expected
+      malformed count per peer) and `benchmarks/README.md`. README persona 3 names a store nothing
+      ships yet — the maintainer's call, since it is the audience.
 
 - [ ] **Make `LinkGate.isUp()`'s doc true or its state match it.** It says a link attached but not
       yet bound cannot carry a request, while `up` starts `true`, so the first link and a server

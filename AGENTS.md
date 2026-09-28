@@ -51,7 +51,7 @@ src/
 	dlr.ts               Delivery receipts: text and TLV parsing, receipt status codes
 	dlr-merger.ts        DlrMerger: per-segment receipts counted into one MessageDlr
 	error-from.ts        An untyped value as error material: errorFrom() an Error, namedValue() a name
-	expiring-groups.ts   ExpiringGroups: the capped, weighed, expiring store both of those share
+	expiring-groups.ts   ExpiringGroups: the capped, weighed, expiring store DlrMerger, HeldMessages and Reassembler share
 	held-messages.ts     HeldMessages: capped, expiring messages the application has not answered, one MessageHold each
 	idle-waiters.ts      IdleWaiters: waiting for a count to fall to zero, and what is left of a budget
 	incoming-requests.ts Every request the peer sends: messages, receipts, links, unknown commands
@@ -82,14 +82,15 @@ src/
 		constants.ts     consts + constsById, and the SMPP version constants
 		encodings.ts     GSM 03.38, LATIN1, UCS2, detection, data_coding resolution
 		errors.ts        errors + errorsById (ESME_*)
+		index.ts         defs: every table as one group
 		tlvs.ts          TLV definitions, tlvsById, the typed read and input shapes, and reading and writing a TLV stream
 		types.ts         Wire types: int8/int16/int32/string/cstring/buffer/arrays
 ```
 
 Imports point one way: `defs` knows nothing above it but `result.ts`, `pdu` uses `defs`, `session`
 uses `pdu`, and `client`/`server` use `session`. The ways back up are the `Session` handed to
-`createSms()`, and to `OnRequest` and `onConnected` in `session-options.ts`, all imported as a type
-only.
+`createSms()` and `IncomingRequests`, which call back into it, and to `OnRequest` and `onConnected`
+in `session-options.ts`, all imported as a type only.
 
 **Parameter order is wire order.** The key order inside `cmds.*.params` is the order the fields are
 written to and read from the buffer. Never sort those alphabetically — the alphabetical-ordering
@@ -317,7 +318,7 @@ the file.
 
 ### [Internals and tests](docs/decisions.md#internals-and-tests)
 
-- #30 merged under the comprehension floor, and Locality is the next work.
+- #30 and #46 merged under the comprehension floor, and Locality is the next work.
 - A listener that rejects is routed by Node's `captureRejections`, not by hand-dispatching.
 - The four-line abort dance is copied across `LinkGate`, `IdleWaiters`, `PendingRequests` and
   `SendWindow` rather than extracted.

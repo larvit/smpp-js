@@ -1,6 +1,5 @@
 import type { ErrorName } from './defs/errors.ts';
 import type { MessageState } from './defs/constants.ts';
-import type { ParamValue } from './defs/types.ts';
 import type { PduObject, PduObjectInput, TlvInputs } from './pdu.ts';
 import type { Result, VoidResult } from './result.ts';
 import type { Session } from './session.ts';
@@ -69,9 +68,6 @@ export type SmsInput = {
 
 /** What the session's incoming side gives a message so it can be answered and accounted for. */
 export type SmsHandlers = {
-	acceptsOptionalParams: () => boolean;
-	answer: (pduObj: PduObject, status: ErrorName, params: Record<string, ParamValue>) => Promise<VoidResult>;
-	bindAllows: (cmdName: string) => boolean;
 	lostLink: () => boolean;
 	onAnswered: () => void;
 	send: (input: PduObjectInput) => Promise<Result<{ pduObj: PduObject }>>;
@@ -93,9 +89,9 @@ export function createSms(input: SmsInput, handlers: SmsHandlers): Sms {
 		from: input.from,
 		message: input.message,
 		pduObjs: input.pduObjs,
-		sendDlr: status => sendDlr(sms, handlers, status),
+		sendDlr: status => sendDlr(sms, input.session, handlers, status),
 		sendResp: options => (input.answeredAs === undefined
-			? sendResp(sms, answered, options ?? {}, handlers)
+			? sendResp(sms, input.session, answered, options ?? {}, handlers)
 			: answeredOnArrival(options ?? {}, handlers)),
 		session: input.session,
 		get smsId(): string {
@@ -132,9 +128,10 @@ function answeredOnArrival(
 
 async function sendResp(
 	sms: Sms,
+	session: Session,
 	answered: { smsId: string },
 	options: SendRespOptions,
-	handlers: Pick<SmsHandlers, 'answer' | 'lostLink' | 'onAnswered'>,
+	handlers: Pick<SmsHandlers, 'lostLink' | 'onAnswered'>,
 ): Promise<VoidResult> {
 	const total = sms.pduObjs.length;
 
@@ -153,7 +150,7 @@ async function sendResp(
 		return { err: new Error('The link this message arrived on is gone, so nothing would correlate the response') };
 	}
 
-	const results = await Promise.all(sms.pduObjs.map((pduObj, index) => handlers.answer(
+	const results = await Promise.all(sms.pduObjs.map((pduObj, index) => session.sendReturn(
 		pduObj,
 		options.status ?? 'ESME_ROK',
 		respIdParams(pduObj.cmdName, segmentId(answered.smsId, index, total)),
@@ -214,10 +211,11 @@ function collectReceipt(sent: Result<{ pduObj: PduObject }>[]): SendDlrResult {
 
 async function sendDlr(
 	sms: Sms,
-	handlers: Pick<SmsHandlers, 'acceptsOptionalParams' | 'bindAllows' | 'send'>,
+	session: Session,
+	handlers: Pick<SmsHandlers, 'send'>,
 	status: MessageState = 'DELIVERED',
 ): Promise<SendDlrResult> {
-	if (!handlers.bindAllows('deliver_sm')) {
+	if (!session.bindAllows('deliver_sm')) {
 		return {
 			err: new Error('A transmitter-bound session does not carry deliver_sm'),
 			pduObjs: [],
@@ -240,7 +238,7 @@ async function sendDlr(
 				short_message: receiptText(sms, smsId, status),
 				source_addr: sms.to,
 			},
-			...(handlers.acceptsOptionalParams() ? { tlvs: receiptTlvs(smsId, status) } : {}),
+			...(session.acceptsOptionalParams() ? { tlvs: receiptTlvs(smsId, status) } : {}),
 		});
 	}));
 	return collectReceipt(sent);
