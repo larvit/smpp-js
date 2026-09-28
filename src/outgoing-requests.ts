@@ -93,11 +93,11 @@ export class OutgoingRequests {
 			return Promise.resolve({ err: new Error('Session is shutting down') });
 		}
 
-		return this.carry(input, options);
+		return this.requestPastDrain(input, options);
 	}
 
-	/** The same path without the drain's refusal, which a receipt for a held message has to take. */
-	async carry(
+	/** request() without the drain's refusal, which a receipt for a held message has to take. */
+	async requestPastDrain(
 		input: PduObjectInput,
 		options: SendOptions,
 	): Promise<Result<{ pduObj: PduObject }>> {
@@ -109,7 +109,7 @@ export class OutgoingRequests {
 		if (bindCommands.includes(input.cmdName)) {
 			const shut = this.gate.refusal();
 
-			return shut ? { err: shut } : this.now(input, options);
+			return shut ? { err: shut } : this.requestPastDrainGateAndWindow(input, options);
 		}
 
 		const waitForLink = this.gate.hold(options.signal);
@@ -129,8 +129,11 @@ export class OutgoingRequests {
 		}
 	}
 
-	/** Past the gate, the window and a drain, for what has to go out either way. */
-	async now(input: PduObjectInput, options: SendOptions = {}): Promise<Result<{ pduObj: PduObject }>> {
+	/** Straight onto the current link, for what has to go out either way. */
+	async requestPastDrainGateAndWindow(
+		input: PduObjectInput,
+		options: SendOptions = {},
+	): Promise<Result<{ pduObj: PduObject }>> {
 		return (await this.attempt(input, options)).result;
 	}
 

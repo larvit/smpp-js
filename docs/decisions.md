@@ -577,18 +577,14 @@ rule and an index of the titles below.
 
 - **A deliberate shutdown drains; an unusable link and an abort do not.** `close()` and `unbind()`
   wait on the send window rather than the pending map — the map misses a segment still queued behind
-  a full window, and finishing a half-sent multipart message is the point. The window counts slots,
-  never outcomes, and empties on a drop too, where `teardown()` settles everything the link was
-  carrying, which is why `drain()` reads `closed` before it reads the count. A stream the framer or
-  the codec cannot read takes `teardown()` instead, and `close({ signal })` on an aborted signal and
-  a peer's own `unbind` take `end()`: nothing on a dead link can answer, an abort means stop now, and
-  a peer that has declared itself finished will not answer what it still owes, so draining any of the
-  three would only hold a socket open for the timeout. `unbind()` sends its own PDU through
-  `request()` past both the window and the drain gate, because it must go out either way.
-  `shutdownTimeout` stays a session option rather than a `close()` argument: `server()` builds
-  sessions on the caller's behalf, so the option is the only composition point. `SmppServer.close()`
-  reports each session's unfinished drain through `serverError`, because its own result says nothing
-  but that the listener stopped.
+  a full window, and finishing a half-sent multipart message is the point. A stream the framer or
+  the codec cannot read, an aborted `close({ signal })` and a peer's own `unbind` do not drain:
+  nothing on a dead link can answer, an abort means stop now, and a peer that has declared itself
+  finished will not answer what it still owes, so draining any of the three would only hold a socket
+  open for the timeout. `shutdownTimeout` stays a session option rather than a `close()` argument:
+  `server()` builds sessions on the caller's behalf, so the option is the only composition point.
+  `SmppServer.close()` reports each session's unfinished drain through `serverError`, because its
+  own result says nothing but that the listener stopped.
 
 - **`sendSms()` puts every segment of a message on the wire together.** Goal 6: a long message costs
   one round trip rather than one per segment. Rejected: sending each segment once the last is
@@ -765,16 +761,14 @@ rule and an index of the titles below.
   `window.idle()`, and `unbind()` taking none is the shape README states.
 
 - **The gate decides whether a link can carry a request, and a bind is what makes it one.**
-  Maintainer's call, 2026-09-01: `attach()` clears `closed` the moment a socket is handed over, one
-  round trip before the bind is answered, so gating on `closed` let a send arriving in that window go
-  out unbound and come back `ESME_RINVBNDSTS`. `LinkGate` owns the answer instead — `shut(returning)`
-  on every teardown, `open()` only once `comeBackUp()` has a bound link — and
-  `OutgoingRequests.canCarry()` reads it rather than `closed`. The gate is told what happened and
+  Maintainer's call, 2026-09-01: `attach()` marks the session attached the moment a socket is
+  handed over, one round trip before the bind is answered, so gating on that let a send arriving in
+  that window go out unbound and come back `ESME_RINVBNDSTS`. The gate is told what happened and
   never reads back into the session: a collaborator that has to ask does not own its decision, which
   is how the first cut ended up answering the same question two different ways at admit and at
-  release. The retry in `carry()` asks `gate.awaitsNextLink()` rather than `canCarry()`, which also
-  reads the socket: a loop condition the gate does not gate on spins against a gate that admits it
-  straight back.
+  release. The retry in `requestPastDrain()` asks `gate.awaitsNextLink()` rather than `canCarry()`,
+  which also reads the socket: a loop condition the gate does not gate on spins against a gate that
+  admits it straight back.
 
 
 ## Internals and tests

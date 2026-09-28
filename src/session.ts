@@ -235,9 +235,8 @@ export class Session extends EventEmitter<SessionEvents> {
 	async unbind(): Promise<VoidResult> {
 		const drained = await this.drain(undefined);
 		const wasOpen = this.lifecycle === 'attached';
-		// now(), not send(): a drain refuses a send, and the unbind goes out either way.
 		const sent = wasOpen
-			? await this.outgoing.now({ cmdName: 'unbind' })
+			? await this.outgoing.requestPastDrainGateAndWindow({ cmdName: 'unbind' })
 			: { err: new Error('Session is closed') };
 		const closedOnUnbind = wasOpen && this.lifecycle !== 'attached';
 
@@ -274,7 +273,7 @@ export class Session extends EventEmitter<SessionEvents> {
 			reportError: err => { this.emit('sessionError', err); },
 			reportMessageDlr: merged => { this.emit('messageDlr', merged); },
 			send: input => this.send(input),
-			sendPastDrain: input => this.outgoing.carry(input, {}),
+			sendPastDrain: input => this.outgoing.requestPastDrain(input, {}),
 			smsListeners: () => this.listenerCount('sms'),
 		};
 	}

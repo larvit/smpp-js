@@ -204,9 +204,6 @@ and 5. Every seat ranked the session's lifecycle hardest and least wanted to mod
 
 - [ ] **Lift Locality to 7, and confirm it with a scoring run.** A run reading 7.0 or above also
       retires the #30 decision. The sub-items are what the 2026-09-28 run named, most seats first.
-- [ ] **Name what `request()`, `carry()` and `now()` each skip.** Three ways onto the wire differ
-      only in which of the drain, the gate and the window they bypass, and none of the names says
-      which. Three seats.
 - [ ] **Give the held-message flow one place a reader can follow it.** Whether a drain still waits
       on a message is spread over `emitSms()`, `MessageHold`, the session's rejection route and
       `Sms.isHeld()`. Four seats.
@@ -339,6 +336,10 @@ and 5. Every seat ranked the session's lifecycle hardest and least wanted to mod
       while README states the equivalent held-message bounds explicitly ("Neither bound is an
       option"). A sender with more than 1000 concurrent multipart `dlr: true` messages silently
       evicts the oldest at `warn`. The inherited architect hit this on the 3am walk.
+
+- [ ] **State in README that `SmppServer.close()` reports each session's unfinished drain as
+      `serverError`.** Only `docs/decisions.md` says so; README's Shutdown section covers the
+      session's own result alone.
 
 - [ ] **Add a ten-line SMPP glossary to the README.** Both juniors and the no-domain mid reported
       the same largest cost: nothing in the repo says what a PDU, `esm_class`, `data_coding`, TON/NPI
