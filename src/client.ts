@@ -174,7 +174,10 @@ async function bind(session: Session, options: ClientOptions): Promise<VoidResul
 		return { err: new Error(`Remote host refused login: ${sent.pduObj.cmdStatus ?? 'unknown'}`) };
 	}
 
-	session.bound(bindType, sent.pduObj.tlvs.sc_interface_version?.tagValue);
+	const recorded = session.bound(bindType, sent.pduObj.tlvs.sc_interface_version?.tagValue);
+
+	if (recorded.err) return recorded;
+
 	session.log.info('client - bound', { bindType, systemId });
 
 	return {};

@@ -423,10 +423,11 @@ const { err, pduObj } = await session.send({
   a `send()` you build is passed through as written, so check it yourself.
 - `peerInterfaceVersion`: the version the peer declared, `0x00` if none, `undefined` before any bind.
 - `bindAllows(cmdName)` and `boundAs`: what the bind direction carries: [Bind direction](#bind-direction).
-- Both hold through a reconnect's gap: the loop binds again as before.
+- `boundAs` and `peerInterfaceVersion` are read-only, and hold through a reconnect's gap until the
+  next `bound()`.
 - `bound(bindType, declaredVersion)`: how a session you construct yourself records a bind, whichever
-  end accepted it. A `declaredVersion` that is not a number is none declared. Both fields are
-  read-only.
+  end accepted it, on every link it binds. `declaredVersion` is 0-255, or `undefined` where the peer
+  declared none; anything else, or an unknown `bindType`, returns `err` and records nothing.
 
 ## Receiving in depth
 
@@ -544,7 +545,8 @@ if (err) throw err;
   the link. Guard on the command name, as above, and a failing hook costs only its own request.
 - A `Session` you construct yourself takes the same hook as a session option, and that is where a
   peer's bind gets accepted, since a hand-wired session has no bind handling of its own: call
-  `session.bound(bindType, pduObj.params.interface_version)` before answering it.
+  `session.bound(bindType, pduObj.params.interface_version)` before answering it, and refuse the bind
+  with `ESME_RBINDFAIL` where that returns `err`.
 
 **`sendDlr()`** takes `SCHEDULED`, `ENROUTE`, `DELIVERED`, `EXPIRED`, `DELETED`, `UNDELIVERABLE`,
 `ACCEPTED`, `UNKNOWN`, `REJECTED` or `SKIPPED`. The first two go out as intermediate delivery

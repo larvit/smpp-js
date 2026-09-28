@@ -121,6 +121,29 @@ export const defaultSystemId = '';
 /** SMPP 3.4: a peer that declares no version at all is one from before optional parameters. */
 export const undeclaredInterfaceVersion = 0x00;
 
+export type SessionBind = { as: BindType; peerVersion: number };
+
+const bindTypes: readonly string[] = ['receiver', 'transceiver', 'transmitter'];
+
+function isBindType(value: unknown): value is BindType {
+	return typeof value === 'string' && bindTypes.includes(value);
+}
+
+/** A bind as `Session.bound()` records it: undefined declares no version, which is pre-3.4. */
+export function checkedBind(bindType: unknown, declaredVersion: unknown): Result<{ bind: SessionBind }> {
+	if (!isBindType(bindType)) {
+		return { err: new Error(`bindType must be ${bindTypes.join(', ')}, got ${namedValue(bindType)}`) };
+	}
+
+	if (declaredVersion === undefined) return { bind: { as: bindType, peerVersion: undeclaredInterfaceVersion } };
+
+	if (typeof declaredVersion !== 'number' || !Number.isInteger(declaredVersion) || declaredVersion < 0 || declaredVersion > 0xFF) {
+		return { err: new Error(`declaredVersion must be 0-255, or undefined where the peer declared none, got ${namedValue(declaredVersion)}`) };
+	}
+
+	return { bind: { as: bindType, peerVersion: declaredVersion } };
+}
+
 export const defaults = {
 	/** Receipts of a multipart message can be a working day apart, so the cap does the bounding. */
 	dlrMergeTimeout: 86_400_000,

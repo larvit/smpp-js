@@ -177,9 +177,9 @@ async function acceptBind(
 	options: ServerOptions,
 	identity: Record<string, string>,
 ): Promise<void> {
-	session.bound(bindType, pduObj.params.interface_version);
+	const recorded = session.bound(bindType, pduObj.params.interface_version);
 
-	await session.sendReturn(pduObj, 'ESME_ROK', identity, bindRespTlvs(session, options));
+	await session.sendReturn(pduObj, recorded.err ? 'ESME_RBINDFAIL' : 'ESME_ROK', identity, bindRespTlvs(session, options));
 }
 
 async function onBind(

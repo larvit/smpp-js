@@ -76,8 +76,8 @@
 - `cmds.broadcast_sm_resp.tlvMap` is removed; nothing read it.
 - `session.boundAs` and `session.peerInterfaceVersion` are read-only, and `session.loggedIn` is
   removed: read `session.boundAs !== undefined`. A session you wire yourself records the bind it
-  accepted or had accepted with `session.bound(bindType, declaredVersion)`; an assignment to either
-  field now throws a `TypeError`.
+  accepted or had accepted with `session.bound(bindType, declaredVersion)`, which returns `err` for a
+  bind type or version it cannot record; an assignment to either field now throws a `TypeError`.
 
 ## 0.5.0
 

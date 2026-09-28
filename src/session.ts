@@ -4,7 +4,7 @@ import type { MessageDlr } from './dlr-merger.ts';
 import type { ParamValue } from './defs/types.ts';
 import type { PduObject, PduObjectInput, TlvInputs } from './pdu.ts';
 import type { PduRefusedError } from './pdu-refusal.ts';
-import type { BindType, CloseOptions, LinkEnd, OnRequest, ReconnectOptions, SendOptions, SessionEvents, SessionOptions } from './session-options.ts';
+import type { BindType, CloseOptions, LinkEnd, OnRequest, ReconnectOptions, SendOptions, SessionBind, SessionEvents, SessionOptions } from './session-options.ts';
 import type { Result, VoidResult } from './result.ts';
 import type { SendSmsOptions, SendSmsResult } from './send-sms.ts';
 import type { SmppLog } from './log.ts';
@@ -19,7 +19,7 @@ import { ReconnectLoop } from './reconnect-loop.ts';
 import { leftOf } from './idle-waiters.ts';
 import { errorFrom } from './error-from.ts';
 import { optionalParamsMinVersion } from './defs/constants.ts';
-import { bindCarries, bindCommands, defaultSystemId, defaults, undeclaredInterfaceVersion } from './session-options.ts';
+import { bindCarries, bindCommands, checkedBind, defaultSystemId, defaults } from './session-options.ts';
 import { isResp, objToPdu, pduReturn } from './pdu.ts';
 import { refusalAnswer } from './pdu-refusal.ts';
 import { guardedLog } from './log.ts';
@@ -58,7 +58,7 @@ export class Session extends EventEmitter<SessionEvents> {
 	linkEnd: LinkEnd = 'esme';
 	userData: unknown = undefined;
 
-	private bind: { as: BindType; peerVersion: number } | undefined = undefined;
+	private bind: SessionBind | undefined = undefined;
 
 	private readonly concatReference = new ConcatReference();
 	private readonly dlrMerger: DlrMerger;
@@ -161,11 +161,13 @@ export class Session extends EventEmitter<SessionEvents> {
 		return this.bind?.peerVersion;
 	}
 
-	/** Records a bind this link accepted or had accepted, until the next one. A version that is not a number is none. */
-	bound(bindType: BindType, declaredVersion: unknown): void {
-		const peerVersion = typeof declaredVersion === 'number' ? declaredVersion : undeclaredInterfaceVersion;
+	/** Records a bind this link accepted or had accepted, until the next one. */
+	bound(bindType: BindType, declaredVersion: unknown): VoidResult {
+		const checked = checkedBind(bindType, declaredVersion);
 
-		this.bind = { as: bindType, peerVersion };
+		if (!checked.err) this.bind = checked.bind;
+
+		return checked.err ? { err: checked.err } : {};
 	}
 
 	/** Whether this session's bind direction carries a command. Consulted by the library's senders. */
@@ -175,8 +177,7 @@ export class Session extends EventEmitter<SessionEvents> {
 
 	/** SMPP 3.4 forbids sending optional parameters to a peer that declared an older version. */
 	acceptsOptionalParams(): boolean {
-		return this.peerInterfaceVersion === undefined
-			|| this.peerInterfaceVersion >= optionalParamsMinVersion;
+		return this.peerInterfaceVersion === undefined || this.peerInterfaceVersion >= optionalParamsMinVersion;
 	}
 
 	/** Sends a request and resolves with the peer's response. */

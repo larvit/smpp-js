@@ -465,7 +465,7 @@ describe('bind', () => {
 
 		// The mistakes an untyped caller makes: the TLV object for its value, a version past int8, a typo.
 		for (const [bindType, declared] of [['receiver', { tagValue: 0x34 }], ['receiver', 0x100], ['receiver', 3.4], ['tx', 0x34]]) {
-			const refused: unknown = Reflect.apply(session.bound, session, [bindType, declared]);
+			const refused: unknown = Reflect.apply(Reflect.get(session, 'bound'), session, [bindType, declared]);
 
 			assert.ok(refused && typeof refused === 'object' && 'err' in refused && refused.err instanceof Error);
 		}
