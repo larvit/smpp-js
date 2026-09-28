@@ -123,6 +123,10 @@ export const undeclaredInterfaceVersion = 0x00;
 
 export type SessionBind = { as: BindType; peerVersion: number };
 
+function quoted(value: unknown): string {
+	return typeof value === 'string' ? JSON.stringify(value) : namedValue(value);
+}
+
 function isBindType(value: unknown): value is BindType {
 	return typeof value === 'string' && bindTypeFromCommand(`bind_${value}`) !== undefined;
 }
@@ -130,13 +134,13 @@ function isBindType(value: unknown): value is BindType {
 /** A bind as `Session.bound()` records it: undefined declares no version, which is pre-3.4. */
 export function checkedBind(bindType: unknown, declaredVersion: unknown): Result<{ bind: SessionBind }> {
 	if (!isBindType(bindType)) {
-		return { err: new Error(`bindType must be receiver, transceiver or transmitter, got ${namedValue(bindType)}`) };
+		return { err: new Error(`bindType must be receiver, transceiver or transmitter, the bind command's name without "bind_", got ${quoted(bindType)}`) };
 	}
 
 	if (declaredVersion === undefined) return { bind: { as: bindType, peerVersion: undeclaredInterfaceVersion } };
 
 	if (typeof declaredVersion !== 'number' || !Number.isInteger(declaredVersion) || declaredVersion < 0 || declaredVersion > 0xFF) {
-		return { err: new Error(`declaredVersion must be 0-255, or undefined where the peer declared none, got ${namedValue(declaredVersion)}`) };
+		return { err: new Error(`declaredVersion must be an integer 0-255, the interface_version param or the sc_interface_version TLV's tagValue, or undefined where the peer declared none, got ${quoted(declaredVersion)}`) };
 	}
 
 	return { bind: { as: bindType, peerVersion: declaredVersion } };

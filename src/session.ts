@@ -162,7 +162,7 @@ export class Session extends EventEmitter<SessionEvents> {
 	}
 
 	/** Records a bind this link accepted or had accepted, until the next one. */
-	bound(bindType: BindType, declaredVersion: unknown): VoidResult {
+	bound(bindType: string, declaredVersion: unknown): VoidResult {
 		const checked = checkedBind(bindType, declaredVersion);
 
 		if (!checked.err) this.bind = checked.bind;

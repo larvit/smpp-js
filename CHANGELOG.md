@@ -77,7 +77,8 @@
 - `session.boundAs` and `session.peerInterfaceVersion` are read-only, and `session.loggedIn` is
   removed: read `session.boundAs !== undefined`. A session you wire yourself records the bind it
   accepted or had accepted with `session.bound(bindType, declaredVersion)`, which returns `err` for a
-  bind type or version it cannot record; an assignment to either field now throws a `TypeError`.
+  bind type or version it cannot record. An assignment to either field does not compile in
+  TypeScript, and throws a `TypeError` in strict-mode JavaScript, which every module is.
 
 ## 0.5.0
 

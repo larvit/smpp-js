@@ -424,10 +424,13 @@ const { err, pduObj } = await session.send({
 - `peerInterfaceVersion`: the version the peer declared, `0x00` if none, `undefined` before any bind.
 - `bindAllows(cmdName)` and `boundAs`: what the bind direction carries: [Bind direction](#bind-direction).
 - `boundAs` and `peerInterfaceVersion` are read-only, and hold through a reconnect's gap until the
-  next `bound()`.
+  link binds again.
 - `bound(bindType, declaredVersion)`: how a session you construct yourself records a bind, whichever
-  end accepted it, on every link it binds. `declaredVersion` is 0-255, or `undefined` where the peer
-  declared none; anything else, or an unknown `bindType`, returns `err` and records nothing.
+  end accepted it, on every link it binds. `bindType` is `receiver`, `transceiver` or `transmitter`;
+  `declaredVersion` is 0-255, or `undefined` where the peer declared none. Anything else returns `err`
+  and records nothing.
+- An ESME records the bind from its `bind_resp`, in `reconnect.onConnected` on every rebind:
+  `session.bound('transmitter', pduObj.tlvs.sc_interface_version?.tagValue)`.
 
 ## Receiving in depth
 
@@ -545,8 +548,8 @@ if (err) throw err;
   the link. Guard on the command name, as above, and a failing hook costs only its own request.
 - A `Session` you construct yourself takes the same hook as a session option, and that is where a
   peer's bind gets accepted, since a hand-wired session has no bind handling of its own: call
-  `session.bound(bindType, pduObj.params.interface_version)` before answering it, and refuse the bind
-  with `ESME_RBINDFAIL` where that returns `err`.
+  `session.bound(pduObj.cmdName.slice('bind_'.length), pduObj.params.interface_version)` before
+  answering it, and refuse the bind with `ESME_RBINDFAIL` where that returns `err`.
 
 **`sendDlr()`** takes `SCHEDULED`, `ENROUTE`, `DELIVERED`, `EXPIRED`, `DELETED`, `UNDELIVERABLE`,
 `ACCEPTED`, `UNKNOWN`, `REJECTED` or `SKIPPED`. The first two go out as intermediate delivery
