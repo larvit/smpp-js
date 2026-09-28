@@ -299,8 +299,7 @@ next work ([decision](docs/decisions.md#internals-and-tests)).
       with no link from the code; one counted roughly fifty index redirects. The three left to inline
       as one line each: that `segmentUnits`' three numbers are in two units (septets and octets),
       that a receipt's body is read as octets whatever its `data_coding` says, and the `<base>-<n>`
-      id notation. The reasoning stays in the log; the
-      definition belongs at the code.
+      id notation. The reasoning stays in the log; the definition belongs at the code.
 
 - [ ] **Document the two delivery-receipt merge bounds.** `maxDlrMerges` (1000) and
       `dlrMergeTimeout` (24 h) are hardcoded, are not options, and appear in no README and no test —
