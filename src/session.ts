@@ -72,8 +72,8 @@ export class Session extends EventEmitter<SessionEvents> {
 	private readonly timers: LinkTimers;
 	private readonly transport: PduTransport;
 
-	private closed = false;
-	private ended = false;
+	/** `torn-down` goes back to `attached` when the reconnect loop brings a link up. */
+	private link: 'attached' | 'ended' | 'torn-down' = 'attached';
 
 	/** A listener that throws is the application's bug; it must not become ours. Hard rule 1. */
 	override emit<K extends keyof SessionEvents>(
@@ -186,7 +186,7 @@ export class Session extends EventEmitter<SessionEvents> {
 		const sent = built.err ? { err: built.err } : this.transport.write(built.buffer);
 
 		// A peer that unbinds and drops the link takes our response with it; that is not a failure.
-		if (sent.err && !this.closed) {
+		if (sent.err && this.link === 'attached') {
 			this.log.warn('session - could not answer a request', {
 				cmdName,
 				message: sent.err.message,
@@ -221,12 +221,12 @@ export class Session extends EventEmitter<SessionEvents> {
 	 */
 	async unbind(): Promise<VoidResult> {
 		const drained = await this.drain(undefined);
-		const wasOpen = !this.closed;
+		const wasOpen = this.link === 'attached';
 		// now(), not send(): a drain refuses a send, and the unbind goes out either way.
 		const sent = wasOpen
 			? await this.outgoing.now({ cmdName: 'unbind' })
 			: { err: new Error('Session is closed') };
-		const closedOnUnbind = wasOpen && this.closed;
+		const closedOnUnbind = wasOpen && this.link !== 'attached';
 
 		this.end();
 
@@ -325,7 +325,7 @@ export class Session extends EventEmitter<SessionEvents> {
 
 	private attach(sock: Socket): void {
 		this.transport.attach(sock);
-		this.closed = false;
+		this.link = 'attached';
 	}
 
 	/** Stops new sends and waits out the messages we hold and the requests already issued. */
@@ -371,17 +371,17 @@ export class Session extends EventEmitter<SessionEvents> {
 	}
 
 	private emitClose(): void {
-		if (this.ended) return;
+		if (this.link === 'ended') return;
 
-		this.ended = true;
+		this.link = 'ended';
 		this.outgoing.linkLost(false);
 		this.emit('close');
 	}
 
 	private teardown(): void {
-		if (this.closed) return;
+		if (this.link !== 'attached') return;
 
-		this.closed = true;
+		this.link = 'torn-down';
 
 		// Read once: clear() reports lost segments, and a listener could stop the loop between reads.
 		const retrying = this.retrying();
@@ -445,15 +445,15 @@ export class Session extends EventEmitter<SessionEvents> {
 	}
 
 	private resetTimers(): void {
-		if (this.closed) return;
+		if (this.link !== 'attached') return;
 
 		this.timers.reset();
 	}
 
 	private onClose(): void {
-		if (this.reconnectLoop && !this.reconnectLoop.isStopped()) {
+		if (this.retrying()) {
 			this.teardown();
-			this.reconnectLoop.schedule();
+			this.reconnectLoop?.schedule();
 
 			return;
 		}

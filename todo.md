@@ -199,9 +199,24 @@ next work ([decision](docs/decisions.md#internals-and-tests)).
 
 ### Locality — next, ahead of everything below; 5–6 today, and the gate is 7
 
-- [ ] **Lift the held-message and shutdown code to Locality 7, and confirm it with a scoring run.**
-      The 2026-09-27 run capped every seat there; a run reading 7.0 or above also retires the #30
-      decision.
+A second four-seat run on 2026-09-28, after #35–#40, read 6, 6, 7 and 6 again, Locality 5, 5, 6
+and 5. Every seat ranked the session's lifecycle hardest and least wanted to modify it.
+
+- [ ] **Lift Locality to 7, and confirm it with a scoring run.** A run reading 7.0 or above also
+      retires the #30 decision. The sub-items are what the 2026-09-28 run named, most seats first.
+- [ ] **Let `Session` own its bind state.** `client.ts` and `server.ts` write `boundAs`, `loggedIn`
+      and `peerInterfaceVersion` onto the session from outside, and `loggedIn` duplicates
+      `boundAs !== undefined`. A method such as `session.bound(bindType, declaredVersion)` with the
+      three fields read-only changes the public surface a hand-wired SMSC uses, so it needs the
+      maintainer's call first. All four seats.
+- [ ] **Name what `request()`, `carry()` and `now()` each skip.** Three ways onto the wire differ
+      only in which of the drain, the gate and the window they bypass, and none of the names says
+      which. Three seats.
+- [ ] **Give the held-message flow one place a reader can follow it.** Whether a drain still waits
+      on a message is spread over `emitSms()`, `MessageHold`, the session's rejection route and
+      `Sms.isHeld()`. Four seats.
+- [ ] **Shrink the `IncomingDeps` closure bag.** 16 lambdas, six of them repeated in
+      `SmsHandlers`, which makes every inbound call path indirect. Two seats.
 
 ### Correctness
 
@@ -243,6 +258,23 @@ next work ([decision](docs/decisions.md#internals-and-tests)).
       this is a supported spelling or 0.4.0 tolerance decides whether that sentence lands in
       README.md or in MIGRATION.md — write it in the same change as the rule, so it is worded once.
       From the stability and product-owner reviews of #18.
+
+- [ ] **Build every error from a thrown value through `errorFrom()`.** `reconnect-loop.ts` (in
+      `run()`'s catch and in `bringUp()`) and `client.ts`'s connect still call `String(thrown)`,
+      which throws on a null-prototype object; in `run()` that lands as an unhandled rejection from
+      a `void`ed promise, against hard rule 1. From the 2026-09-28 scoring run.
+
+- [ ] **Leave `sms.smsId` alone when `sendResp()` fails.** `sms.ts` assigns `options.smsId` before
+      the lost-link check and before the write, so a failed answer still renames the message and a
+      later `sendDlr()` names an id the peer was never given. From the 2026-09-28 scoring run.
+
+- [ ] **Refuse a timeout past 2³¹−1 ms, as `connectTimeout` already is.** `checkLimits()` bounds
+      `responseTimeout`, `idleTimeout`, `shutdownTimeout` and `reassemblyTimeout` from below only,
+      and Node fires a larger delay after 1 ms. From the 2026-09-28 scoring run.
+
+- [ ] **Keep a bare ESC out of GSM detection.** `gsmRegex` in `defs/encodings.ts` admits `\x1B`,
+      so `"\x1B("` is detected as GSM, goes out as 0x1B 0x28 and arrives as `{`. From the
+      2026-09-28 scoring run.
 
 ### Throughput — goal 6, and the default window is where we are slowest
 
