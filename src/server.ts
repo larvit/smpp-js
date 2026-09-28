@@ -170,18 +170,6 @@ function bindRespTlvs(session: Session, options: ServerOptions): TlvInputs | und
 	};
 }
 
-async function acceptBind(
-	session: Session,
-	pduObj: PduObject,
-	bindType: BindType,
-	options: ServerOptions,
-	identity: Record<string, string>,
-): Promise<void> {
-	const recorded = session.bound(bindType, pduObj.params.interface_version);
-
-	await session.sendReturn(pduObj, recorded.err ? 'ESME_RBINDFAIL' : 'ESME_ROK', identity, bindRespTlvs(session, options));
-}
-
 async function onBind(
 	session: Session,
 	pduObj: PduObject,
@@ -198,7 +186,16 @@ async function onBind(
 		return;
 	}
 
-	await acceptBind(session, pduObj, bindType, options, identity);
+	const recorded = session.bound(bindType, pduObj.params.interface_version);
+
+	if (recorded.err) {
+		session.log.info('server - bind refused', { message: recorded.err.message, systemId });
+		await session.sendReturn(pduObj, 'ESME_RBINDFAIL', identity);
+
+		return;
+	}
+
+	await session.sendReturn(pduObj, 'ESME_ROK', identity, bindRespTlvs(session, options));
 	session.log.verbose('server - bound', { systemId });
 }
 

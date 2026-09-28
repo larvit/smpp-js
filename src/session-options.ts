@@ -123,16 +123,14 @@ export const undeclaredInterfaceVersion = 0x00;
 
 export type SessionBind = { as: BindType; peerVersion: number };
 
-const bindTypes: readonly string[] = ['receiver', 'transceiver', 'transmitter'];
-
 function isBindType(value: unknown): value is BindType {
-	return typeof value === 'string' && bindTypes.includes(value);
+	return typeof value === 'string' && bindTypeFromCommand(`bind_${value}`) !== undefined;
 }
 
 /** A bind as `Session.bound()` records it: undefined declares no version, which is pre-3.4. */
 export function checkedBind(bindType: unknown, declaredVersion: unknown): Result<{ bind: SessionBind }> {
 	if (!isBindType(bindType)) {
-		return { err: new Error(`bindType must be ${bindTypes.join(', ')}, got ${namedValue(bindType)}`) };
+		return { err: new Error(`bindType must be receiver, transceiver or transmitter, got ${namedValue(bindType)}`) };
 	}
 
 	if (declaredVersion === undefined) return { bind: { as: bindType, peerVersion: undeclaredInterfaceVersion } };

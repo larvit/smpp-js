@@ -36,9 +36,8 @@ shape is the same, connect, send, listen for delivery reports, with callbacks re
   Write `alert_on_message_delivery` and `broadcast_area_identifier`, the names they read back
   under, for `alert_on_msg_delivery` and `failed_broadcast_area_identifier`, which are gone from
   `tlvs` too.
-- **`session.loggedIn` is gone**: read `session.boundAs !== undefined`. `boundAs` and
-  `peerInterfaceVersion` are read-only; a session you construct yourself records a bind with
-  `session.bound()`.
+- **`session.loggedIn` is gone**: read `session.boundAs !== undefined`. A session you construct
+  yourself records a bind with `session.bound()`.
 - **The `error` event is `sessionError`**, and `serverError` on the server handle.
 - **`log`** takes any object with `debug`, `error`, `info`, `verbose` and `warn` methods instead of
   a `larvitutils` one, and is silent by default: [README](README.md#logging).
