@@ -367,8 +367,7 @@ and 5. Every seat ranked the session's lifecycle hardest and least wanted to mod
       `error`-event reason (hard rule 3 owns it) and the Audience bullets restating goal 8 and
       Install; the `'use strict'` clause in both MIGRATION.md and CHANGELOG.md; the node-smpp
       cross-check in MIGRATION.md; the planned work in `interop-tests/AGENTS.md` (an expected
-      malformed count per peer) and `benchmarks/README.md`. README persona 3 names a store nothing
-      ships yet — the maintainer's call, since it is the audience.
+      malformed count per peer) and `benchmarks/README.md`.
 
 - [ ] **Make `LinkGate.isUp()`'s doc true or its state match it.** It says a link attached but not
       yet bound cannot carry a request, while `up` starts `true`, so the first link and a server
@@ -725,3 +724,5 @@ Each lands under goal 7: an option or a hook, with the call that passes none unc
         memory. Either way, an application that supplied no store never waits on one.
       - **One spelling.** A store-backed cap and the limiter hook both reach a limit shared between
         processes; settle which owns that case before building the second.
+      - **Restore the store operator to README's personas, and drop "which has not shipped" from the
+        Audience bullet, when the store ships.** Removed 2026-09-28, maintainer's call.

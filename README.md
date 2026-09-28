@@ -743,8 +743,9 @@ Who depends on this library, and what they may rely on.
 - **The developer building the SMPP edge of something else.** What binds to `server()` in practice is
   an aggregator's customer-facing edge, a bridge putting SMPP in front of a modern transport, or a
   test double standing in for an SMSC. This is not a store-and-forward SMSC and will not become one:
-  spooling, scheduling, retry policy and billing belong to whatever this is the edge of, and state
-  shared between instances goes through the store in goal 9.
+  spooling, scheduling, retry policy and billing belong to whatever this is the edge of. State shared
+  between instances is for goal 9's store, which has not shipped: today every session keeps its own,
+  in memory.
 - **Pre-1.0, so the minor is the breaking unit** and a patch never breaks. What a 0.4.0 consumer has
   to change is in [MIGRATION.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/MIGRATION.md);
   what each later minor changes is in
@@ -755,8 +756,7 @@ Personas this README serves, in order:
 1. The application developer sending or receiving SMS on the defaults, who should need no options.
 2. The application developer who needs one thing retuned — an alphabet, a rate limit, a receipt
    format — through an option or a hook rather than a fork.
-3. The operator coordinating sessions across processes through a store.
-4. The developer migrating from `larvitsmpp` 0.4.0.
+3. The developer migrating from `larvitsmpp` 0.4.0.
 
 ## Development
 
