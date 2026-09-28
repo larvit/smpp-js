@@ -62,6 +62,6 @@ describe('smppload (blocked)', () => {
 		await waitFor(() => (closed ? true : undefined), 5000);
 		assert.equal(closed, true);
 		assert.ok(bound);
-		assert.equal(bound.loggedIn, false);
+		assert.equal(bound.boundAs, undefined);
 	});
 });

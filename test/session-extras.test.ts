@@ -628,6 +628,10 @@ describe('reconnect', () => {
 
 		const reconnected = once<true>(resolve => { session.on('reconnected', () => { resolve(true); }); });
 		const halfPdu = once<true>(resolve => { session.on('data', () => { resolve(true); }); });
+		const boundBefore = [session.boundAs, session.peerInterfaceVersion];
+		const whileDown = once<unknown[]>(resolve => {
+			session.on('disconnected', () => { resolve([session.boundAs, session.peerInterfaceVersion]); });
+		});
 
 		// A PDU header promising 32 octets and sending 8: the next link must not continue it.
 		peerOf(smpp).sock.write(Buffer.from([0, 0, 0, 32, 0, 0, 0, 4]));
@@ -640,7 +644,9 @@ describe('reconnect', () => {
 
 		await reconnected;
 
-		assert.ok(session.loggedIn);
+		// The loop rebinds as before, so the gap keeps answering bindAllows() for the bind to come.
+		assert.deepEqual(await whileDown, boundBefore);
+		assert.equal(session.boundAs, 'transceiver');
 
 		// The session object survives the drop, so listeners stay attached and it is usable again.
 		const sent = await session.sendSms({
@@ -867,7 +873,7 @@ describe('reconnect from the first bind', () => {
 
 		assert.equal(err, undefined);
 		assert.ok(session);
-		assert.equal(session.loggedIn, true);
+		assert.equal(session.boundAs, 'transceiver');
 		assert.ok(spy.delays.length >= 3, 'the SMSC was down for several attempts');
 		assert.deepEqual(spy.delays.slice(0, 3), [10, 20, 40], 'each wait doubles, up to maxDelay');
 		assert.ok(

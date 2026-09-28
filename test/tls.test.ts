@@ -135,7 +135,7 @@ describe('tls', () => {
 
 		assert.equal(err, undefined);
 		assert.ok(session);
-		assert.ok(session.loggedIn);
+		assert.equal(session.boundAs, 'transceiver');
 		closeAfter(t, session);
 
 		const sock = session.sock;

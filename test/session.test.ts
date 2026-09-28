@@ -229,7 +229,7 @@ describe('bind', () => {
 
 		assert.equal(err, undefined);
 		assert.ok(session);
-		assert.ok(session.loggedIn);
+		assert.equal(session.boundAs, 'transceiver');
 
 		assert.deepEqual(await session.unbind(), {});
 	});
@@ -446,6 +446,28 @@ describe('bind', () => {
 		assert.ok(session);
 		assert.equal(session.peerInterfaceVersion, 0x50);
 		assert.ok(session.acceptsOptionalParams());
+	});
+
+	test('records a hand-wired bind through bound(), and nothing else writes it', t => {
+		const session = new Session({ sock: new net.Socket() });
+
+		closeAfter(t, session);
+		assert.equal(session.boundAs, undefined);
+		assert.equal(session.peerInterfaceVersion, undefined);
+
+		session.bound('receiver', 0x34);
+
+		assert.equal(session.boundAs, 'receiver');
+		assert.equal(session.peerInterfaceVersion, 0x34);
+		assert.equal(session.bindAllows('submit_sm'), false);
+
+		session.bound('transmitter', undefined);
+
+		assert.equal(session.peerInterfaceVersion, 0x00, 'no declared version is pre-3.4');
+		assert.equal(Reflect.set(session, 'boundAs', 'transceiver'), false);
+		assert.equal(Reflect.set(session, 'peerInterfaceVersion', 0x50), false);
+		assert.equal(session.boundAs, 'transmitter');
+		assert.equal('loggedIn' in session, false);
 	});
 
 	// The spec: an absent sc_interface_version means the SMSC supports no optional parameters.
