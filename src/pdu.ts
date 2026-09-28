@@ -71,78 +71,68 @@ type ResolvedBody = {
 	tlvs: TlvInputs | undefined;
 };
 
+/**
+ * What the PDU's data_coding describes, and so what may set it: short_message wherever it holds an
+ * octet, since messageOctets() reads it there, and message_payload only where it does not.
+ */
+type CodingSource = 'caller' | 'message_payload' | 'short_message';
+
 function codingOf(params: Record<string, ParamValue | undefined>): number | undefined {
 	return typeof params.data_coding === 'number' ? params.data_coding : undefined;
 }
 
-/** messageOctets() reads short_message wherever it holds an octet, and the TLV only where it does not. */
-function carriesOctets(value: ParamValue | undefined): boolean {
-	return Buffer.isBuffer(value) && value.length > 0;
+/** Only the short_message the command's own table will write, since writeParams() ignores any other. */
+function resolveShortMessage(
+	params: Record<string, ParamValue | undefined>,
+	definition: CommandDefinition,
+): Result<{ params: Record<string, ParamValue | undefined>; source: CodingSource }> {
+	const message = definition.params?.short_message === undefined ? undefined : params.short_message;
+
+	if (Buffer.isBuffer(message)) {
+		return {
+			params: params.sm_length === undefined ? { ...params, sm_length: message.length } : params,
+			source: message.length > 0 ? 'caller' : 'message_payload',
+		};
+	}
+
+	if (typeof message !== 'string') return { params, source: 'message_payload' };
+
+	const encoded = encodeBody(message, codingOf(params));
+
+	if (encoded.err) {
+		return { err: new Error(`Parameter "short_message" of "${definition.command}": ${encoded.err.message}`) };
+	}
+
+	const written = { ...params, short_message: encoded.buffer, sm_length: encoded.buffer.length };
+
+	if (encoded.buffer.length === 0) return { params: written, source: 'message_payload' };
+
+	return { params: { ...written, data_coding: encoded.dataCoding }, source: 'short_message' };
 }
 
-/** The short_message the command's own table will write, since writeParams() ignores any other. */
-function writtenBody(definition: CommandDefinition, value: ParamValue | undefined): ParamValue | undefined {
-	return definition.params?.short_message === undefined ? undefined : value;
-}
-
-/** Encoded in place, settling data_coding where `settles` says no mandatory field will carry it. */
-function resolveCarried(
-	resolved: ResolvedBody,
-	inputs: TlvInputs | undefined,
-	dataCoding: number | undefined,
-	settles: boolean,
-): VoidResult {
-	const text = inputs?.message_payload?.tagValue;
-
-	if (typeof text !== 'string') return {};
-
-	const encoded = encodeBody(text, dataCoding);
-
-	if (encoded.err) return { err: new Error(`TLV "message_payload": ${encoded.err.message}`) };
-
-	if (settles) resolved.params.data_coding = encoded.dataCoding;
-
-	resolved.tlvs = { ...resolved.tlvs, message_payload: { tagValue: encoded.buffer } };
-
-	return {};
-}
-
-/** data_coding names the alphabet of the body, and short_message settles it where it carries octets. */
 function resolveBody(
 	params: Record<string, ParamValue | undefined>,
 	tlvs: TlvInputs | undefined,
 	definition: CommandDefinition,
 ): Result<ResolvedBody> {
-	const message = writtenBody(definition, params.short_message);
-	const resolved: ResolvedBody = { params: { ...params }, tlvs };
+	const shortMessage = resolveShortMessage(params, definition);
 
-	if (Buffer.isBuffer(message) && params.sm_length === undefined) {
-		resolved.params.sm_length = message.length;
-	}
+	if (shortMessage.err) return { err: shortMessage.err };
 
-	if (typeof message === 'string') {
-		const encoded = encodeBody(message, codingOf(params));
+	const text = tlvs?.message_payload?.tagValue;
 
-		if (encoded.err) {
-			return { err: new Error(`Parameter "short_message" of "${definition.command}": ${encoded.err.message}`) };
-		}
+	if (typeof text !== 'string') return { params: shortMessage.params, tlvs };
 
-		if (carriesOctets(encoded.buffer)) resolved.params.data_coding = encoded.dataCoding;
+	const encoded = encodeBody(text, codingOf(shortMessage.params));
 
-		resolved.params.short_message = encoded.buffer;
-		resolved.params.sm_length = encoded.buffer.length;
-	}
+	if (encoded.err) return { err: new Error(`TLV "message_payload": ${encoded.err.message}`) };
 
-	// Only octets the command's own table will write can settle the alphabet the PDU declares.
-	const settles = !carriesOctets(writtenBody(definition, resolved.params.short_message));
-	const carried = resolveCarried(
-		resolved,
-		tlvs,
-		settles ? codingOf(params) : codingOf(resolved.params),
-		settles,
-	);
-
-	return carried.err ? { err: carried.err } : resolved;
+	return {
+		params: shortMessage.source === 'message_payload'
+			? { ...shortMessage.params, data_coding: encoded.dataCoding }
+			: shortMessage.params,
+		tlvs: { ...tlvs, message_payload: { tagValue: encoded.buffer } },
+	};
 }
 
 function writeParams(

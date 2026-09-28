@@ -199,13 +199,6 @@ next work ([decision](docs/decisions.md#internals-and-tests)).
 
 ### Locality — next, ahead of everything below; 5–6 today, and the gate is 7
 
-- [ ] **Replace `resolveBody`'s `settles` boolean with the decision it stands for.** One boolean
-      chooses both whether to overwrite `data_coding` and which params to read it from, across four
-      helpers all named some abstraction of "body". Return a named source — `'short_message' |
-      'payload' | 'caller'` — and branch once. Ranked hardest by three readers and picked by one as
-      the unit they would least want to touch, because a mistake here does not throw, does not fail
-      the types, and reaches the peer as somebody's message rendered wrong.
-
 ### Correctness
 
 - [ ] **Settle what a repeated tag not marked `multiple` reads as, and pin it in a test.** A vendor
