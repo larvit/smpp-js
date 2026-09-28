@@ -201,7 +201,7 @@ const maxTimerDelay = 2_147_483_647;
 function checkConnectTimeout(connectTimeout: unknown): VoidResult {
 	if (connectTimeout === undefined || connectTimeout === false) return {};
 
-	const got = typeof connectTimeout === 'string' ? `"${connectTimeout}"` : namedValue(connectTimeout);
+	const got = quoted(connectTimeout);
 
 	if (typeof connectTimeout !== 'number' || !Number.isInteger(connectTimeout) || connectTimeout < 1) {
 		return { err: new Error(`connectTimeout must be a whole number of milliseconds, 1 or more, got ${got}; false waits the OS out instead`) };
