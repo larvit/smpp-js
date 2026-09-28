@@ -19,7 +19,7 @@ import { HeldMessages } from '../src/held-messages.ts';
 import { IncomingRequests, refusedSegmentStatus } from '../src/incoming-requests.ts';
 import { UnansweredError } from '../src/unanswered-error.ts';
 import { createSms } from '../src/sms.ts';
-import { LinkGate } from '../src/link-gate.ts';
+import { LinkLife } from '../src/link-life.ts';
 import { SendWindow } from '../src/send-window.ts';
 import { Reassembler, decodeSegments } from '../src/reassembly.ts';
 import { Session } from '../src/session.ts';
@@ -104,6 +104,7 @@ function abortAfter(
 function incomingOn(session: Session, options: Partial<IncomingRequestsOptions> = {}): IncomingRequests {
 	return new IncomingRequests({
 		dlrMerger: new DlrMerger({ log: silentLog, max: 10, timeout: 10_000 }),
+		link: new LinkLife({ log: silentLog, reconnects: false, timeout: 100 }),
 		log: silentLog,
 		sendPastDrain: () => Promise.resolve({ err: new Error('never sent') }),
 		session,
@@ -748,14 +749,15 @@ describe('reconnect', () => {
 
 		closeAfter(t, session);
 
-		const incoming = incomingOn(session, { onRequest: async () => { await delay(10); return false; } });
+		const link = new LinkLife({ log: silentLog, reconnects: true, timeout: 100 });
+		const incoming = incomingOn(session, { link, onRequest: async () => { await delay(10); return false; } });
 		let messages = 0;
 
 		session.on('sms', () => { messages++; });
 
 		const handled = incoming.handle(submitPdu(1));
 
-		incoming.clear();
+		link.drop();
 
 		await handled;
 
@@ -1401,13 +1403,13 @@ describe('sends across a reconnect', () => {
 	});
 });
 
-describe('LinkGate', () => {
+describe('LinkLife', () => {
 	test('refuses a hold whose deadline has already passed', async () => {
 		let now = 0;
-		const gate = new LinkGate({ log: silentLog, now: () => now, timeout: 100 });
-		const waitForLink = gate.hold(undefined);
+		const link = new LinkLife({ log: silentLog, now: () => now, reconnects: true, timeout: 100 });
+		const waitForLink = link.hold(undefined);
 
-		gate.shut(true);
+		link.drop();
 		now = 101;
 
 		const held = await waitForLink();
@@ -1416,42 +1418,77 @@ describe('LinkGate', () => {
 	});
 
 	test('holds on a timer that keeps the process alive', async () => {
-		const gate = new LinkGate({ log: silentLog, timeout: 10_000 });
+		const link = new LinkLife({ log: silentLog, reconnects: true, timeout: 10_000 });
 		const timers = (): number => process.getActiveResourcesInfo().filter(name => name === 'Timeout').length;
 
-		gate.shut(true);
+		link.drop();
 
 		const before = timers();
-		const held = gate.hold(undefined)();
+		const held = link.hold(undefined)();
 
 		assert.equal(timers(), before + 1, 'an unref\'d timer is not counted here, which is the point');
 
-		gate.open();
+		link.open();
 
 		assert.deepEqual(await held, {});
 	});
 
 	// addEventListener never fires for a signal that already aborted, so it would wait out the timeout.
 	test('gives up at once on a signal that was already aborted', async () => {
-		const gate = new LinkGate({ log: silentLog, timeout: 100 });
+		const link = new LinkLife({ log: silentLog, reconnects: true, timeout: 100 });
 
-		gate.shut(true);
+		link.drop();
 
-		const held = await gate.hold(AbortSignal.abort())();
+		const held = await link.hold(AbortSignal.abort())();
 
 		assert.match(held.err?.message ?? '', /Aborted while waiting for a link/);
 	});
 
-	test('awaits the next link only while shut with one on its way', () => {
-		const gate = new LinkGate({ log: silentLog, timeout: 100 });
+	test('awaits the next link only while down with one on its way', () => {
+		const link = new LinkLife({ log: silentLog, reconnects: true, timeout: 100 });
 
-		assert.equal(gate.awaitsNextLink(), false, 'up');
-		gate.shut(true);
-		assert.equal(gate.awaitsNextLink(), true, 'shut, returning');
-		gate.open();
-		assert.equal(gate.awaitsNextLink(), false, 'reopened');
-		gate.shut(false);
-		assert.equal(gate.awaitsNextLink(), false, 'shut for good');
+		assert.equal(link.awaitsNextLink(), false, 'up');
+		link.drop();
+		assert.equal(link.awaitsNextLink(), true, 'down, returning');
+		link.attach();
+		assert.equal(link.awaitsNextLink(), true, 'attached, not yet bound');
+		link.open();
+		assert.equal(link.awaitsNextLink(), false, 'reopened');
+		link.drop();
+		link.stop();
+		assert.equal(link.awaitsNextLink(), false, 'down, stopped');
+		assert.match(link.refusal()?.message ?? '', /closed/, 'stopped while down');
+		link.end();
+		assert.equal(link.awaitsNextLink(), false, 'ended');
+	});
+
+	test('drops an attached link once, counts each drop, and names the event it warrants', () => {
+		const link = new LinkLife({ log: silentLog, reconnects: true, timeout: 100 });
+		const generation = link.generation();
+
+		assert.equal(link.drop(), 'disconnected');
+		assert.equal(link.drop(), undefined, 'already down');
+		assert.equal(link.generation(), generation + 1);
+		link.attach();
+		link.stop();
+		assert.equal(link.drop(), 'close', 'a new link drops again, with none to follow it');
+		assert.equal(link.generation(), generation + 2);
+		assert.equal(new LinkLife({ log: silentLog, reconnects: false, timeout: 100 }).drop(), 'close');
+	});
+
+	test('releases a held request with the reason once the link ends', async () => {
+		const link = new LinkLife({ log: silentLog, reconnects: true, timeout: 0 });
+
+		link.drop();
+
+		const held = link.hold(undefined)();
+
+		link.end();
+
+		assert.match((await held).err?.message ?? '', /Session is closed/);
+		link.attach();
+		assert.equal(link.isAttached(), false, 'ended is final');
+		assert.equal(link.end(), false);
 	});
 });
 
@@ -2422,6 +2459,39 @@ describe('a peer that sends the next segment only once the last one is answered'
 		assert.match((await lost).message, /Gave up 1 of \d+ segments/);
 		assert.equal(messages.length, 0);
 		assert.deepEqual(await peerOf(smpp).close(), {}, 'a group nothing completed is not held');
+	});
+
+	test('reports a drop once as disconnected when a listener closes the session over the segments it lost', async t => {
+		const smpp = await startServer(t);
+		const { session } = await connect(t, smpp, { reconnect: { maxDelay: 100, minDelay: 20 } });
+
+		assert.ok(session);
+
+		const events: string[] = [];
+		const closed = once<true>(resolve => { session.on('close', () => { resolve(true); }); });
+
+		session.on('close', () => { events.push('close'); });
+		session.on('disconnected', () => { events.push('disconnected'); });
+		session.on('sessionError', () => { void session.close(); });
+
+		const [first] = segmentsOf(0x2D);
+
+		assert.ok(first);
+
+		const delivered = await peerOf(smpp).send({
+			cmdName: 'deliver_sm',
+			params: submitSmParams(
+				{ from: '46701113311', message: text, to: '46709771337' },
+				first,
+				{ encoding: 'ASCII', multipart: true },
+			),
+		});
+
+		assert.equal(delivered.err, undefined);
+		await peerOf(smpp).close();
+		await closed;
+
+		assert.deepEqual(events, ['disconnected', 'close']);
 	});
 
 	test('close() still waits for a concatenated message the application has not answered', async t => {

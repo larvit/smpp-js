@@ -40,7 +40,7 @@ export class ReconnectLoop {
 	}
 
 	/** Read through a method: stop() can land while an attempt is awaiting. */
-	isStopped(): boolean {
+	private isStopped(): boolean {
 		return this.halted;
 	}
 

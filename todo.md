@@ -200,18 +200,37 @@ next work ([decision](docs/decisions.md#internals-and-tests)).
 ### Locality — next, ahead of everything below; 5–6 today, and the gate is 7
 
 A second four-seat run on 2026-09-28, after #35–#40, read 6, 6, 7 and 6 again, Locality 5, 5, 6
-and 5. Every seat ranked the session's lifecycle hardest and least wanted to modify it.
+and 5. Every seat ranked the session's lifecycle hardest and least wanted to modify it. A third,
+after #46, read 6, 6, 7 and 7, Locality 5, 5, 6 and 6. A fourth, after the link's liveness got one
+owner in #48, read 6, 6, 6 and 6, Locality 5 from every seat: all four still ranked `Session.teardown()`
+hardest, and the held-message flow across `incoming-requests.ts`, `held-messages.ts`, `sms.ts` and
+`Session`'s rejection handler second.
 
 - [ ] **Lift Locality to 7, and confirm it with a scoring run.** A run reading 7.0 or above also
-      retires the #30 and #46 decision. The sub-items are what the 2026-09-28 run named, most seats first.
-- [ ] **Give the link's liveness one owner.** A third run the same day, after #46, read 6, 6, 7 and
-      7, Locality 5, 5, 6 and 6; all four seats ranked `drain()`/`end()`/`teardown()`/`retrying()`
-      in `session.ts` hardest, because whether the link lives is kept in `Session.lifecycle`,
-      `ReconnectLoop.halted`, `LinkGate.up`/`returning`, `OutgoingRequests.draining` and
-      `IncomingRequests.linkGeneration`, held in step by statement order and the comment above
-      `retrying()`. Four seats.
+      retires the #30, #46 and #48 decision.
+
+- [ ] **Give the held-message flow one owner — next, the condition #48 merged under.** Whether a
+      message is still held, and so whether its receipt may pass the drain, is decided across
+      `IncomingRequests.emitSms()`, `HeldMessages.offer()`/`MessageHold`, `createSms()`'s handlers in
+      `sms.ts` and `Session`'s rejection handler, which finds the hold again through a `WeakMap`
+      keyed on the `Sms`; `MessageHold.answered()` defers its release a `setImmediate` so a
+      `sendDlr()` straight after `sendResp()` still counts as held. All four seats of the #48 run
+      ranked it second hardest; the inherited architect put it at about two days.
 
 ### Correctness
+
+- [ ] **Refuse to open a link that dropped while its rebind was answered.** A peer sending
+      `bind_resp` and FIN together can tear the link down before `comeBackUp()` resumes; it then
+      calls `link.open()` on a `down` link, `resetTimers()` skips, and `attempt()` reports success,
+      so the session is `up` on a destroyed socket with nothing to reconnect it until `close()`.
+      `open()` accepting only `binding`, and `comeBackUp()` returning an err when the link is no
+      longer attached, lets the loop retry. Unreproduced; from the stability review of #48.
+
+- [ ] **Register a multipart send's receipt merge before its segments go out.** `Session.sendSms()`
+      calls `dlrMerger.expect()` only once `submitSms()` resolves, after the last segment's response,
+      so a receipt for an early segment that arrives first is logged at `debug` as naming no merge,
+      and the group then waits out `dlrMergeTimeout` with no `messageDlr`. Likeliest with a fast SMSC
+      or more segments than `maxOutstanding`. Goal 2. From the 2026-09-28 scoring run on #48.
 
 - [ ] **Settle what a repeated tag not marked `multiple` reads as, and pin it in a test.** A vendor
       tag or a known single-value tag a peer sends twice keeps the last occurrence and drops the
@@ -367,11 +386,20 @@ and 5. Every seat ranked the session's lifecycle hardest and least wanted to mod
       `error`-event reason (hard rule 3 owns it) and the Audience bullets restating goal 8 and
       Install; the `'use strict'` clause in both MIGRATION.md and CHANGELOG.md; the node-smpp
       cross-check in MIGRATION.md; the planned work in `interop-tests/AGENTS.md` (an expected
-      malformed count per peer) and `benchmarks/README.md`.
+      malformed count per peer) and `benchmarks/README.md`. The prose sweep of #48 adds: the smppload
+      note in both `benchmarks/README.md` and `interop-tests/README.md`; the summary after the
+      `AGENTS.md` link in `interop-tests/README.md`; the `run.py` foreground rule tacked onto rule 5 in
+      `interop-tests/AGENTS.md`, which wants its own number.
 
-- [ ] **Make `LinkGate.isUp()`'s doc true or its state match it.** It says a link attached but not
-      yet bound cannot carry a request, while `up` starts `true`, so the first link and a server
-      session are up before any bind. The gate decision in `docs/decisions.md` makes the same claim
+- [ ] **Give this library one figure at window 50 in `benchmarks/README.md`.** Its "same sink, same
+      host" table reads 37,125/s where the table below it reads 38,675/s; re-measure or cite one run.
+
+- [ ] **Name the goal and the premise of every `docs/decisions.md` entry.** The prose sweep of #48
+      counted 30 of 58 entries naming no goal and 52 with no "valid while" premise.
+
+- [ ] **Make `LinkLife` start unbound, or its decision's title true.** A link attached but not
+      yet bound cannot carry a request, while `phase` starts `up`, so the first link and a server
+      session are up before any bind. The `LinkLife` decision in `docs/decisions.md` makes the same claim
       in its title, and carries the same fix. From the comprehension panel of #25.
 
 - [ ] **Move `checkSessionOptions()`'s doc comment to what it describes.** It explains why a count
@@ -485,9 +513,9 @@ and 5. Every seat ranked the session's lifecycle hardest and least wanted to mod
       support Gitea, so mirror each Gitea pull request to GitHub for it to review there.
       Maintainer's ask, 2026-09-14; not started until asked.
 
-- [ ] **Count what is left of a budget one way in `leftOf()` and the link gate.** Today they are one
+- [ ] **Count what is left of a budget one way in `leftOf()` and `LinkLife`.** Today they are one
       concept counted twice. `idle-waiters.ts` reads what is left of a budget as `Math.max(1,
-      deadline - now)`, because 0 means "forever" there; `link-gate.ts` runs the same subtraction
+      deadline - now)`, because 0 means "forever" there; `link-life.ts` runs the same subtraction
       and calls `<= 0` expired. Neither is reachable from the other, so nothing can disagree today,
       but a reader who learns one and applies it to the other is wrong. A budget type both take
       would close it. Raised by review, 2026-09-01.

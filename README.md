@@ -746,10 +746,7 @@ Who depends on this library, and what they may rely on.
   spooling, scheduling, retry policy and billing belong to whatever this is the edge of. State shared
   between instances is for goal 9's store, which has not shipped: today every session keeps its own,
   in memory.
-- **Pre-1.0, so the minor is the breaking unit** and a patch never breaks. What a 0.4.0 consumer has
-  to change is in [MIGRATION.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/MIGRATION.md);
-  what each later minor changes is in
-  [CHANGELOG.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/CHANGELOG.md).
+- **Pre-1.0, so the minor is the breaking unit** and a patch never breaks.
 
 Personas this README serves, in order:
 

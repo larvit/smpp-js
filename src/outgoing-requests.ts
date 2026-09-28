@@ -1,9 +1,9 @@
+import type { LinkLife } from './link-life.ts';
 import type { PduObject, PduObjectInput } from './pdu.ts';
 import type { PduTransport } from './pdu-transport.ts';
 import type { Result, VoidResult } from './result.ts';
 import type { SendOptions } from './session-options.ts';
 import type { SmppLog } from './log.ts';
-import { LinkGate } from './link-gate.ts';
 import { PendingRequests } from './pending-requests.ts';
 import { SendWindow } from './send-window.ts';
 import { UnansweredError } from './unanswered-error.ts';
@@ -11,6 +11,7 @@ import { bindCommands } from './session-options.ts';
 import { objToPdu } from './pdu.ts';
 
 export type OutgoingRequestsOptions = {
+	link: LinkLife;
 	log: SmppLog;
 	maxOutstanding: number;
 	responseTimeout: number;
@@ -33,17 +34,15 @@ function misuse(input: PduObjectInput): Error | undefined {
 
 /** Everything this end asks of the peer: which link carries it, how many at once, and the answer. */
 export class OutgoingRequests {
-	private readonly gate: LinkGate;
+	private readonly link: LinkLife;
 	private readonly log: SmppLog;
 	private readonly pending: PendingRequests;
 	private readonly responseTimeout: number;
 	private readonly transport: PduTransport;
 	private readonly window: SendWindow;
 
-	private draining = false;
-
 	constructor(options: OutgoingRequestsOptions) {
-		this.gate = new LinkGate({ log: options.log, timeout: options.responseTimeout });
+		this.link = options.link;
 		this.log = options.log;
 		this.pending = new PendingRequests(options.log);
 		this.responseTimeout = options.responseTimeout;
@@ -52,22 +51,11 @@ export class OutgoingRequests {
 	}
 
 	canCarry(): boolean {
-		return this.gate.isUp() && !this.transport.sock.destroyed;
+		return this.link.isUp() && !this.transport.sock.destroyed;
 	}
 
-	/** The link went before the drain finished, so an empty window says nothing about the peer. */
-	droppedWhileDraining(): boolean {
-		return this.draining && !this.canCarry();
-	}
-
-	/** A link is up and bound, so everything held for one goes out on it. */
-	linkUp(): void {
-		this.gate.open();
-	}
-
-	/** The link is gone; `returning` says whether another one is on its way. */
-	linkLost(returning: boolean): void {
-		this.gate.shut(returning);
+	/** The link is gone, and every answer still owed on it with it. */
+	linkLost(): void {
 		this.pending.settleAll(new Error('Session closed before a response arrived'));
 	}
 
@@ -81,7 +69,6 @@ export class OutgoingRequests {
 		this.pending.settle(seqNr, { err });
 	}
 
-	/** Sends a request and resolves with the peer's response. */
 	request(input: PduObjectInput, options: SendOptions): Promise<Result<{ pduObj: PduObject }>> {
 		// Ahead of the drain, so a misuse is named as one rather than blamed on the shutdown.
 		const wrong = misuse(input);
@@ -89,7 +76,7 @@ export class OutgoingRequests {
 		if (wrong) return Promise.resolve({ err: wrong });
 
 		// With no link, the request is refused as closed further on.
-		if (this.draining && this.canCarry()) {
+		if (this.link.isStopped() && this.canCarry()) {
 			return Promise.resolve({ err: new Error('Session is shutting down') });
 		}
 
@@ -105,14 +92,14 @@ export class OutgoingRequests {
 
 		if (refused) return { err: refused };
 
-		// A bind is what makes a link usable, so it cannot wait for one: it takes the gate's answer now.
+		// A bind is what makes a link usable, so it cannot wait for one: it takes the link's answer now.
 		if (bindCommands.includes(input.cmdName)) {
-			const shut = this.gate.refusal();
+			const shut = this.link.refusal();
 
-			return shut ? { err: shut } : this.requestPastDrainGateAndWindow(input, options);
+			return shut ? { err: shut } : this.requestOnCurrentLink(input, options);
 		}
 
-		const waitForLink = this.gate.hold(options.signal);
+		const waitForLink = this.link.hold(options.signal);
 
 		for (;;) {
 			const held = await waitForLink();
@@ -130,16 +117,11 @@ export class OutgoingRequests {
 	}
 
 	/** Straight onto the current link, for what has to go out either way. */
-	async requestPastDrainGateAndWindow(
+	async requestOnCurrentLink(
 		input: PduObjectInput,
 		options: SendOptions = {},
 	): Promise<Result<{ pduObj: PduObject }>> {
 		return (await this.attempt(input, options)).result;
-	}
-
-	/** Refuses every request from here on, on a link that is already down as much as a live one. */
-	stopAccepting(): void {
-		this.draining = true;
 	}
 
 	/** Waits out the requests already on the wire, and says how many never finished. */
@@ -153,15 +135,15 @@ export class OutgoingRequests {
 		return { err: new Error(`Shut down with ${String(unfinished)} request(s) unfinished`) };
 	}
 
-	/** Nothing reached the socket, so the next link carries it instead of the caller resending. */
+	/** Nothing reached the socket, so the next link carries it. */
 	private retriesOnNextLink(attempt: Attempt): boolean {
-		// Until the gate is shut it admits the retry straight back onto the dead socket, and the loop spins.
-		return attempt.retryOnNextLink && this.gate.awaitsNextLink();
+		// Until the link is dropped it admits the retry straight back onto the dead socket, and the loop spins.
+		return attempt.retryOnNextLink && this.link.awaitsNextLink();
 	}
 
 	/** Why a request cannot go out at all, as opposed to not yet. */
 	private refuse(input: PduObjectInput, options: SendOptions): Error | undefined {
-		// Before the gate and the window, or an aborted call waits for what it will never use.
+		// Before the link and the window, or an aborted call waits for what it will never use.
 		return misuse(input) ?? (options.signal?.aborted === true ? abortedBeforeSend() : undefined);
 	}
 

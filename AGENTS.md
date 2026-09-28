@@ -13,9 +13,7 @@ not for structure or style.
 ## Goals
 
 The goals, in priority order, live in
-[README.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/README.md#goals) — they say where this library is heading, which an outside
-reader judges it by. The README states the audience alongside them.
-
+[README.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/README.md#goals). The README states the audience alongside them.
 
 ## Hard rules
 
@@ -55,12 +53,12 @@ src/
 	held-messages.ts     HeldMessages: capped, expiring messages the application has not answered, one MessageHold each
 	idle-waiters.ts      IdleWaiters: waiting for a count to fall to zero, and what is left of a budget
 	incoming-requests.ts Every request the peer sends: messages, receipts, links, unknown commands
-	link-gate.ts         LinkGate: where a request with no link to go out on waits for the next one
+	link-life.ts         LinkLife: whether the link lives, and where a request waits for the next one
 	link-timers.ts       LinkTimers: the enquire_link heartbeat and the idle timeout
 	log.ts               SmppLog, the logger contract, and silentLog — the default
 	message.ts           Encoding detection, splitting, bit counting, SMPP date formatting
 	message-body.ts      Where an inbound body is: short_message, or the message_payload TLV
-	outgoing-requests.ts OutgoingRequests: the gate, the window, the pending map and the retry
+	outgoing-requests.ts OutgoingRequests: the window, the pending map and the retry
 	pdu.ts               pduToObj / objToPdu / pduReturn — synchronous, result-returning
 	pdu-framer.ts        PduFramer: a byte stream cut into complete PDUs
 	pdu-refusal.ts       A PDU the codec would not read, and the answer SMPP names for it
@@ -180,7 +178,6 @@ decision under [The wire](docs/decisions.md#the-wire).
   collaborator the type system already keeps in step: `recordingDeps()` in `messaging-mode.test.ts`,
   `message-class.test.ts` and `unsendable.test.ts` is one `SendSmsDeps.send` that answers nothing,
   and a field added to that type fails to compile in every copy at once.
-- `message_id` values the library generates are UUID v7.
 - A socket a test opens and never reads must be `resume()`d, and a `data` listener counts. An unread
   socket never processes the peer's FIN, so `server.close()` hangs forever — that is a test bug, not
   a library one.
@@ -314,13 +311,13 @@ the file.
 - A message id base is merged at most once.
 - A send that never reached the socket waits for the next link; one that did is counted, not resent.
 - A send queued for a send-window slot is bounded by the caller's `signal`, and by nothing else.
-- The gate decides whether a link can carry a request, and a bind is what makes it one.
+- One owner decides whether a link can carry a request, and a bind is what makes it one.
 
 ### [Internals and tests](docs/decisions.md#internals-and-tests)
 
-- #30 and #46 merged under the comprehension floor, and Locality is the next work.
+- #30, #46 and #48 merged under the comprehension floor, and Locality is the next work.
 - A listener that rejects is routed by Node's `captureRejections`, not by hand-dispatching.
-- The four-line abort dance is copied across `LinkGate`, `IdleWaiters`, `PendingRequests` and
+- The four-line abort dance is copied across `LinkLife`, `IdleWaiters`, `PendingRequests` and
   `SendWindow` rather than extracted.
 - `SmppLog` is a five-method contract this library declares, not a dependency.
 - The TLS tests build their own self-signed certificate in DER

@@ -1,6 +1,7 @@
 import type { Concat } from './concat.ts';
 import type { DlrMerger } from './dlr-merger.ts';
 import type { ErrorName } from './defs/errors.ts';
+import type { LinkLife } from './link-life.ts';
 import type { LostGroup, Refusal } from './reassembly.ts';
 import type { OnRequest } from './session-options.ts';
 import type { PduObject, PduObjectInput } from './pdu.ts';
@@ -45,6 +46,7 @@ const lostReasons: Record<LostGroup['reason'], string> = {
 
 export type IncomingRequestsOptions = {
 	dlrMerger: DlrMerger;
+	link: LinkLife;
 	log: SmppLog;
 	maxOctets?: number | undefined;
 	maxReassembly?: number | undefined;
@@ -61,6 +63,7 @@ export type IncomingRequestsOptions = {
 export class IncomingRequests {
 	private readonly dlrMerger: DlrMerger;
 	private readonly held: HeldMessages;
+	private readonly link: LinkLife;
 	private readonly log: SmppLog;
 	private readonly onRequest: OnRequest | undefined;
 	private readonly reassembler: Reassembler;
@@ -68,7 +71,6 @@ export class IncomingRequests {
 	private readonly session: Session;
 	private readonly smsIdFormat: SmsIdFormat;
 	private readonly systemId: string;
-	private linkGeneration = 0;
 	private refusing = false;
 
 	constructor(options: IncomingRequestsOptions) {
@@ -79,6 +81,7 @@ export class IncomingRequests {
 			maxOctets: defaults.maxHeldOctets,
 			timeout: defaults.heldMessageTimeout,
 		});
+		this.link = options.link;
 		this.log = options.log;
 		this.onRequest = options.onRequest;
 		this.reassembler = new Reassembler({
@@ -95,14 +98,14 @@ export class IncomingRequests {
 	}
 
 	async handle(pduObj: PduObject): Promise<void> {
-		const generation = this.linkGeneration;
+		const generation = this.link.generation();
 		const { onRequest } = this;
 
 		// Called unbound, so the application's hook never sees this class as its `this`.
 		if (onRequest && await onRequest(this.session, pduObj)) return;
 
 		// The link it arrived on went while the hook ran, so nothing we answer now correlates.
-		if (this.linkGeneration !== generation) {
+		if (this.link.generation() !== generation) {
 			this.log.info('session - dropping a request whose link went', { cmdName: pduObj.cmdName });
 
 			return;
@@ -148,7 +151,6 @@ export class IncomingRequests {
 
 	/** Drops the segments of every message that never became whole, and of every one still held. */
 	clear(): void {
-		this.linkGeneration++;
 		this.refusing = false;
 		this.held.clear();
 		this.reassembler.clear();
@@ -288,7 +290,7 @@ export class IncomingRequests {
 
 		if (!first) return;
 
-		const generation = this.linkGeneration;
+		const generation = this.link.generation();
 
 		this.held.offer(pduObjs, this.session.listenerCount('sms'), hold => createSms({
 			answeredAs,
@@ -298,7 +300,7 @@ export class IncomingRequests {
 			session: this.session,
 			to: paramText(first.params.destination_addr),
 		}, {
-			lostLink: () => this.linkGeneration !== generation,
+			lostLink: () => this.link.generation() !== generation,
 			onAnswered: () => { hold.answered(); },
 			send: input => (hold.isHeld() ? this.sendPastDrain(input) : this.session.send(input)),
 		}), sms => this.session.emit('sms', sms));

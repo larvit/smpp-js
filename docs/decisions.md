@@ -508,10 +508,7 @@ rule and an index of the titles below.
 
 - **`close` means the session is over, and a drop the loop will retry is `disconnected`.**
   Maintainer's call, 2026-08-31: without the split, an application that opens a replacement client on
-  `close` ends up holding two binds on one account. `teardown()` picks the event by whether the
-  reconnect loop is still live, and `end()` stops that loop before tearing down, so every deliberate
-  shutdown emits `close`. A retry that opens a socket and then loses it resets `lifecycle` through
-  `attach()`, which is why a second drop emits again.
+  `close` ends up holding two binds on one account, which goal 4 forbids.
 
 - **An answer belongs to the link the message arrived on; a receipt does not.** Maintainer's call,
   2026-09-01. Rejected: answering on the new link, which succeeds and reports `{}` for a response
@@ -541,9 +538,7 @@ rule and an index of the titles below.
   gives up on the operator whose provisioning lands a minute later; the backoff is what bounds the
   rate goal 4 cares about. The attempts before the first link report nothing, because the session
   running one has not reached the application: `disconnected` would have no listener and `close`
-  would be a lie. Its wait is the one retry timer that is not `unref()`'d, for the reason
-  `LinkGate`'s hold is not — it is awaited with no other handle, so a process whose only work is
-  `client()` would exit unbound.
+  would be a lie.
 
 - **`connectTimeout` defaults to 10 s, bounds the whole connect including the TLS handshake, and
   `false` is the one way to turn it off.** Maintainer's call, 2026-09-20, serving goal 5: a connect
@@ -676,7 +671,7 @@ rule and an index of the titles below.
   the peer, whose every request is bounded by `responseTimeout` unless the caller set that to 0 as
   well, and unsafe for the application, which nothing bounds — `close()` is what you reach for when
   the application is stuck, so it may not block on the application coming unstuck. That half falls
-  back to `responseTimeout`, the same answer the link gate's hold already takes — and to that
+  back to `responseTimeout`, the same answer `LinkLife`'s hold already takes — and to that
   option's default where it is 0 as well, since neither option is an answer about the application.
 
 - **What the application holds unanswered is capped on constants, and a message past the cap is
@@ -738,10 +733,8 @@ rule and an index of the titles below.
   optional so every construction site answers. `UnansweredError` stays unexported: `unanswered` is
   the one spelling on the public surface. The hold is bounded by `responseTimeout` rather than an
   option of its own — that is already the answer to how long one request may wait — and its clock
-  starts when the send is issued rather than when it first finds the gate shut, so one budget covers
-  every hold a single call makes. That timer is the one here that is not `unref()`'d: a held request
-  is awaited with the socket already destroyed, so an unref'd one lets a process whose only remaining
-  work is that send exit without settling it.
+  starts when the send is issued rather than when it first finds the link down, so one budget covers
+  every hold a single call makes.
 
 - **A send queued for a send-window slot is bounded by the caller's `signal`, and by nothing else.**
   Maintainer's call, 2026-09-06, from a review of PR #71: the hold above observes the signal and the
@@ -757,29 +750,30 @@ rule and an index of the titles below.
   window is this end's own concurrency draining as the peer answers rather than a link going nowhere,
   and that bound would fail a message with more segments than `maxOutstanding` partway through
   against a slow peer. The failure is a plain `Error` rather than `UnansweredError`, the same answer
-  an abort at the gate already gives. The drain half needs nothing: `close({ signal })` already hands the signal to
+  an abort while held for a link already gives. The drain half needs nothing: `close({ signal })` already hands the signal to
   `window.idle()`, and `unbind()` taking none is the shape README states.
 
-- **The gate decides whether a link can carry a request, and a bind is what makes it one.**
-  Maintainer's call, 2026-09-01: `attach()` marks the session attached the moment a socket is
-  handed over, one round trip before the bind is answered, so gating on that let a send arriving in
-  that window go out unbound and come back `ESME_RINVBNDSTS`. The gate is told what happened and
-  never reads back into the session: a collaborator that has to ask does not own its decision, which
-  is how the first cut ended up answering the same question two different ways at admit and at
-  release. The retry in `requestPastDrain()` asks `gate.awaitsNextLink()` rather than `canCarry()`,
-  which also reads the socket: a loop condition the gate does not gate on spins against a gate that
-  admits it straight back.
+- **One owner decides whether a link can carry a request, and a bind is what makes it one.**
+  Maintainer's call, 2026-09-01, extended 2026-09-28; goal 1, since a send on a link not yet bound
+  comes back `ESME_RINVBNDSTS`. `LinkLife` is told what happened and never reads back into the
+  session; every other collaborator reads it and keeps no copy. Rejected: gating on the socket being
+  attached, which admits a send one round trip before the bind is answered, and collaborators that
+  ask the session, which answered the same question two ways at admit and at release.
+  `ReconnectLoop.halted` is the one other flag, because `client()` also runs a loop with no session
+  behind it for `fromStart`; a session's loop is stopped by `Session.stop()` alone.
 
 
 ## Internals and tests
 
-- **#30 and #46 merged under the comprehension floor, and Locality is the next work.** Maintainer's call,
+- **#30, #46 and #48 merged under the comprehension floor, and Locality is the next work.** Maintainer's call,
   2026-09-27. A four-seat scoring run, depth 1, read the project at 6, 6, 7 and 6 (mean 6.25), every
   seat capped by Locality in the held-message and shutdown code #30 does not touch, where the floor
   is 7.0. The chunks after #30 lift Locality to 7 before any other work. Serves goal 8's
   reshapeable internals, which a reader has to understand before reshaping. Valid until a scoring
   run reads 7.0 or above. #46, maintainer's call 2026-09-28, merged as a step of that work at 6, 6, 7
   and 7, Locality 5, 5, 6 and 6, up from 6, 6, 7 and 6 and Locality 5, 5, 6 and 5 the same day.
+  #48, maintainer's call 2026-09-28, merged at 6, 6, 6 and 6, Locality 5 from every seat, on the
+  condition that the held-message flow is the next chunk.
 
 - **A listener that rejects is routed by Node's `captureRejections`, not by hand-dispatching.** Both
   emitters construct with `captureRejections: true` and implement
@@ -790,7 +784,7 @@ rule and an index of the titles below.
   handlers normalise through `errorFrom()` rather than inline — a route out of the handler would land
   on a bare `process.nextTick` with nothing to catch it.
 
-- **The four-line abort dance is copied across `LinkGate`, `IdleWaiters`, `PendingRequests` and
+- **The four-line abort dance is copied across `LinkLife`, `IdleWaiters`, `PendingRequests` and
   `SendWindow` rather than extracted.** Architecture review, 2026-09-06: pre-check `aborted`, attach
   `{ once: true }`, detach on settle, leave the registry. What differs at each site is the registry
   and what settling means — a FIFO handing over a slot, a set released together, a map keyed by
