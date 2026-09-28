@@ -88,7 +88,8 @@ src/
 
 Imports point one way: `defs` knows nothing above it but `result.ts`, `pdu` uses `defs`, `session`
 uses `pdu`, and `client`/`server` use `session`. The ways back up are the `Session` handed to
-`createSms()` and to the hooks `session-options.ts` types, both imported as a type only.
+`createSms()`, and to `OnRequest` and `onConnected` in `session-options.ts`, all imported as a type
+only.
 
 **Parameter order is wire order.** The key order inside `cmds.*.params` is the order the fields are
 written to and read from the buffer. Never sort those alphabetically — the alphabetical-ordering
