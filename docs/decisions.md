@@ -716,9 +716,8 @@ rule and an index of the titles below.
   `sessionError` like every other one given up on.
 
 - **The bind state is the session's, `bound()` alone writes it, and it holds through a reconnect's
-  gap.** Maintainer's call, 2026-09-28. `client()` and `server()` call `bound()` as a hand-wired
-  session does, so one method is the one spelling, and `loggedIn` went as a second spelling of
-  `boundAs !== undefined`. Clearing the state at `teardown()` was rejected: `bindAllows()` and
+  gap.** Maintainer's call, 2026-09-28. `client()` and `server()` record their bind through
+  `bound()`, the call a hand-wired session makes, so the state has one writer — goal 8. Clearing the state at `teardown()` was rejected: `bindAllows()` and
   `acceptsOptionalParams()` then answer yes to everything while the link is down, so a
   receiver-bound client queues a `submit_sm` the peer refuses and a receipt built then carries TLVs a
   pre-3.4 peer must not get — goal 4. Valid while the reconnect loop binds again with the same bind
