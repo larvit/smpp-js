@@ -1,12 +1,12 @@
-import type { CloseOptions, OnRequest } from './session-options.ts';
+import type { BindType, CloseOptions, OnRequest } from './session-options.ts';
 import type { PduObject, TlvInputs } from './pdu.ts';
 import type { Result, VoidResult } from './result.ts';
 import type { Server as NetServer, Socket } from 'node:net';
 import type { Server as TlsServer, TlsOptions } from 'node:tls';
 import type { SmppLog } from './log.ts';
 import { EventEmitter } from 'node:events';
-import { Session, bindCommands, defaultSystemId } from './session.ts';
-import { bindTypeFromCommand, checkSessionOptions, undeclaredInterfaceVersion } from './session-options.ts';
+import { Session, defaultSystemId } from './session.ts';
+import { bindTypeFromCommand, checkSessionOptions } from './session-options.ts';
 import { createServer as createNetServer } from 'node:net';
 import { createServer as createTlsServer } from 'node:tls';
 import { defaultInterfaceVersion } from './defs/constants.ts';
@@ -173,21 +173,21 @@ function bindRespTlvs(session: Session, options: ServerOptions): TlvInputs | und
 async function acceptBind(
 	session: Session,
 	pduObj: PduObject,
+	bindType: BindType,
 	options: ServerOptions,
 	identity: Record<string, string>,
 ): Promise<void> {
-	const declared = pduObj.params.interface_version;
-
-	session.boundAs = bindTypeFromCommand(pduObj.cmdName);
-	session.loggedIn = true;
-	session.peerInterfaceVersion = typeof declared === 'number'
-		? declared
-		: undeclaredInterfaceVersion;
+	session.bound(bindType, pduObj.params.interface_version);
 
 	await session.sendReturn(pduObj, 'ESME_ROK', identity, bindRespTlvs(session, options));
 }
 
-async function onBind(session: Session, pduObj: PduObject, options: ServerOptions): Promise<void> {
+async function onBind(
+	session: Session,
+	pduObj: PduObject,
+	bindType: BindType,
+	options: ServerOptions,
+): Promise<void> {
 	const identity = { system_id: options.systemId ?? defaults.systemId };
 	const systemId = paramText(pduObj.params.system_id);
 
@@ -198,7 +198,7 @@ async function onBind(session: Session, pduObj: PduObject, options: ServerOption
 		return;
 	}
 
-	await acceptBind(session, pduObj, options, identity);
+	await acceptBind(session, pduObj, bindType, options, identity);
 	session.log.verbose('server - bound', { systemId });
 }
 
@@ -211,16 +211,16 @@ async function handleRequest(
 	pduObj: PduObject,
 	options: ServerOptions,
 ): Promise<boolean> {
-	const isBind = bindCommands.includes(pduObj.cmdName);
+	const bindType = bindTypeFromCommand(pduObj.cmdName);
 
-	if (session.loggedIn) {
-		if (isBind || !options.onRequest) return false;
+	if (session.boundAs !== undefined) {
+		if (bindType || !options.onRequest) return false;
 
 		return options.onRequest(session, pduObj);
 	}
 
-	if (isBind) {
-		await onBind(session, pduObj, options);
+	if (bindType) {
+		await onBind(session, pduObj, bindType, options);
 
 		return true;
 	}

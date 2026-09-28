@@ -19,7 +19,7 @@ import { ReconnectLoop } from './reconnect-loop.ts';
 import { leftOf } from './idle-waiters.ts';
 import { errorFrom } from './error-from.ts';
 import { optionalParamsMinVersion } from './defs/constants.ts';
-import { bindCarries, bindCommands, defaultSystemId, defaults } from './session-options.ts';
+import { bindCarries, bindCommands, defaultSystemId, defaults, undeclaredInterfaceVersion } from './session-options.ts';
 import { isResp, objToPdu, pduReturn } from './pdu.ts';
 import { refusalAnswer } from './pdu-refusal.ts';
 import { guardedLog } from './log.ts';
@@ -54,14 +54,11 @@ export class Session extends EventEmitter<SessionEvents> {
 
 	readonly log: SmppLog;
 
-	/** The role the ESME bound with, whichever end of the link this is. Undefined before any bind. */
-	boundAs: BindType | undefined = undefined;
 	/** Which end of the link this is. `server()` sets it; a hand-wired SMSC must set it too. */
 	linkEnd: LinkEnd = 'esme';
-	loggedIn = false;
-	/** What the peer declared when binding: 0x00 if it declared none, undefined before any bind. */
-	peerInterfaceVersion: number | undefined = undefined;
 	userData: unknown = undefined;
+
+	private bind: { as: BindType; peerVersion: number } | undefined = undefined;
 
 	private readonly concatReference = new ConcatReference();
 	private readonly dlrMerger: DlrMerger;
@@ -154,6 +151,23 @@ export class Session extends EventEmitter<SessionEvents> {
 		return this.transport.sock;
 	}
 
+	/** The role the ESME bound with, whichever end of the link this is. Undefined before any bind. */
+	get boundAs(): BindType | undefined {
+		return this.bind?.as;
+	}
+
+	/** What the peer declared when binding: 0x00 if it declared none, undefined before any bind. */
+	get peerInterfaceVersion(): number | undefined {
+		return this.bind?.peerVersion;
+	}
+
+	/** Records a bind this link accepted or had accepted, until the next one. A version that is not a number is none. */
+	bound(bindType: BindType, declaredVersion: unknown): void {
+		const peerVersion = typeof declaredVersion === 'number' ? declaredVersion : undeclaredInterfaceVersion;
+
+		this.bind = { as: bindType, peerVersion };
+	}
+
 	/** Whether this session's bind direction carries a command. Consulted by the library's senders. */
 	bindAllows(cmdName: string): boolean {
 		return bindCarries(this.boundAs, cmdName, this.linkEnd);
@@ -171,15 +185,13 @@ export class Session extends EventEmitter<SessionEvents> {
 	}
 
 	/** Answers a request the peer sent us. Responses are never waited on. */
-	async sendReturn(
+	sendReturn(
 		pdu: PduObject,
 		status: ErrorName = 'ESME_ROK',
 		params: Record<string, ParamValue> = {},
 		tlvs?: TlvInputs,
 	): Promise<VoidResult> {
-		return Promise.resolve(
-			this.answer(pduReturn(pdu, status, params, tlvs), pdu.cmdName, pdu.seqNr),
-		);
+		return Promise.resolve(this.answer(pduReturn(pdu, status, params, tlvs), pdu.cmdName, pdu.seqNr));
 	}
 
 	private answer(built: Result<{ buffer: Buffer }>, cmdName: string, seqNr: number): VoidResult {

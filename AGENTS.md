@@ -309,6 +309,7 @@ the file.
 - A store at its bound answers `ESME_RTHROTTLED` to a submission and `ESME_RX_T_APPN` to a delivery,
   a `data_sm` by whichever it stands in for.
 - A reconnect keeps the delivery-receipt merges; everything else the link held is dropped.
+- The bind state is the session's, `bound()` alone writes it, and it holds through a reconnect's gap.
 - A message id base is merged at most once.
 - A send that never reached the socket waits for the next link; one that did is counted, not resent.
 - A send queued for a send-window slot is bounded by the caller's `signal`, and by nothing else.

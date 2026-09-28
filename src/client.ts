@@ -8,7 +8,7 @@ export type { BindType };
 
 import { ReconnectLoop } from './reconnect-loop.ts';
 import { Session } from './session.ts';
-import { checkSessionOptions, undeclaredInterfaceVersion } from './session-options.ts';
+import { checkSessionOptions } from './session-options.ts';
 import { connect as netConnect } from 'node:net';
 import { connect as tlsConnect } from 'node:tls';
 import { defaultInterfaceVersion } from './defs/constants.ts';
@@ -174,13 +174,7 @@ async function bind(session: Session, options: ClientOptions): Promise<VoidResul
 		return { err: new Error(`Remote host refused login: ${sent.pduObj.cmdStatus ?? 'unknown'}`) };
 	}
 
-	const declared = sent.pduObj.tlvs.sc_interface_version?.tagValue;
-
-	session.boundAs = bindType;
-	session.loggedIn = true;
-	session.peerInterfaceVersion = typeof declared === 'number'
-		? declared
-		: undeclaredInterfaceVersion;
+	session.bound(bindType, sent.pduObj.tlvs.sc_interface_version?.tagValue);
 	session.log.info('client - bound', { bindType, systemId });
 
 	return {};

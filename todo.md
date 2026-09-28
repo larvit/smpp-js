@@ -204,11 +204,6 @@ and 5. Every seat ranked the session's lifecycle hardest and least wanted to mod
 
 - [ ] **Lift Locality to 7, and confirm it with a scoring run.** A run reading 7.0 or above also
       retires the #30 decision. The sub-items are what the 2026-09-28 run named, most seats first.
-- [ ] **Let `Session` own its bind state.** `client.ts` and `server.ts` write `boundAs`, `loggedIn`
-      and `peerInterfaceVersion` onto the session from outside, and `loggedIn` duplicates
-      `boundAs !== undefined`. A method such as `session.bound(bindType, declaredVersion)` with the
-      three fields read-only changes the public surface a hand-wired SMSC uses, so it needs the
-      maintainer's call first. All four seats.
 - [ ] **Name what `request()`, `carry()` and `now()` each skip.** Three ways onto the wire differ
       only in which of the drain, the gate and the window they bypass, and none of the names says
       which. Three seats.

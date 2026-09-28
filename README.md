@@ -421,8 +421,12 @@ const { err, pduObj } = await session.send({
 - `acceptsOptionalParams()`: whether the peer declared SMPP 3.4 or later, the version from which
   optional parameters may be sent to it. The library's own senders check it before attaching a TLV;
   a `send()` you build is passed through as written, so check it yourself.
-- `peerInterfaceVersion`: the version the peer declared, `0x00` if none.
+- `peerInterfaceVersion`: the version the peer declared, `0x00` if none, `undefined` before any bind.
 - `bindAllows(cmdName)` and `boundAs`: what the bind direction carries: [Bind direction](#bind-direction).
+- Both hold through a reconnect's gap: the loop binds again as before.
+- `bound(bindType, declaredVersion)`: how a session you construct yourself records a bind, whichever
+  end accepted it. A `declaredVersion` that is not a number is none declared. Both fields are
+  read-only.
 
 ## Receiving in depth
 
@@ -539,7 +543,8 @@ if (err) throw err;
 - `enquire_link` and `unbind` reach the hook too, and an unanswered `enquire_link` has the peer drop
   the link. Guard on the command name, as above, and a failing hook costs only its own request.
 - A `Session` you construct yourself takes the same hook as a session option, and that is where a
-  peer's bind gets accepted, since a hand-wired session has no bind handling of its own.
+  peer's bind gets accepted, since a hand-wired session has no bind handling of its own: call
+  `session.bound(bindType, pduObj.params.interface_version)` before answering it.
 
 **`sendDlr()`** takes `SCHEDULED`, `ENROUTE`, `DELIVERED`, `EXPIRED`, `DELETED`, `UNDELIVERABLE`,
 `ACCEPTED`, `UNKNOWN`, `REJECTED` or `SKIPPED`. The first two go out as intermediate delivery
