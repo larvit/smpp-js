@@ -1,22 +1,21 @@
 import type { Concat } from './concat.ts';
 import type { DlrMerger } from './dlr-merger.ts';
 import type { ErrorName } from './defs/errors.ts';
+import type { HeldMessagesOptions } from './held-messages.ts';
 import type { LinkLife } from './link-life.ts';
 import type { LostGroup, Refusal } from './reassembly.ts';
 import type { OnRequest } from './session-options.ts';
-import type { PduObject, PduObjectInput } from './pdu.ts';
-import type { Result, VoidResult } from './result.ts';
+import type { PduObject } from './pdu.ts';
+import type { VoidResult } from './result.ts';
 import type { Session } from './session.ts';
 import type { SmppLog } from './log.ts';
 import type { SmsIdFormat } from './sms-id.ts';
 import { HeldMessages } from './held-messages.ts';
-import { Reassembler, decodeSegments } from './reassembly.ts';
+import { Reassembler } from './reassembly.ts';
 import { bindCommands, defaults, standsInFor } from './session-options.ts';
 import { concatOf } from './concat.ts';
-import { createSms } from './sms.ts';
 import { detach } from './retained-pdu.ts';
 import { dlrFromPdu } from './dlr.ts';
-import { paramText } from './defs/types.ts';
 import { respIdParams, segmentId } from './sms-id.ts';
 import { respNameFor } from './defs/commands.ts';
 
@@ -52,8 +51,7 @@ export type IncomingRequestsOptions = {
 	maxReassembly?: number | undefined;
 	onRequest?: OnRequest | undefined;
 	reassemblyTimeout?: number | undefined;
-	/** Past a drain's refusal, for a receipt the drain is itself waiting for. */
-	sendPastDrain: (input: PduObjectInput) => Promise<Result<{ pduObj: PduObject }>>;
+	sendPastDrain: HeldMessagesOptions['sendPastDrain'];
 	session: Session;
 	smsIdFormat?: SmsIdFormat | undefined;
 	systemId?: string | undefined;
@@ -67,7 +65,6 @@ export class IncomingRequests {
 	private readonly log: SmppLog;
 	private readonly onRequest: OnRequest | undefined;
 	private readonly reassembler: Reassembler;
-	private readonly sendPastDrain: IncomingRequestsOptions['sendPastDrain'];
 	private readonly session: Session;
 	private readonly smsIdFormat: SmsIdFormat;
 	private readonly systemId: string;
@@ -76,9 +73,12 @@ export class IncomingRequests {
 	constructor(options: IncomingRequestsOptions) {
 		this.dlrMerger = options.dlrMerger;
 		this.held = new HeldMessages({
+			link: options.link,
 			log: options.log,
 			max: defaults.maxHeldMessages,
 			maxOctets: defaults.maxHeldOctets,
+			sendPastDrain: options.sendPastDrain,
+			session: options.session,
 			timeout: defaults.heldMessageTimeout,
 		});
 		this.link = options.link;
@@ -91,7 +91,6 @@ export class IncomingRequests {
 			onLost: lost => { this.reportLost(lost); },
 			timeout: options.reassemblyTimeout ?? defaults.reassemblyTimeout,
 		});
-		this.sendPastDrain = options.sendPastDrain;
 		this.session = options.session;
 		this.smsIdFormat = options.smsIdFormat ?? {};
 		this.systemId = options.systemId ?? defaults.systemId;
@@ -254,7 +253,7 @@ export class IncomingRequests {
 		const concat = concatOf(pduObj);
 
 		if (!concat) {
-			this.emitSms([detach(pduObj)]);
+			this.held.offer([detach(pduObj)]);
 
 			return;
 		}
@@ -276,33 +275,12 @@ export class IncomingRequests {
 			respIdParams(pduObj.cmdName, segmentId(collected.smsId, concat.part - 1, concat.total)),
 		);
 
-		if (collected.whole) this.emitSms(collected.whole, collected.smsId);
+		if (collected.whole) this.held.offer(collected.whole, collected.smsId);
 	}
 
 	private reportLost(lost: LostGroup): void {
 		this.session.emit('sessionError', new Error(
 			`Gave up ${String(lost.parts)} of ${String(lost.total)} segments of an incomplete concatenated message: ${lostReasons[lost.reason]}`,
 		));
-	}
-
-	private emitSms(pduObjs: PduObject[], answeredAs?: string): void {
-		const first = pduObjs[0];
-
-		if (!first) return;
-
-		const generation = this.link.generation();
-
-		this.held.offer(pduObjs, this.session.listenerCount('sms'), hold => createSms({
-			answeredAs,
-			from: paramText(first.params.source_addr),
-			message: decodeSegments(pduObjs),
-			pduObjs,
-			session: this.session,
-			to: paramText(first.params.destination_addr),
-		}, {
-			lostLink: () => this.link.generation() !== generation,
-			onAnswered: () => { hold.answered(); },
-			send: input => (hold.isHeld() ? this.sendPastDrain(input) : this.session.send(input)),
-		}), sms => this.session.emit('sms', sms));
 	}
 }

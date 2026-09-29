@@ -1,15 +1,23 @@
-import type { PduObject } from './pdu.ts';
+import type { LinkLife } from './link-life.ts';
+import type { PduObject, PduObjectInput } from './pdu.ts';
+import type { Result } from './result.ts';
+import type { Session } from './session.ts';
+import type { SmsHandlers } from './sms.ts';
 import type { SmppLog } from './log.ts';
 import { ExpiringGroups } from './expiring-groups.ts';
 import { IdleWaiters } from './idle-waiters.ts';
+import { createSms } from './sms.ts';
 import { retainedOctets } from './retained-pdu.ts';
 
 export type HeldMessagesOptions = {
+	link: LinkLife;
 	log: SmppLog;
 	max: number;
 	maxOctets: number;
 	/** Injected so expiry can be exercised without a wall clock. */
 	now?: (() => number) | undefined;
+	sendPastDrain: SmsHandlers['send'];
+	session: Session;
 	timeout: number;
 };
 
@@ -20,33 +28,40 @@ function keyOf(pduObjs: PduObject[]): string | undefined {
 	return first ? String(first.seqNr) : undefined;
 }
 
-type HoldEntry = {
-	isHeld: () => boolean;
-	release: () => void;
-};
+type HoldRoute = Pick<HeldMessagesOptions, 'link' | 'sendPastDrain' | 'session'>;
 
 /**
- * One message offered to the application. A drain waits on it until the first of: `answered()`,
- * every listener that took it rejecting, no listener taking it or one throwing, a later message on
- * its sequence number, its deadline, or the link going.
+ * One message offered to the application, and the handlers its `Sms` answers through. A drain
+ * waits on it until the first of: `answered()`, every listener that took it rejecting, no listener
+ * taking it or one throwing, a later message on its sequence number, its deadline, or the link going.
  */
-export class MessageHold {
-	private readonly entry: HoldEntry;
+export class MessageHold implements SmsHandlers {
+	private readonly generation: number;
+	private readonly heldMessages: HeldMessages;
+	private readonly pduObjs: PduObject[];
+	private readonly route: HoldRoute;
 	private working: number;
 
-	constructor(entry: HoldEntry, listeners: number) {
-		this.entry = entry;
+	constructor(heldMessages: HeldMessages, route: HoldRoute, pduObjs: PduObject[], listeners: number) {
+		this.generation = route.link.generation();
+		this.heldMessages = heldMessages;
+		this.pduObjs = pduObjs;
+		this.route = route;
 		this.working = listeners;
 	}
 
 	/** Whether a drain is still waiting for this message to be answered. */
 	isHeld(): boolean {
-		return this.entry.isHeld();
+		return this.heldMessages.holds(this.pduObjs);
 	}
 
-	/** A turn later, so a listener sending its receipt straight after the response still holds. */
+	/** A turn later, so a `sendDlr()` called straight after `sendResp()` still goes out past a drain. */
 	answered(): void {
-		setImmediate(() => { this.entry.release(); });
+		setImmediate(() => { this.release(); });
+	}
+
+	lostLink(): boolean {
+		return this.route.link.generation() !== this.generation;
 	}
 
 	/** A rejection leaves the other listeners running, so only the last one to fail gives the message up. */
@@ -58,7 +73,12 @@ export class MessageHold {
 
 	/** At once, for a message nobody took or a listener threw on: that is not work a shutdown can wait for. */
 	release(): void {
-		this.entry.release();
+		this.heldMessages.release(this.pduObjs);
+	}
+
+	/** A receipt for a message still held is what a drain waits for, so it goes out past the drain. */
+	send(input: PduObjectInput): Promise<Result<{ pduObj: PduObject }>> {
+		return this.isHeld() ? this.route.sendPastDrain(input) : this.route.session.send(input);
 	}
 }
 
@@ -70,6 +90,7 @@ export class HeldMessages {
 	private readonly maxOctets: number;
 	/** A rejecting listener hands the message back as an `unknown`, so its hold is found by identity. */
 	private readonly offered = new WeakMap<object, MessageHold>();
+	private readonly route: HoldRoute;
 
 	constructor(options: HeldMessagesOptions) {
 		this.held = new ExpiringGroups({
@@ -80,6 +101,7 @@ export class HeldMessages {
 		});
 		this.log = options.log;
 		this.maxOctets = options.maxOctets;
+		this.route = { link: options.link, sendPastDrain: options.sendPastDrain, session: options.session };
 	}
 
 	get octetsHeld(): number {
@@ -97,14 +119,8 @@ export class HeldMessages {
 		return this.held.full || this.held.weight >= this.maxOctets;
 	}
 
-	private hold(pduObjs: PduObject[], listeners: number): MessageHold {
-		const hold = new MessageHold({
-			isHeld: () => this.has(pduObjs),
-			release: () => { this.release(pduObjs); },
-		}, listeners);
-		const key = keyOf(pduObjs);
-
-		if (key === undefined) return hold;
+	private hold(key: string, pduObjs: PduObject[], listeners: number): MessageHold {
+		const hold = new MessageHold(this, this.route, pduObjs, listeners);
 
 		this.sweep();
 
@@ -118,18 +134,17 @@ export class HeldMessages {
 		return hold;
 	}
 
-	offer<T extends object>(
-		pduObjs: PduObject[],
-		listeners: number,
-		build: (hold: MessageHold) => T,
-		emit: (message: T) => boolean,
-	): MessageHold {
-		const hold = this.hold(pduObjs, listeners);
-		const message = build(hold);
+	offer(pduObjs: PduObject[], answeredAs?: string): MessageHold | undefined {
+		const key = keyOf(pduObjs);
 
-		this.offered.set(message, hold);
+		if (key === undefined) return undefined;
 
-		if (!emit(message)) hold.release();
+		const hold = this.hold(key, pduObjs, this.route.session.listenerCount('sms'));
+		const sms = createSms({ answeredAs, pduObjs, session: this.route.session }, hold);
+
+		this.offered.set(sms, hold);
+
+		if (!this.route.session.emit('sms', sms)) hold.release();
 
 		return hold;
 	}
@@ -141,13 +156,13 @@ export class HeldMessages {
 		this.offered.get(message)?.listenerGaveUp();
 	}
 
-	private has(pduObjs: PduObject[]): boolean {
+	holds(pduObjs: PduObject[]): boolean {
 		const key = keyOf(pduObjs);
 
 		return key !== undefined && this.held.get(key) === pduObjs;
 	}
 
-	private release(pduObjs: PduObject[]): void {
+	release(pduObjs: PduObject[]): void {
 		const key = keyOf(pduObjs);
 
 		// Identity, not the key: a wrapped sequence number must not release someone else's message.

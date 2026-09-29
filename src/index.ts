@@ -38,7 +38,7 @@ export { uuidv7 } from './uuid.ts';
 
 export type { BindType, ClientOptions } from './client.ts';
 export type { Dlr, Receipt } from './dlr.ts';
-export type { SendDlrResult, SendRespOptions, Sms, SmsInput } from './sms.ts';
+export type { SendDlrResult, SendRespOptions, Sms } from './sms.ts';
 export type { Concat } from './concat.ts';
 export type { ConcatInfo } from './udh.ts';
 export type { Result, VoidResult } from './result.ts';

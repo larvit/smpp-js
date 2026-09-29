@@ -713,10 +713,9 @@ one wins. They do not override the [hard rules](https://gitea.larvit.se/larvit/s
    alphabet, a receipt format — it gets an option or a hook rather than a fork. A call that passes no
    options stays exactly as easy and as safe, and a hook is a seam the library calls, never a way into
    its internals.
-8. **A small, stable public surface over reshapeable internals.** Only what `src/index.ts` exports is
-   published. A new option has to beat "the application can do this itself", and has to keep a
-   promise this library can verify. The low-level surface is a passthrough: policy binds what the
-   library composes, never what the caller wrote.
+8. **A small, stable public surface over reshapeable internals.** A new option has to beat "the
+   application can do this itself", and has to keep a promise this library can verify. The low-level
+   surface is a passthrough: policy binds what the library composes, never what the caller wrote.
 9. **State wider than one session goes through one store.** A pool of sessions, a limit shared
    between processes, and what has to survive a restart — receipts still awaited, a message half
    reassembled — are held through a store interface and never beside it. Without a store the

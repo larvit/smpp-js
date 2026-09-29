@@ -74,6 +74,8 @@
   `alert_on_message_delivery` and `broadcast_area_identifier`, the names they read back under. The
   two alternate names are gone from `tlvs` too, which is now typed by `TlvName`: narrow a `string` with `isTlvName()` before indexing it.
 - `cmds.broadcast_sm_resp.tlvMap` is removed; nothing read it.
+- The `SmsInput` type is no longer exported; nothing exported took one. Annotate with `Sms`, or a
+  `Pick<Sms, …>` of the fields you use.
 - `session.boundAs` and `session.peerInterfaceVersion` are read-only, and `session.loggedIn` is
   removed: read `session.boundAs !== undefined`. A session you wire yourself records the bind it
   accepted or had accepted with `session.bound(bindType, declaredVersion)`, which returns `err` for a

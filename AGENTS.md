@@ -1,8 +1,5 @@
 # AGENTS.md
 
-Guidance for LLM agents working in this repository. What each file in it is for is under
-[Documentation](#documentation).
-
 ## What this is
 
 A ground-up TypeScript rewrite of `larvitsmpp` 0.4.0, published as `@larvit/smpp` 0.5.0. The branch
@@ -13,7 +10,7 @@ not for structure or style.
 ## Goals
 
 The goals, in priority order, live in
-[README.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/README.md#goals). The README states the audience alongside them.
+[README.md](https://gitea.larvit.se/larvit/smpp-js/src/branch/main/README.md#goals).
 
 ## Hard rules
 
@@ -50,7 +47,7 @@ src/
 	dlr-merger.ts        DlrMerger: per-segment receipts counted into one MessageDlr
 	error-from.ts        An untyped value as error material: errorFrom() an Error, namedValue() a name
 	expiring-groups.ts   ExpiringGroups: the capped, weighed, expiring store DlrMerger, HeldMessages and Reassembler share
-	held-messages.ts     HeldMessages: capped, expiring messages the application has not answered, one MessageHold each
+	held-messages.ts     HeldMessages: a message from its `sms` event to its answer, capped and expiring, one MessageHold each
 	idle-waiters.ts      IdleWaiters: waiting for a count to fall to zero, and what is left of a budget
 	incoming-requests.ts Every request the peer sends: messages, receipts, links, unknown commands
 	link-life.ts         LinkLife: whether the link lives, and where a request waits for the next one
@@ -87,8 +84,8 @@ src/
 
 Imports point one way: `defs` knows nothing above it but `result.ts`, `pdu` uses `defs`, `session`
 uses `pdu`, and `client`/`server` use `session`. The ways back up are the `Session` handed to
-`createSms()` and `IncomingRequests`, which call back into it, and to `OnRequest` and `onConnected`
-in `session-options.ts`, all imported as a type only.
+`createSms()`, `HeldMessages` and `IncomingRequests`, which call back into it, and to `OnRequest`
+and `onConnected` in `session-options.ts`, all imported as a type only.
 
 **Parameter order is wire order.** The key order inside `cmds.*.params` is the order the fields are
 written to and read from the buffer. Never sort those alphabetically — the alphabetical-ordering
@@ -225,10 +222,6 @@ this is not a changelog.
 
 ## Decisions
 
-The decisions themselves live in [docs/decisions.md](docs/decisions.md). Their titles are indexed
-here, so a reader sees that a decision exists without carrying its reasoning; the reasoning is in
-the file.
-
 ### [The public surface](docs/decisions.md#the-public-surface)
 
 - `Session` is publicly constructible, which is what makes `SessionOptions` and `ReconnectOptions`
@@ -315,7 +308,7 @@ the file.
 
 ### [Internals and tests](docs/decisions.md#internals-and-tests)
 
-- #30, #46 and #48 merged under the comprehension floor, and Locality is the next work.
+- Locality work comes before other work until a scoring run reads 7.0.
 - A listener that rejects is routed by Node's `captureRejections`, not by hand-dispatching.
 - The four-line abort dance is copied across `LinkLife`, `IdleWaiters`, `PendingRequests` and
   `SendWindow` rather than extracted.

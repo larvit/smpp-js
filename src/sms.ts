@@ -5,7 +5,9 @@ import type { Result, VoidResult } from './result.ts';
 import type { Session } from './session.ts';
 import { UnansweredError } from './unanswered-error.ts';
 import { consts } from './defs/constants.ts';
+import { decodeSegments } from './reassembly.ts';
 import { messageClassOf } from './defs/encodings.ts';
+import { paramText } from './defs/types.ts';
 import { receiptCodes, transientStates } from './dlr.ts';
 import { smppDate } from './message.ts';
 import { respIdParams, segmentId } from './sms-id.ts';
@@ -59,17 +61,13 @@ export type Sms = {
 export type SmsInput = {
 	/** The id base the segments were already answered with; absent leaves the answer to `sendResp()`. */
 	answeredAs?: string | undefined;
-	from: string;
-	message: string;
 	pduObjs: PduObject[];
 	session: Session;
-	to: string;
 };
 
-/** What the session's incoming side gives a message so it can be answered and accounted for. */
 export type SmsHandlers = {
+	answered: () => void;
 	lostLink: () => boolean;
-	onAnswered: () => void;
 	send: (input: PduObjectInput) => Promise<Result<{ pduObj: PduObject }>>;
 };
 
@@ -86,8 +84,8 @@ export function createSms(input: SmsInput, handlers: SmsHandlers): Sms {
 		answeredOnArrival: input.answeredAs !== undefined,
 		dlr: typeof registered === 'number' && registered !== 0,
 		flash: typeof dataCoding === 'number' && messageClassOf(dataCoding) === immediateDisplayClass,
-		from: input.from,
-		message: input.message,
+		from: paramText(first?.params.source_addr),
+		message: decodeSegments(input.pduObjs),
 		pduObjs: input.pduObjs,
 		sendDlr: status => sendDlr(sms, input.session, handlers, status),
 		sendResp: options => (input.answeredAs === undefined
@@ -98,7 +96,7 @@ export function createSms(input: SmsInput, handlers: SmsHandlers): Sms {
 			return answered.smsId;
 		},
 		submitTime: new Date(),
-		to: input.to,
+		to: paramText(first?.params.destination_addr),
 	};
 
 	return sms;
@@ -107,7 +105,7 @@ export function createSms(input: SmsInput, handlers: SmsHandlers): Sms {
 /** Every segment went out answered, so the call is what the shutdown waits for and nothing else. */
 function answeredOnArrival(
 	options: SendRespOptions,
-	handlers: Pick<SmsHandlers, 'onAnswered'>,
+	handlers: Pick<SmsHandlers, 'answered'>,
 ): Promise<VoidResult> {
 	if (options.smsId !== undefined) {
 		return Promise.resolve({
@@ -121,7 +119,7 @@ function answeredOnArrival(
 		});
 	}
 
-	handlers.onAnswered();
+	handlers.answered();
 
 	return Promise.resolve({});
 }
@@ -131,7 +129,7 @@ async function sendResp(
 	session: Session,
 	answered: { smsId: string },
 	options: SendRespOptions,
-	handlers: Pick<SmsHandlers, 'lostLink' | 'onAnswered'>,
+	handlers: Pick<SmsHandlers, 'answered' | 'lostLink'>,
 ): Promise<VoidResult> {
 	const total = sms.pduObjs.length;
 
@@ -158,7 +156,7 @@ async function sendResp(
 
 	const failure = results.find(result => result.err);
 
-	if (!failure) handlers.onAnswered();
+	if (!failure) handlers.answered();
 
 	return failure ?? {};
 }

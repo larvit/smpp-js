@@ -8,8 +8,7 @@ rule and an index of the titles below.
 
 - **`Session` is publicly constructible, which is what makes `SessionOptions` and `ReconnectOptions`
   public too.** Raised twice as a leak; it is not one. The collaborators `session.ts` delegates to
-  (`IncomingRequests`, `OutgoingRequests`, `ReconnectLoop`, `LinkTimers`, `DlrMerger`,
-  `PduTransport`, `submitSms`) stay unpublished so they can be reshaped.
+  stay unpublished so they can be reshaped.
 
 - **`acceptsOptionalParams()` and `bindAllows()` are predicates, not chokepoints.** The library's own
   senders consult them; `session.send({ tlvs })` is passed through as written, because silently
@@ -418,8 +417,7 @@ rule and an index of the titles below.
   caller would get wrong, where asking the codec is, and publishing it would freeze this library's
   error prose as API for an application whose own refusal should read like itself. Goal 8, from the
   architecture review of [#99](https://github.com/larvit/larvitsmpp/pull/99), 2026-09-09. It is
-  reached through
-  `encodeBody()` in `message.ts`, which is where the `data_coding`-to-text pair already lives:
+  reached through `encodeBody()` in `message.ts`, which is where the `data_coding`-to-text pair already lives:
   `encodeBody(text, dataCoding)` is `decodeMessage(buffer, dataCoding)`'s mirror and resolves the
   alphabet through the same `encodingByDataCoding()`. `send()` and `sendReturn()` inherit it,
   since both build through `buildPdu()`; `sendSms()` does not, and keeps its own guard, because
@@ -641,8 +639,7 @@ rule and an index of the titles below.
   failure belongs to one session's request, and that channel already carries every failure of one.
   The hook is consulted before the bind-direction gate, so it sees a `submit_sm` a receiver-bound
   peer may not send; first refusal means first, and one it declines still gets `ESME_RINVBNDSTS`.
-  Nothing is held for a request the hook answered: `HeldMessages` is opened by the `sms` event the
-  hook skipped, so the drain waits on none of it. `OnRequest` stays unexported where
+  Nothing is held for a request the hook answered, so the drain waits on none of it. `OnRequest` stays unexported where
   `AuthenticateInput` is exported, because that hook's argument is a shape this library invents and
   this one's are two types already published. Rejected: consulting the hook first, which puts
   bind and authentication inside the application's reach for nothing. Rejected: a narrower hook
@@ -765,15 +762,11 @@ rule and an index of the titles below.
 
 ## Internals and tests
 
-- **#30, #46 and #48 merged under the comprehension floor, and Locality is the next work.** Maintainer's call,
-  2026-09-27. A four-seat scoring run, depth 1, read the project at 6, 6, 7 and 6 (mean 6.25), every
-  seat capped by Locality in the held-message and shutdown code #30 does not touch, where the floor
-  is 7.0. The chunks after #30 lift Locality to 7 before any other work. Serves goal 8's
-  reshapeable internals, which a reader has to understand before reshaping. Valid until a scoring
-  run reads 7.0 or above. #46, maintainer's call 2026-09-28, merged as a step of that work at 6, 6, 7
-  and 7, Locality 5, 5, 6 and 6, up from 6, 6, 7 and 6 and Locality 5, 5, 6 and 5 the same day.
-  #48, maintainer's call 2026-09-28, merged at 6, 6, 6 and 6, Locality 5 from every seat, on the
-  condition that the held-message flow is the next chunk.
+- **Locality work comes before other work until a scoring run reads 7.0.** Maintainer's call,
+  2026-09-27, when #30 merged under the comprehension floor at 6, 6, 7 and 6; #46, #48 and #49
+  merged under it on that condition, #49 at 6, 6, 7 and 6 with Locality 5, 5, 6 and 6. Serves goal
+  8's reshapeable internals, which a reader has to understand before reshaping. Valid until a
+  scoring run reads 7.0 or above.
 
 - **A listener that rejects is routed by Node's `captureRejections`, not by hand-dispatching.** Both
   emitters construct with `captureRejections: true` and implement

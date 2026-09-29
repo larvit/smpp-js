@@ -5,7 +5,7 @@ import type { Collected, LostGroup } from '../src/reassembly.ts';
 import type { Dlr } from '../src/dlr.ts';
 import type { ErrorName } from '../src/defs/errors.ts';
 import type { IncomingRequestsOptions } from '../src/incoming-requests.ts';
-import type { MessageHold } from '../src/held-messages.ts';
+import type { HeldMessagesOptions, MessageHold } from '../src/held-messages.ts';
 import type { MessageState } from '../src/defs/constants.ts';
 import type { MessageDlr } from '../src/session.ts';
 import type { PduObject, PduObjectInput } from '../src/pdu.ts';
@@ -1543,11 +1543,34 @@ describe('held message bounds', () => {
 	}
 
 	function offer(held: HeldMessages, seqNr: number): MessageHold {
-		return held.offer(message(seqNr), 1, () => ({}), () => true);
+		const hold = held.offer(message(seqNr));
+
+		assert.ok(hold);
+
+		return hold;
 	}
 
-	test('is full at its count, and a re-used sequence number replaces rather than adding', () => {
-		const held = new HeldMessages({ log: silentLog, max: 2, maxOctets: 1_000_000, timeout: 10_000 });
+	/** Offers to a session with a listener, so an offer is held rather than released as untaken. */
+	function heldOn(
+		t: TestContext,
+		options: Pick<HeldMessagesOptions, 'max' | 'maxOctets' | 'now' | 'timeout'>,
+	): HeldMessages {
+		const session = new Session({ sock: new net.Socket() });
+
+		closeAfter(t, session);
+		session.on('sms', () => undefined);
+
+		return new HeldMessages({
+			...options,
+			link: new LinkLife({ log: silentLog, reconnects: false, timeout: 100 }),
+			log: silentLog,
+			sendPastDrain: () => Promise.resolve({ err: new Error('never sent') }),
+			session,
+		});
+	}
+
+	test('is full at its count, and a re-used sequence number replaces rather than adding', t => {
+		const held = heldOn(t, { max: 2, maxOctets: 1_000_000, timeout: 10_000 });
 		const first = offer(held, 1);
 		const replaced = offer(held, 2);
 
@@ -1563,9 +1586,9 @@ describe('held message bounds', () => {
 	});
 
 	// submitPdu() holds 1026 octets by the maxOctets charge: its object, and the three text fields.
-	test('is full at its octet cap, until a message leaves by any way out', () => {
+	test('is full at its octet cap, until a message leaves by any way out', t => {
 		let now = 0;
-		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 2000, now: () => now, timeout: 10_000 });
+		const held = heldOn(t, { max: 10, maxOctets: 2000, now: () => now, timeout: 10_000 });
 		const answered = offer(held, 1);
 
 		assert.equal(held.full(), false);
@@ -1658,9 +1681,9 @@ describe('held message bounds', () => {
 		incoming.clear();
 	});
 
-	test('gives up on a message the application never answers', () => {
+	test('gives up on a message the application never answers', t => {
 		let now = 0;
-		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 1_000_000, now: () => now, timeout: 60 });
+		const held = heldOn(t, { max: 10, maxOctets: 1_000_000, now: () => now, timeout: 60 });
 
 		offer(held, 1);
 		now = 61;
@@ -1674,9 +1697,9 @@ describe('held message bounds', () => {
 	});
 
 	// Without this the drain sits out its whole budget before returning what a sweep already settled.
-	test('wakes a waiting drain when the last message expires', async () => {
+	test('wakes a waiting drain when the last message expires', async t => {
 		let now = 0;
-		const held = new HeldMessages({ log: silentLog, max: 10, maxOctets: 1_000_000, now: () => now, timeout: 60 });
+		const held = heldOn(t, { max: 10, maxOctets: 1_000_000, now: () => now, timeout: 60 });
 
 		offer(held, 1);
 
@@ -1701,14 +1724,11 @@ describe('sendResp()', () => {
 		session.sendReturn = () => Promise.resolve({ err: new Error('Socket is closed') });
 
 		const sms = createSms({
-			from: '46701113311',
-			message: 'never answered',
 			pduObjs: [submitPdu(1)],
 			session,
-			to: '46709771337',
 		}, {
+			answered: () => { answered++; },
 			lostLink: () => false,
-			onAnswered: () => { answered++; },
 			send: () => Promise.resolve({ err: new Error('never sent') }),
 		});
 
@@ -1726,14 +1746,11 @@ describe('sendDlr()', () => {
 
 		let call = 0;
 		const sms = createSms({
-			from: '46701113311',
-			message: 'three segments',
 			pduObjs: [submitPdu(1), submitPdu(2), submitPdu(3)],
 			session,
-			to: '46709771337',
 		}, {
+			answered: () => undefined,
 			lostLink: () => false,
-			onAnswered: () => undefined,
 			send: () => {
 				call++;
 

@@ -205,17 +205,14 @@ after #46, read 6, 6, 7 and 7, Locality 5, 5, 6 and 6. A fourth, after the link'
 owner in #48, read 6, 6, 6 and 6, Locality 5 from every seat: all four still ranked `Session.teardown()`
 hardest, and the held-message flow across `incoming-requests.ts`, `held-messages.ts`, `sms.ts` and
 `Session`'s rejection handler second.
+A fifth, after the held-message flow got one owner, read 6, 6, 7 and 6, Locality 5, 5, 6 and 6:
+three seats still ranked `MessageHold` hardest — six ways out, a rejection routed from `Session`
+through `IncomingRequests` to a `WeakMap`, and the `setImmediate` a receipt relies on — and the
+teardown cluster second; the inherited architect scored Shape 5 on the flat `src/` and the names
+below.
 
 - [ ] **Lift Locality to 7, and confirm it with a scoring run.** A run reading 7.0 or above also
-      retires the #30, #46 and #48 decision.
-
-- [ ] **Give the held-message flow one owner — next, the condition #48 merged under.** Whether a
-      message is still held, and so whether its receipt may pass the drain, is decided across
-      `IncomingRequests.emitSms()`, `HeldMessages.offer()`/`MessageHold`, `createSms()`'s handlers in
-      `sms.ts` and `Session`'s rejection handler, which finds the hold again through a `WeakMap`
-      keyed on the `Sms`; `MessageHold.answered()` defers its release a `setImmediate` so a
-      `sendDlr()` straight after `sendResp()` still counts as held. All four seats of the #48 run
-      ranked it second hardest; the inherited architect put it at about two days.
+      retires the Locality-first decision.
 
 ### Correctness
 
@@ -325,9 +322,15 @@ hardest, and the held-message flow across `incoming-requests.ts`, `held-messages
 
 - [ ] **Collapse the three objects named `defaults`.** `client.ts`, `server.ts` and
       `session-options.ts` each export or hold one; `port: 2775` is written twice and the idle
-      timeout is derived two ways to the same 40 000. "What is the default for X" has three answers
+      timeout is derived two ways to the same 40 000, and 64 MiB is both `defaultMaxOctets` and
+      `defaults.maxHeldOctets`. "What is the default for X" has three answers
       depending on the entrypoint, and nothing fails when they drift. Named by both architects as the
       most likely first bug a new contributor ships.
+
+- [ ] **Give `hold` one meaning, and rename `IncomingRequests.refusing` for what it does.**
+      `LinkLife.hold()` is a request's budget waiting for a link, `HeldMessages.hold()` a message the
+      application owes an answer; `refusing` decides no refusal — `held.full()` does — and only makes
+      the warn and info lines fire once each way. From the 2026-09-29 scoring run.
 
 - [ ] **Rename `EncodingName`'s `ASCII` to `GSM7`, with `ASCII` a deprecated alias for one minor.**
       It is GSM 03.38, where `$` is 0x02 and `@` is 0x00, and `segmentUnits.ASCII = 153` is a septet
@@ -348,6 +351,12 @@ hardest, and the held-message flow across `incoming-requests.ts`, `held-messages
       telling them apart and only `parseSegmentId()` knows.
 
 ### Self-sufficiency — 6–7 today, and the gate is 7
+
+- [ ] **Move the fixture-copy reasoning out of AGENTS.md's Conventions, and split the longest
+      decision entries.** The fixtures bullet holds four justifications for tolerated copies — decisions,
+      so they belong in `docs/decisions.md` under Internals and tests; the entries under the wire's
+      alphabet and body rules run 30–40 lines with their `Rejected:` clauses inline, where a reader
+      who knows the answer still hunts for it. From the 2026-09-29 prose pass.
 
 - [ ] **Move the one-line facts out of the decision log and back to the code.** Five of nine readers
       independently reported being sent to `docs/decisions.md` for a question they hit while reading,
