@@ -261,7 +261,8 @@ overturned recorded decisions without naming them. todo.md carries the reordered
    and the store is per session. The spent set expires by age.
 8. **`retained.ts` goes to `codec/`**; `options.ts` joins AGENTS.md's type-only ways back up.
 
-Public API questions, each with the review's recommendation:
+Public API questions, answered as the review recommends. Maintainer's call, 2026-09-30; each
+lands in docs/decisions.md with the chunk that builds it:
 
 - **Q1 (A1).** `client()` returns `{ err, client }`? Yes: the returned type changes anyway.
 - **Q2 (A3).** `onSms` may return a receipt state? Yes, against the board: without it "answer, then

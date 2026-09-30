@@ -223,10 +223,6 @@ docs/decisions.md and the AGENTS.md map in its own PR, and deletes what it repla
 file stand side by side. The architecture review of 2026-09-30 (ALIGN) set this order; its amendments
 to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture-review-2026-09-30).
 
-- [ ] **Answer the review's public API questions Q1–Q8 before the chunk each gates.** Q4 (A6) before
-      `protocol/`, Q1 (A1) and Q5 before the lifecycle split, Q2 (A3), Q3 (A4) and Q6–Q8 before
-      answering on return. Each answer lands
-      as a goal or a decision, never here alone.
 - [ ] **Move without changing behaviour.** `defs/` becomes `codec/`, `options.ts` becomes one defaults
       table, and `result.ts` absorbs `error-from.ts`. Every file with one target moves to its folder
       now, and the "`src/` stays flat" decision is retired in the same PR.
@@ -236,7 +232,7 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
         on all 256 octets.
       - `esm_class`, segments, receipts, message ids, time and bind; no state, so the segment
         reference counter goes to `SmppClient` in the lifecycle split.
-      - The internal `gsm7` rename, with A6 if Q4 says so.
+      - The `gsm7` rename, A6 included: `'ASCII'` becomes `'GSM7'` in every export.
       - A test that fails on a spec citation without its sentence.
 - [ ] **Build `messages/` on a `BoundedStore` that enforces its own bounds.** Reassembly refuses at its
       bound instead of evicting, recorded against goals 2 and 4; the receipt merge follows Q8 and its
@@ -250,7 +246,7 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
       - `sendResp()` and `HeldMessages` are ported as they are.
       - Absorbs registering a multipart send's receipt merge before its segments go out.
       - The interop suite and goal 6's benchmarks run before it merges.
-- [ ] **Answer on return (A2, A4, and A3 if kept).** `handlers.ts`, `requests-in.ts` returning a `Reply`,
+- [ ] **Answer on return (A2, A3, A4).** `handlers.ts`, `requests-in.ts` returning a `Reply`,
       `onRequest` returning one, `server/` ported, `HeldMessages` deleted. The interop suite and the
       benchmarks run before it merges.
 - [ ] **Confirm Locality at 7 with a final scoring run.** A run reading 7.0 or above retires the
