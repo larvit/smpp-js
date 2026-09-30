@@ -197,22 +197,58 @@ A four-seat scoring run on 2026-09-27 read #30 at 6, 6, 7 and 6, every seat capp
 the held-message and shutdown code; #30 merged under the floor on condition that Locality is the
 next work ([decision](docs/decisions.md#internals-and-tests)).
 
-### Locality — next, ahead of everything below; 5–6 today, and the gate is 7
+### Locality — the plan-3 rewrite, next and ahead of everything below; 6.25 today, and the gate is 7
 
-A second four-seat run on 2026-09-28, after #35–#40, read 6, 6, 7 and 6 again, Locality 5, 5, 6
-and 5. Every seat ranked the session's lifecycle hardest and least wanted to modify it. A third,
-after #46, read 6, 6, 7 and 7, Locality 5, 5, 6 and 6. A fourth, after the link's liveness got one
-owner in #48, read 6, 6, 6 and 6, Locality 5 from every seat: all four still ranked `Session.teardown()`
-hardest, and the held-message flow across `incoming-requests.ts`, `held-messages.ts`, `sms.ts` and
-`Session`'s rejection handler second.
-A fifth, after the held-message flow got one owner, read 6, 6, 7 and 6, Locality 5, 5, 6 and 6:
-three seats still ranked `MessageHold` hardest — six ways out, a rejection routed from `Session`
-through `IncomingRequests` to a `WeakMap`, and the `setImmediate` a receipt relies on — and the
-teardown cluster second; the inherited architect scored Shape 5 on the flat `src/` and the names
-below.
+The scoring run after #49 read 6, 6, 7 and 6, Locality 5, 5, 6 and 6. Three rounds of redesign
+drafts (A–F) each took the hardest unit off the panel's list and exposed the next, and none moved the
+mean past 6.25. A four-seat board then read three from-scratch plans. It ranked plan 3 first
+unanimously and predicted 6, 7, 7 and 7, and every seat judged the ceiling to be the code's structure,
+not SMPP's difficulty. Maintainer's call, 2026-09-30: build plan 3. The background is in
+[docs/comprehension-rewrite/](docs/comprehension-rewrite/): the plans, the board, every panel report,
+the lessons and the six drafts as patches. Delete that directory once this milestone ships.
 
-- [ ] **Lift Locality to 7, and confirm it with a scoring run.** A run reading 7.0 or above also
-      retires the Locality-first decision.
+Every chunk below ships through `/larv-review`, and before it merges it also runs the
+comprehension-panel scoring run over the whole project. Each round:
+
+- fix what the seats name inside the chunk's own area;
+- ask the seats what would lift the bar further, and file what lies outside the chunk here;
+- let no dimension drop, and record the four scores and the overall in this paragraph.
+
+Each chunk also closes the items further down that it absorbs, and its PR names them: `hold` and
+`refusing`, the three `defaults`, `ASCII`, `session-options.ts`, the flat `src/`, and the link that
+dropped mid-rebind.
+
+- [ ] **Run the architecture review on plan 3 as amended here, before chunk 1.** Put its findings
+      into the plan, and ask where they change a public API choice.
+- [ ] **Move without changing behaviour.** `defs/` becomes `codec/`, `options.ts` becomes one defaults
+      table, and `result.ts` absorbs `error-from.ts`.
+- [ ] **Build `protocol/`: every multi-fact octet read once into a named plain type.**
+      - `vocabulary.ts`: the glossary as types with one-line TSDoc.
+      - `data-coding.ts`: the `data_coding` table as rows, with a test that it equals today's function
+        on all 256 octets.
+      - `esm_class`, segments, receipts, message ids, time and bind.
+      - The internal `gsm7` rename.
+      - A test that fails on a spec citation without its sentence.
+- [ ] **Build `messages/` on a `BoundedStore` that enforces its own bounds and refuses instead of
+      evicting.** Reassembly and receipt merging move onto it. Record the refuse-not-evict decision
+      against goals 2 and 4, and update README's bound text.
+- [ ] **Make a `Session` one socket under the `onSms` contract (plan 3's A2, A4 and A5).**
+      - Its life moves only forward.
+      - Every inbound request resolves to one `Reply`, written by one function.
+      - `onRequest` returns a `Reply`, and `server/` is ported.
+      - The board advises dropping A3 (a receipt state returned from `onSms`) as a second way to send a
+        receipt; ask before building it.
+- [ ] **Put reconnect above the session in `client/` (A1).**
+      - `SmppClient`, `connect` and backoff.
+      - The unanimous board amendment: the wait for a bound session and the retry of only what never
+        reached the socket get their own `client/next-link.ts`, invariant at the top, so `client.ts`
+        only composes.
+      - The board rated A1's `{ err, client }` rename worth questioning; ask before shipping it.
+- [ ] **Finish the contract (A6) and the prose.** A6 renames `'ASCII'` to `'GSM7'`; the plan names it
+      the cheapest break to drop, so ask. Then README, MIGRATION.md, CHANGELOG.md, decisions and the
+      AGENTS.md map; the interop suite; and the benchmarks against goal 6's floors.
+- [ ] **Confirm Locality at 7 with a final scoring run.** A run reading 7.0 or above retires the
+      Locality-first decision.
 
 ### Correctness
 
