@@ -218,35 +218,41 @@ Each chunk also closes the items further down that it absorbs, and its PR names 
 `refusing`, the three `defaults`, `ASCII`, `session-options.ts`, the flat `src/`, and the link that
 dropped mid-rebind.
 
-- [ ] **Run the architecture review on plan 3 as amended here, before chunk 1.** Put its findings
-      into the plan, and ask where they change a public API choice.
+Every chunk that changes the public API updates README's examples, MIGRATION.md, CHANGELOG.md,
+docs/decisions.md and the AGENTS.md map in its own PR, and deletes what it replaces; no old and new
+file stand side by side. The architecture review of 2026-09-30 (ALIGN) set this order; its amendments
+to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture-review-2026-09-30).
+
+- [ ] **Answer the review's public API questions Q1–Q8 before the chunk each gates.** Q4 (A6) before
+      `protocol/`, Q1 (A1) and Q5 before the lifecycle split, Q2 (A3), Q3 (A4) and Q6–Q8 before
+      answering on return. Each answer lands
+      as a goal or a decision, never here alone.
 - [ ] **Move without changing behaviour.** `defs/` becomes `codec/`, `options.ts` becomes one defaults
-      table, and `result.ts` absorbs `error-from.ts`.
+      table, and `result.ts` absorbs `error-from.ts`. Every file with one target moves to its folder
+      now, and the "`src/` stays flat" decision is retired in the same PR.
 - [ ] **Build `protocol/`: every multi-fact octet read once into a named plain type.**
       - `vocabulary.ts`: the glossary as types with one-line TSDoc.
       - `data-coding.ts`: the `data_coding` table as rows, with a test that it equals today's function
         on all 256 octets.
-      - `esm_class`, segments, receipts, message ids, time and bind.
-      - The internal `gsm7` rename.
+      - `esm_class`, segments, receipts, message ids, time and bind; no state, so the segment
+        reference counter goes to `SmppClient` in the lifecycle split.
+      - The internal `gsm7` rename, with A6 if Q4 says so.
       - A test that fails on a spec citation without its sentence.
-- [ ] **Build `messages/` on a `BoundedStore` that enforces its own bounds and refuses instead of
-      evicting.** Reassembly and receipt merging move onto it. Record the refuse-not-evict decision
-      against goals 2 and 4, and update README's bound text.
-- [ ] **Make a `Session` one socket under the `onSms` contract (plan 3's A2, A4 and A5).**
-      - Its life moves only forward.
-      - Every inbound request resolves to one `Reply`, written by one function.
-      - `onRequest` returns a `Reply`, and `server/` is ported.
-      - The board advises dropping A3 (a receipt state returned from `onSms`) as a second way to send a
-        receipt; ask before building it.
-- [ ] **Put reconnect above the session in `client/` (A1).**
-      - `SmppClient`, `connect` and backoff.
-      - The unanimous board amendment: the wait for a bound session and the retry of only what never
-        reached the socket get their own `client/next-link.ts`, invariant at the top, so `client.ts`
-        only composes.
-      - The board rated A1's `{ err, client }` rename worth questioning; ask before shipping it.
-- [ ] **Finish the contract (A6) and the prose.** A6 renames `'ASCII'` to `'GSM7'`; the plan names it
-      the cheapest break to drop, so ask. Then README, MIGRATION.md, CHANGELOG.md, decisions and the
-      AGENTS.md map; the interop suite; and the benchmarks against goal 6's floors.
+- [ ] **Build `messages/` on a `BoundedStore` that enforces its own bounds.** Reassembly refuses at its
+      bound instead of evicting, recorded against goals 2 and 4; the receipt merge follows Q8 and its
+      spent set expires by age. README's bound text is updated.
+- [ ] **List every test by name, mapped to its survivor or a reason for deleting it, before the lifecycle split.**
+      Every defect-table regression test survives by name.
+- [ ] **Split the lifecycle (A1, A5): a one-socket `Session`, reconnect above it in `client/`.**
+      - `SmppClient`, `connect.ts`, `backoff.ts`, and `client/next-link.ts` holding the wait for a bound
+        session and the retry of only what never reached the socket, invariant at the top, so
+        `client.ts` only composes.
+      - `sendResp()` and `HeldMessages` are ported as they are.
+      - Absorbs registering a multipart send's receipt merge before its segments go out.
+      - The interop suite and goal 6's benchmarks run before it merges.
+- [ ] **Answer on return (A2, A4, and A3 if kept).** `handlers.ts`, `requests-in.ts` returning a `Reply`,
+      `onRequest` returning one, `server/` ported, `HeldMessages` deleted. The interop suite and the
+      benchmarks run before it merges.
 - [ ] **Confirm Locality at 7 with a final scoring run.** A run reading 7.0 or above retires the
       Locality-first decision.
 

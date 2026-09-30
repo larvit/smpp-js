@@ -205,21 +205,7 @@ exception AGENTS allows), and named in AGENTS.md's architecture list as "hard".
 
 ## 6. Build order
 
-Each chunk leaves the suite green and ships through /larv-review.
-
-1. **Moves only**: `defs/` → `codec/`, `options.ts` with one defaults table, `result.ts` absorbs
-   error-from. No behaviour change.
-2. **protocol/**: vocabulary, data-coding table (256-octet equivalence test), esm-class, segments,
-   receipt, message-ids, time, bind, arrival; internal gsm7 rename; citation test.
-3. **messages/**: bounded-store, reassembly and receipt-merge on it (refuse-not-evict, decision
-   recorded, README bound text updated), split, submit.
-4. **session/** under the new contract: one-socket Session, requests-out, requests-in replies,
-   handlers, onSms/Reply/`dlr` in Reply, onRequest returning Reply (A2–A5). server/ ported. Tests
-   ported by the F translation table; the held-message tests become handler tests.
-5. **client/**: SmppClient, connect, backoff; reconnect and `fromStart` tests re-pointed (A1).
-6. **A6**, README/MIGRATION/CHANGELOG/decisions/AGENTS architecture; README examples executed;
-   interop suite; benchmarks against goal 6's floors.
-7. **Four-seat panel run**; its findings become the next chunk.
+The order that runs is todo.md's, amended by §8.
 
 ## 7. Predicted panel risks
 
@@ -239,3 +225,55 @@ Each chunk leaves the suite green and ships through /larv-review.
 - **The coarse scale**: even if every named unit is fixed, a mean of 7.0 needs all four seats to move,
   and the hardest-unit list has moved every round; expect a new one (likely requests-in.ts or
   SmppClient's request loop) at 6.
+
+## 8. Architecture review, 2026-09-30
+
+Verdict ALIGN: the direction serves the goals, but §6 could not leave the suite green and the plan
+overturned recorded decisions without naming them. todo.md carries the reordered build; the rest:
+
+1. **Each public API row names the decision it replaces**, and the replacement lands in
+   docs/decisions.md in the chunk that makes it. Overturned without saying so: `src/` stays flat;
+   `Session` publicly constructible (`ReconnectOptions` moves); both emitters re-declare listeners
+   (`SmppClient` is a third); every segment answered on arrival (a refused `smsId` becomes a
+   `sessionError`); `server()` composes `onRequest` (A4 is its rejected alternative); the drain waits
+   on held messages, capped on constants; `linkEnd` beside `boundAs` (A5 makes it an option); bind state
+   holds through the gap, and one owner decides whether a link carries a request; `close` means over;
+   a receipt does not belong to the link; a base merged once, capped like the groups; the total
+   encoding signatures and GSM declaring 0x00 (A6 renames `EncodingName`, so the codec exports do
+   change); the abort dance copied, not extracted (`waiting.ts`: recount the sites, then keep the
+   copies or revise the decision).
+2. **The segment reference counter is `SmppClient` state**, passed to `messages/submit.ts`; `protocol/`
+   holds none.
+3. **`client/next-link.ts`** bounds the wait by `responseTimeout` from when the send was issued,
+   builds the PDU against the session it lands on (retiring "bind state holds through the gap"), fails
+   waiting requests as unwritten on `close()`/`unbind()`, and registers a multipart send's merge before
+   its segments go out.
+4. **`SmppClient` re-emits every `Session` event but `sms` and `close`**; a session's `close` is
+   `disconnected` unless the client is over. `client.session` is the current link, and a listener on it
+   lasts one link.
+5. **`sms.sendDlr()` goes through a receipt sender `handlers.ts` is given**: `SmppClient`'s next-link
+   path in client mode. The answer stays on the arrival session, which `Sms.session` names.
+6. **One function in `session.ts` owns the async answer**: `replyFor()`, then `handlers.run(sms)` where
+   the application decides, then `write()`. `handlers.ts` returns a `Promise<Reply>` and never calls
+   into `Session`.
+7. **`BoundedStore` is internal**, not goal 9's store interface; `ReceiptMerge` records stay plain data.
+   Reassembly refuses at its bound: an evicted group is answered segments lost, goal 2 outranks goal 4,
+   and the store is per session. The spent set expires by age.
+8. **`retained.ts` goes to `codec/`**; `options.ts` joins AGENTS.md's type-only ways back up.
+
+Public API questions, each with the review's recommendation:
+
+- **Q1 (A1).** `client()` returns `{ err, client }`? Yes: the returned type changes anyway.
+- **Q2 (A3).** `onSms` may return a receipt state? Yes, against the board: without it "answer, then
+  report at once" has no correct spelling, and the two differ in result, so they are not two spellings.
+- **Q3 (A4).** `onRequest`'s `Reply`: any status, `params` and `tlvs`, or an explicit no-answer, async
+  allowed. Narrower cannot answer a bind, a vendor command or a `data_sm`.
+- **Q4 (A6).** `'ASCII'` becomes `'GSM7'` in every export? Yes: dropping it keeps two names for one
+  alphabet at the boundary.
+- **Q5.** `sendSms()` and `messageDlr` on `SmppClient` only, `Session` keeping `send()`? Yes: one send
+  surface and one counter; a hand-wired `Session` loses `sendSms()`.
+- **Q6.** No `onSms` answers the retry status, with a warning once per session? Yes, goal 2 over goal 4.
+- **Q7.** `handlerTimeout` a constant, answering the retry status on expiry, a late `Reply` on
+  `sessionError`, the drain waiting at most that long? Yes.
+- **Q8.** A full merge store: register before sending and say in `SendSmsResult` that no merged report
+  follows? Yes, over oldest-eviction for merges or a silent refusal.
