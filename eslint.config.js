@@ -35,12 +35,12 @@ export default tseslint.config(
 	},
 	{
 		// The spec tables are data: their length tracks the specification, not any complexity.
-		files: ['src/codec/{commands,constants,encodings,field-types,statuses,tlvs}.ts'],
+		files: ['src/codec/{commands,constants,encodings,errors,tlvs,types}.ts'],
 		rules: { 'max-lines': 'off' },
 	},
 	{
 		// ESLint counts every ?. and ?? in dlrFromPdu as a branch; the 19 is 26 lines of flat field resolution.
-		files: ['src/protocol/receipt.ts'],
+		files: ['src/protocol/dlr.ts'],
 		rules: { complexity: ['error', 19] },
 	},
 	{

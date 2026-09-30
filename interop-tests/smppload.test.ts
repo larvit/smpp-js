@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test, { after, describe } from 'node:test';
-import type { Session } from '../src/session.ts';
+import type { Session } from '../src/session/session.ts';
 import { server } from '../src/server/server.ts';
 
 const SMPP_PORT = Number(process.env.SMPP_PORT ?? '2775');

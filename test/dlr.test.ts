@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
 import { consts } from '../src/codec/constants.ts';
-import { dlrFromPdu, parseReceipt, receiptCodes } from '../src/protocol/receipt.ts';
+import { dlrFromPdu, parseReceipt, receiptCodes } from '../src/protocol/dlr.ts';
 import { encodeMessage } from '../src/message.ts';
 import { objToPdu, pduToObj } from '../src/codec/pdu.ts';
 import type { PduObject, TlvInputs } from '../src/codec/pdu.ts';

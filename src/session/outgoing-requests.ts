@@ -1,6 +1,6 @@
-import type { LinkLife } from '../link-life.ts';
+import type { LinkLife } from './link-life.ts';
 import type { PduObject, PduObjectInput } from '../codec/pdu.ts';
-import type { PduTransport } from './transport.ts';
+import type { PduTransport } from './pdu-transport.ts';
 import type { Result, VoidResult } from '../result.ts';
 import type { SendOptions } from '../options.ts';
 import type { SmppLog } from '../log.ts';

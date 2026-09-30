@@ -37,59 +37,59 @@ These are not preferences. Breaking one is a defect.
 
 ```
 src/
-	index.ts             Public surface. Named exports only, no default export; assembles `defs`.
-	link-life.ts         LinkLife: whether the link lives, and where a request waits for the next one
-	log.ts               SmppLog, the logger contract, and silentLog — the default
-	message.ts           Encoding detection, splitting, bit counting, SMPP date formatting
-	options.ts           SessionOptions, ReconnectOptions, their checks, and `defaults`: every default and internal cap
-	reconnect-loop.ts    ReconnectLoop: backoff, retry timer, stopped-ness
-	result.ts            Result<T>, and an untyped value as error material: errorFrom(), namedValue(), quoted()
-	session.ts           Session: the socket's life, dispatch, events, and the collaborators in session/
-	sms.ts               The live handle emitted as the 'sms' event (sendResp/sendDlr)
-	unanswered-error.ts  UnansweredError: it went out and no answer came back
-	codec/               Bytes <-> PduObject
-		commands.ts      The 33 commands, their ids and ordered parameter lists
-		constants.ts     consts + constsById, and the version that allows optional parameters
-		encodings.ts     GSM 03.38, LATIN1, UCS2, detection, data_coding resolution
-		field-types.ts   Wire types: int8/int16/int32/string/cstring/buffer/arrays
-		framer.ts        PduFramer: a byte stream cut into complete PDUs
-		pdu.ts           pduToObj / objToPdu / pduReturn — synchronous, result-returning
-		refusal.ts       A PDU the codec would not read, and the answer SMPP names for it
-		retained.ts      A PDU copied off the wire so holding it pins nothing else, and what holding it costs
-		statuses.ts      errors + errorsById (ESME_*)
-		tlvs.ts          TLV definitions, tlvsById, the typed read and input shapes, and reading and writing a TLV stream
-	protocol/            What the fields mean
-		bind.ts          Bind directions: which commands bind, what a direction carries, data_sm's stand-in, checkedBind()
-		concat.ts        How a PDU says it is a segment: its UDH, or the sar_* TLVs
-		message-body.ts  Where an inbound body is: short_message, or the message_payload TLV
-		message-ids.ts   Message ids: the peer's notation, the <base>-<n> a segment gets, which response carries one
-		receipt.ts       Delivery receipts: text and TLV parsing, receipt status codes
-		udh.ts           User data header: its length, the concatenation fields of a long SMS and their reference
-		uuid.ts          uuidv7() — the ids the library generates for messages
-	messages/            Whole messages across segments and time
+	index.ts               Public surface. Named exports only, no default export; assembles `defs`.
+	log.ts                 SmppLog, silentLog — the default, and guardedLog(): a logger that cannot throw
+	message.ts             Message bodies: encodeBody/decodeMessage under a data_coding, splitting, bit counting, smppDate/smppTime
+	options.ts             SessionOptions, ReconnectOptions, their checks, and `defaults`: every default and internal cap
+	result.ts              Result<T>, and an untyped value as error material: errorFrom(), namedValue(), quoted()
+	unanswered-error.ts
+	codec/                 Bytes <-> PduObject
+		commands.ts        The 33 commands, their ids and ordered parameter lists
+		constants.ts       consts + constsById, optionalParamsMinVersion, and esm_class's readers: hasUdh(), messageTypeOf()
+		encodings.ts       GSM 03.38, LATIN1, UCS2, detection, data_coding resolution, message class
+		errors.ts          errors + errorsById (ESME_*)
+		pdu-framer.ts      PduFramer
+		pdu.ts             pduToObj / objToPdu / pduReturn — synchronous, result-returning
+		refusal.ts         A PDU the codec would not read, and the answer SMPP names for it
+		retained-pdu.ts    A PDU copied off the wire so holding it pins nothing else, and what holding it costs
+		tlvs.ts            TLV definitions, tlvsById, the typed read and input shapes, and reading and writing a TLV stream
+		types.ts           Wire types: int8/int16/int32/string/cstring/buffer/arrays
+	protocol/              What the fields mean
+		bind.ts            Bind directions: which commands bind, what a direction carries, data_sm's stand-in, checkedBind()
+		concat.ts          How a PDU says it is a segment: its UDH, or the sar_* TLVs
+		dlr.ts             Delivery receipts: text and TLV parsing, receipt status codes
+		message-body.ts    Where an inbound body is: short_message, or the message_payload TLV
+		message-ids.ts     Message ids: the peer's notation, the <base>-<n> a segment gets, which response carries one
+		udh.ts             User data header: its length, the concatenation fields of a long SMS and their reference
+		uuid.ts            uuidv7() — the ids the library generates for messages
+	messages/              Whole messages across segments and time
+		dlr-merger.ts      DlrMerger: per-segment receipts counted into one MessageDlr
 		expiring-groups.ts ExpiringGroups: the capped, weighed, expiring store DlrMerger, HeldMessages and Reassembler share
-		reassembly.ts    Reassembler: capped, expiring multipart groups
-		receipt-merge.ts DlrMerger: per-segment receipts counted into one MessageDlr
-		submit.ts        submitSms composition and the submitSmParams builder
-	session/             One socket's collaborators
-		held-messages.ts HeldMessages: a message from its `sms` event to its answer, capped and expiring, one MessageHold each
-		keepalive.ts     LinkTimers: the enquire_link heartbeat and the idle timeout
+		reassembly.ts      Reassembler: capped, expiring multipart groups
+		submit.ts          submitSms composition and the submitSmParams builder
+	session/               One socket's life, and reconnecting it
+		held-messages.ts   HeldMessages: a message from its `sms` event to its answer, capped and expiring, one MessageHold each
+		idle-waiters.ts    IdleWaiters: waiting for a count to fall to zero, and what is left of a budget
+		incoming-requests.ts IncomingRequests: every request the peer sends — messages, receipts, links, unknown commands
+		link-life.ts       LinkLife: whether the link lives, and where a request waits for the next one
+		link-timers.ts     LinkTimers: the enquire_link heartbeat and the idle timeout
 		outgoing-requests.ts OutgoingRequests: the window, the pending map and the retry
-		pending-requests.ts  PendingRequests: sequence numbers, correlation, timeout, abort
-		requests-in.ts   IncomingRequests: every request the peer sends: messages, receipts, links, unknown commands
-		send-window.ts   SendWindow: the maxOutstanding semaphore
-		transport.ts     PduTransport: the socket a session reads complete PDUs off
-		waiting.ts       IdleWaiters: waiting for a count to fall to zero, and what is left of a budget
-	client/client.ts     client() -> { err, session }
-	server/server.ts     server() -> { err, server }, server owns the listener + close()
+		pdu-transport.ts   PduTransport: the socket a session reads complete PDUs off
+		pending-requests.ts PendingRequests: sequence numbers, correlation, timeout, abort
+		reconnect-loop.ts  ReconnectLoop: backoff, retry timer, stopped-ness
+		send-window.ts     SendWindow: the maxOutstanding semaphore
+		session.ts         Session: the socket's life, dispatch and events, composing the rest of session/
+		sms.ts             The live handle emitted as the 'sms' event (sendResp/sendDlr)
+	client/client.ts       client() -> { err, session }
+	server/server.ts       server() -> { err, server }, server owns the listener + close()
 ```
 
-Imports point one way: `codec` ← `protocol` ← `messages` ← `session/` ← `client`/`server`, and the
-root files sit beside that order. One edge runs against it: `codec/pdu.ts` reads `message.ts`, which
-reads `protocol/udh.ts`, so moving `message.ts` into `protocol/` needs `pdu.ts` off it first. The
-ways back up are the `Session` handed to `createSms()`, `HeldMessages` and `IncomingRequests`, which
-call back into it, and to `OnRequest` and `onConnected` in `options.ts`, all imported as a type
-only.
+Imports point one way: `codec` ← `protocol` ← `messages` ← `session` ← `client`/`server`. At the
+root, `result.ts`, `log.ts` and `unanswered-error.ts` sit below `codec`, and `message.ts` and
+`options.ts` with `protocol`. One edge runs up: `codec/pdu.ts` imports `encodeBody()` and
+`decodeMessage()` from `message.ts`. The ways back up are the `Session` handed to `createSms()`,
+`HeldMessages` and `IncomingRequests`, which call back into it, and to `OnRequest` and `onConnected`
+in `options.ts`, all imported as a type only.
 
 **Parameter order is wire order.** The key order inside `cmds.*.params` is the order the fields are
 written to and read from the buffer. Never sort those alphabetically — the alphabetical-ordering

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import net from 'node:net';
 import test, { after, describe } from 'node:test';
-import type { Session } from '../src/session.ts';
-import type { Sms } from '../src/sms.ts';
+import type { Session } from '../src/session/session.ts';
+import type { Sms } from '../src/session/sms.ts';
 import { PduRefusedError } from '../src/index.ts';
 import { bareTlvHeader, pduBytes } from '../test/raw-pdus.ts';
 import { server } from '../src/server/server.ts';

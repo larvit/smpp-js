@@ -230,6 +230,8 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
         reference counter goes to `SmppClient` in the lifecycle split.
       - The `gsm7` rename, A6 included: `'ASCII'` becomes `'GSM7'` in every export.
       - A test that fails on a spec citation without its sentence.
+      - Settle where `encodeBody()` and `decodeMessage()` land before splitting `message.ts`: `codec/pdu.ts`
+        reads them, so a home in `protocol/` is an upward edge.
 - [ ] **Build `messages/` on a `BoundedStore` that enforces its own bounds.** Reassembly refuses at its
       bound instead of evicting, recorded against goals 2 and 4; the receipt merge follows Q8 and its
       spent set expires by age. README's bound text is updated.
@@ -249,6 +251,17 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
       Locality-first decision.
 
 ### Correctness
+
+- [ ] **Bound a rebind's wait when `responseTimeout` is 0.** `comeBackUp()` arms no timers until the
+      bind is answered, so an SMSC that takes the TCP connection and never answers leaves
+      `ReconnectLoop` attempting forever: no `close`, no next attempt. `answering()` already falls
+      back to the default for held messages; the bind has no such floor. From the 2026-09-30 scoring
+      run; confirm with a test first.
+
+- [ ] **Type a parsed `short_message` as what the parser puts there.** `parsePdu()` replaces it with
+      a decoded string wherever no UDH is present, while `PduParams<'submit_sm'>['short_message']`
+      is `Buffer` and `isCommand()`'s docstring calls the narrowing sound. Public type; from the
+      2026-09-30 scoring run.
 
 - [ ] **Refuse to open a link that dropped while its rebind was answered.** A peer sending
       `bind_resp` and FIN together can tear the link down before `comeBackUp()` resumes; it then
@@ -336,7 +349,7 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
 ### Shape — 6 today, and the gate is 7
 
 - [ ] **Answer "is this a bind command" in one place.** `bindCommands` (read by
-      `session/requests-in.ts`, `session/outgoing-requests.ts` and `test/session.test.ts`) and
+      `session/incoming-requests.ts`, `session/outgoing-requests.ts` and `test/session.test.ts`) and
       `bindTypeFromCommand()` (read by `server.ts` and `checkedBind()`) each list the three bind
       commands, so a fourth added to one is missed by the other. Derive the list from the function,
       or the reverse. From the stability review of #42.
@@ -442,7 +455,7 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
 
 - [ ] **Narrow the `src/codec/` table lint exemption to the four table files.** Its stated reason — "the
       spec tables are data: their length tracks the specification, not any complexity" — is false for
-      `codec/field-types.ts`, which is 595 lines of wire codec with 25 functions and is the file that parses
+      `codec/types.ts`, which is 595 lines of wire codec with 25 functions and is the file that parses
       hostile input from the network. It carries more over-budget methods than any other file in the
       repo, under a suppression written for something else.
 
@@ -500,7 +513,7 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
       `idleTimeout: '5000'` is refused with `got 5000` — a value the reader reads as correct — where
       `connectTimeout` quotes it. `namedValue()`'s four sites — `messagingMode`, `encoding`, the time
       options and `smsIdFormat` — are the same defect once more: there `true` and `'true'` both print
-      as `true`. One fix closes all three, and `valueText()` in `codec/field-types.ts` is the quoted
+      as `true`. One fix closes all three, and `valueText()` in `codec/types.ts` is the quoted
       spelling to take it from. Raised by review, 2026-09-20.
 
 - [ ] **Refuse a send the codec cannot build before it waits for a link and a window slot.** Today
@@ -537,7 +550,7 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
       Maintainer's ask, 2026-09-14; not started until asked.
 
 - [ ] **Count what is left of a budget one way in `leftOf()` and `LinkLife`.** Today they are one
-      concept counted twice. `session/waiting.ts` reads what is left of a budget as `Math.max(1,
+      concept counted twice. `session/idle-waiters.ts` reads what is left of a budget as `Math.max(1,
       deadline - now)`, because 0 means "forever" there; `link-life.ts` runs the same subtraction
       and calls `<= 0` expired. Neither is reachable from the other, so nothing can disagree today,
       but a reader who learns one and applies it to the other is wrong. A budget type both take

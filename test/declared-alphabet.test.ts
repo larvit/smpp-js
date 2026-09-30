@@ -5,10 +5,10 @@ import { client } from '../src/client/client.ts';
 import { closeAfter } from './teardown.ts';
 import { consts } from '../src/codec/constants.ts';
 import { decodeMessage } from '../src/message.ts';
-import { dlrFromPdu } from '../src/protocol/receipt.ts';
+import { dlrFromPdu } from '../src/protocol/dlr.ts';
 import { encodingByDataCoding, encodings } from '../src/codec/encodings.ts';
 import { objToPdu, pduToObj } from '../src/codec/pdu.ts';
-import { paramNumber } from '../src/codec/field-types.ts';
+import { paramNumber } from '../src/codec/types.ts';
 import { server } from '../src/server/server.ts';
 import type { PduObject } from '../src/codec/pdu.ts';
 

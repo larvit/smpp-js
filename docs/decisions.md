@@ -295,7 +295,7 @@ rule and an index of the titles below.
   a delivery receipt (0x04).** Appendix B makes a receipt's `stat` the message's final status, so
   0x04 over `ENROUTE` emits the two disagreeing spellings of finality the reading side above has to
   reconcile, and goal 3 has our own senders write the marker 3.4 defines. `sendDlr()` takes the list
-  from `transientStates` in `protocol/receipt.ts`, the same one the reader uses, so the two cannot drift.
+  from `transientStates` in `protocol/dlr.ts`, the same one the reader uses, so the two cannot drift.
   Rejected: 0x04 for every state, for the sake of a peer that classifies on the marker — the cost
   accepted here is that such a peer stops recognising a transient report as a report at all and hands
   its application receipt text as an inbound message, where under 0x04 it would have read the state
@@ -796,11 +796,10 @@ rule and an index of the titles below.
   dev image has no openssl.
 
 - **`src/` is grouped by layer, and imports point down the layers.** Maintainer's call, 2026-09-30,
-  building [plan 3](comprehension-rewrite/plan-3.md): `codec/`, `protocol/`, `messages/`, `session/`,
-  `client/`, `server/`, with the [map](../AGENTS.md#architecture) naming the direction. Serves goal
-  8's reshapeable internals, which a reader has to find before reshaping: every comprehension panel
-  navigated by AGENTS.md's map rather than the flat tree it described. Rejected: `src/` flat until a
-  module has to move for another reason.
+  with the Locality rewrite; the [map](../AGENTS.md#architecture) names the order and places each
+  root file in a layer. Serves goal 8: internals are reshapeable only once a reader can find them,
+  and every comprehension panel navigated by the map. Rejected: `src/` flat until a module has to
+  move for another reason. Valid while the map is what readers navigate by.
 
 - **`test/` stays flat, and a file there is named for the question it answers rather than for the
   module it covers.** Architecture review, 2026-09-08, at 18 test files: what keeps that count honest

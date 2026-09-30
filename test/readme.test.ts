@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import type { Dlr } from '../src/protocol/receipt.ts';
-import type { Session } from '../src/session.ts';
-import type { Sms } from '../src/sms.ts';
+import type { Dlr } from '../src/protocol/dlr.ts';
+import type { Session } from '../src/session/session.ts';
+import type { Sms } from '../src/session/sms.ts';
 import type { SmppLog } from '../src/log.ts';
 import type { SmppServer } from '../src/server/server.ts';
 import type { TestContext } from 'node:test';

@@ -1,6 +1,6 @@
 import type { CommandDefinition, CommandName, PduParams, PduParamsInput } from './commands.ts';
-import type { ErrorName } from './statuses.ts';
-import type { ParamValue } from './field-types.ts';
+import type { ErrorName } from './errors.ts';
+import type { ParamValue } from './types.ts';
 import type { PduHeader } from './refusal.ts';
 import type { Result, VoidResult } from '../result.ts';
 import type { TlvInputs, Tlvs } from './tlvs.ts';
@@ -8,8 +8,8 @@ import { PduRefusedError, framingRefusal } from './refusal.ts';
 import { cmds, commandNameById, respNameFor } from './commands.ts';
 import { hasUdh } from './constants.ts';
 import { decodeMessage, encodeBody } from '../message.ts';
-import { errorNameById, errors, isErrorName } from './statuses.ts';
-import { paramNumber, valueText } from './field-types.ts';
+import { errorNameById, errors, isErrorName } from './errors.ts';
+import { paramNumber, valueText } from './types.ts';
 import { parseTlvs, writeTlvs } from './tlvs.ts';
 
 /** The highest sequence number this library hands out; SMPP 3.4 4.7.1 reserves 0x7fffffff. */

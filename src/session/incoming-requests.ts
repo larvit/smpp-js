@@ -1,13 +1,13 @@
 import type { Concat } from '../protocol/concat.ts';
-import type { DlrMerger } from '../messages/receipt-merge.ts';
-import type { ErrorName } from '../codec/statuses.ts';
+import type { DlrMerger } from '../messages/dlr-merger.ts';
+import type { ErrorName } from '../codec/errors.ts';
 import type { HeldMessagesOptions } from './held-messages.ts';
-import type { LinkLife } from '../link-life.ts';
+import type { LinkLife } from './link-life.ts';
 import type { LostGroup, Refusal } from '../messages/reassembly.ts';
 import type { OnRequest } from '../options.ts';
 import type { PduObject } from '../codec/pdu.ts';
 import type { VoidResult } from '../result.ts';
-import type { Session } from '../session.ts';
+import type { Session } from './session.ts';
 import type { SmppLog } from '../log.ts';
 import type { SmsIdFormat } from '../protocol/message-ids.ts';
 import { HeldMessages } from './held-messages.ts';
@@ -15,8 +15,8 @@ import { Reassembler } from '../messages/reassembly.ts';
 import { bindCommands, standsInFor } from '../protocol/bind.ts';
 import { defaults } from '../options.ts';
 import { concatOf } from '../protocol/concat.ts';
-import { detach } from '../codec/retained.ts';
-import { dlrFromPdu } from '../protocol/receipt.ts';
+import { detach } from '../codec/retained-pdu.ts';
+import { dlrFromPdu } from '../protocol/dlr.ts';
 import { respIdParams, segmentId } from '../protocol/message-ids.ts';
 import { respNameFor } from '../codec/commands.ts';
 

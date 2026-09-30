@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import type { DestAddress, UnsuccessSme } from '../src/codec/field-types.ts';
-import { paramText, types } from '../src/codec/field-types.ts';
+import type { DestAddress, UnsuccessSme } from '../src/codec/types.ts';
+import { paramText, types } from '../src/codec/types.ts';
 import { tlvs } from '../src/codec/tlvs.ts';
 
 describe('integers', () => {

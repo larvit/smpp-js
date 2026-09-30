@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import type { Dlr } from '../src/protocol/receipt.ts';
+import type { Dlr } from '../src/protocol/dlr.ts';
 import type { EncodingName } from '../src/codec/encodings.ts';
-import type { MessageDlr } from '../src/messages/receipt-merge.ts';
+import type { MessageDlr } from '../src/messages/dlr-merger.ts';
 import type { PduObject } from '../src/codec/pdu.ts';
-import type { Session } from '../src/session.ts';
-import type { Sms } from '../src/sms.ts';
+import type { Session } from '../src/session/session.ts';
+import type { Sms } from '../src/session/sms.ts';
 import { client } from '../src/client/client.ts';
 import { closeAfter } from '../test/teardown.ts';
 import { consts } from '../src/codec/constants.ts';
-import { paramText } from '../src/codec/field-types.ts';
+import { paramText } from '../src/codec/types.ts';
 import { server } from '../src/server/server.ts';
 
 const PEER_HOST = process.env.PEER_HOST ?? 'smppsim';

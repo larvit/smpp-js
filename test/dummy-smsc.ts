@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import net from 'node:net';
-import type { Session } from '../src/session.ts';
+import type { Session } from '../src/session/session.ts';
 import type { TestContext } from 'node:test';
-import { PduFramer } from '../src/codec/framer.ts';
+import { PduFramer } from '../src/codec/pdu-framer.ts';
 import { client } from '../src/client/client.ts';
 import { closeAfter, closeListenerAfter } from './teardown.ts';
 import { consts } from '../src/codec/constants.ts';

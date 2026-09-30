@@ -4,9 +4,9 @@ import type { SmppLog } from '../log.ts';
 import { ExpiringGroups } from './expiring-groups.ts';
 import { decodeMessage } from '../message.ts';
 import { defaults } from '../options.ts';
-import { detach, retainedOctets } from '../codec/retained.ts';
+import { detach, retainedOctets } from '../codec/retained-pdu.ts';
 import { messageOctets } from '../protocol/message-body.ts';
-import { paramNumber, paramText } from '../codec/field-types.ts';
+import { paramNumber, paramText } from '../codec/types.ts';
 import { uuidv7 } from '../protocol/uuid.ts';
 
 /** A concatenated message given up on, whose segments the peer has already been answered for. */

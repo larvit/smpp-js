@@ -1,6 +1,6 @@
-import type { ParamValue } from './field-types.ts';
+import type { ParamValue } from './types.ts';
 import type { PduObject } from './pdu.ts';
-import { tlvOctets } from './field-types.ts';
+import { tlvOctets } from './types.ts';
 
 /** Wire reads hand back views, so retaining one PDU would pin the whole chunk it arrived in. */
 export function detach(pduObj: PduObject): PduObject {

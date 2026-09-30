@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
 import reference from 'smpp';
 import type { ReferenceSession } from 'smpp';
-import type { Sms } from '../src/sms.ts';
+import type { Sms } from '../src/session/sms.ts';
 import { client } from '../src/client/client.ts';
 import { closeAfter } from './teardown.ts';
 import { concatInfo } from '../src/protocol/udh.ts';

@@ -2,7 +2,7 @@ import type { PduObject } from '../codec/pdu.ts';
 import type { SmppLog } from '../log.ts';
 import type { Socket } from 'node:net';
 import type { VoidResult } from '../result.ts';
-import { PduFramer } from '../codec/framer.ts';
+import { PduFramer } from '../codec/pdu-framer.ts';
 import { PduRefusedError } from '../codec/refusal.ts';
 import { pduToObj } from '../codec/pdu.ts';
 

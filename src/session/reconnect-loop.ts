@@ -1,7 +1,7 @@
-import type { Result, VoidResult } from './result.ts';
-import type { SmppLog } from './log.ts';
+import type { Result, VoidResult } from '../result.ts';
+import type { SmppLog } from '../log.ts';
 import type { Socket } from 'node:net';
-import { defaults } from './options.ts';
+import { defaults } from '../options.ts';
 
 export type ReconnectLoopOptions = {
 	connect: () => Promise<Result<{ sock: Socket }>>;

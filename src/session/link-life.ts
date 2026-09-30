@@ -1,5 +1,5 @@
-import type { SmppLog } from './log.ts';
-import type { VoidResult } from './result.ts';
+import type { SmppLog } from '../log.ts';
+import type { VoidResult } from '../result.ts';
 
 export type LinkLifeOptions = {
 	log: SmppLog;

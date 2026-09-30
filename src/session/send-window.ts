@@ -1,6 +1,6 @@
 import type { SmppLog } from '../log.ts';
 import type { VoidResult } from '../result.ts';
-import { IdleWaiters } from './waiting.ts';
+import { IdleWaiters } from './idle-waiters.ts';
 
 export type SendWindowOptions = {
 	limit: number;

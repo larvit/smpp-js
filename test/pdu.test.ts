@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
 import { PduRefusedError, refusalAnswer } from '../src/codec/refusal.ts';
 import { isCommand, isResp, objToPdu, pduReturn, pduToObj } from '../src/codec/pdu.ts';
-import { paramText } from '../src/codec/field-types.ts';
+import { paramText } from '../src/codec/types.ts';
 import { isTlvName, tlvsById } from '../src/codec/tlvs.ts';
 
 function encode(...args: Parameters<typeof objToPdu>): Buffer {

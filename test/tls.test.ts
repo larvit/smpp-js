@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import net from 'node:net';
 import test, { describe } from 'node:test';
-import type { Sms } from '../src/sms.ts';
+import type { Sms } from '../src/session/sms.ts';
 import type { SmppServer } from '../src/server/server.ts';
 import type { TestContext } from 'node:test';
 import { Log } from '@larvit/log';

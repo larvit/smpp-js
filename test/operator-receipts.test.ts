@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import type { Dlr, Receipt } from '../src/protocol/receipt.ts';
-import type { MessageDlr } from '../src/session.ts';
+import type { Dlr, Receipt } from '../src/protocol/dlr.ts';
+import type { MessageDlr } from '../src/session/session.ts';
 import type { PduObject, TlvInputs } from '../src/codec/pdu.ts';
 import { bindToSmsc, dummySmsc } from './dummy-smsc.ts';
 import { consts } from '../src/codec/constants.ts';
-import { dlrFromPdu, parseReceipt, receiptCodes, transientStates } from '../src/protocol/receipt.ts';
+import { dlrFromPdu, parseReceipt, receiptCodes, transientStates } from '../src/protocol/dlr.ts';
 import { objToPdu, pduToObj } from '../src/codec/pdu.ts';
 
 /**

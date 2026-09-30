@@ -1,5 +1,5 @@
 import type { EncodingName, Unencodable } from '../codec/encodings.ts';
-import type { ParamValue } from '../codec/field-types.ts';
+import type { ParamValue } from '../codec/types.ts';
 import type { SubmitMessagingMode } from '../codec/constants.ts';
 import type { PduObject, PduObjectInput } from '../codec/pdu.ts';
 import type { Result } from '../result.ts';
@@ -7,7 +7,7 @@ import type { SmppLog } from '../log.ts';
 import type { SmsIdNotation } from '../protocol/message-ids.ts';
 import { UnansweredError } from '../unanswered-error.ts';
 import { consts, defaultMessagingMode, isMessagingMode, isSubmitMessagingMode, submitMessagingModes } from '../codec/constants.ts';
-import { cstring, paramText } from '../codec/field-types.ts';
+import { cstring, paramText } from '../codec/types.ts';
 import { dataCodingByEncoding, detect, encodingNames, isEncodingName, unencodable, unencodableText } from '../codec/encodings.ts';
 import { namedValue } from '../result.ts';
 import { normaliseSmsId } from '../protocol/message-ids.ts';

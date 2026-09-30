@@ -6,7 +6,7 @@ import { bindToSmsc, dummySmsc } from './dummy-smsc.ts';
 import { decodeMessage } from '../src/message.ts';
 import { messageOctets } from '../src/protocol/message-body.ts';
 import { objToPdu, pduToObj } from '../src/codec/pdu.ts';
-import { paramNumber, paramText } from '../src/codec/field-types.ts';
+import { paramNumber, paramText } from '../src/codec/types.ts';
 import { silentLog } from '../src/log.ts';
 import { submitSms } from '../src/messages/submit.ts';
 

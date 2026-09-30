@@ -1,6 +1,6 @@
 import type { PduObject } from './codec/pdu.ts';
 import type { Result, VoidResult } from './result.ts';
-import type { Session } from './session.ts';
+import type { Session } from './session/session.ts';
 import type { SmppLog } from './log.ts';
 import type { SmsIdFormat } from './protocol/message-ids.ts';
 import type { Socket } from 'node:net';

@@ -1,4 +1,4 @@
-import type { Dlr } from '../protocol/receipt.ts';
+import type { Dlr } from '../protocol/dlr.ts';
 import type { MessageState } from '../codec/constants.ts';
 import type { SmppLog } from '../log.ts';
 import { ExpiringGroups } from './expiring-groups.ts';

@@ -1,12 +1,12 @@
 import type { MessageState } from '../codec/constants.ts';
-import type { TlvValue } from '../codec/field-types.ts';
+import type { TlvValue } from '../codec/types.ts';
 import type { PduObject } from '../codec/pdu.ts';
 import type { SmsIdFormat } from './message-ids.ts';
 import { consts, constsById, hasUdh, messageTypeOf } from '../codec/constants.ts';
 import { encodings } from '../codec/encodings.ts';
 import { messageOctets } from './message-body.ts';
 import { normaliseSmsId } from './message-ids.ts';
-import { paramNumber, paramText } from '../codec/field-types.ts';
+import { paramNumber, paramText } from '../codec/types.ts';
 import { udhLength } from './udh.ts';
 
 /**

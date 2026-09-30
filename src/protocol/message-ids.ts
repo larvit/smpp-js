@@ -1,5 +1,5 @@
 import type { CommandName } from '../codec/commands.ts';
-import type { ParamValue } from '../codec/field-types.ts';
+import type { ParamValue } from '../codec/types.ts';
 
 const notations = {
 	decimal: { digits: /^[0-9]+$/, prefix: '' },

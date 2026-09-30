@@ -6,13 +6,13 @@ import type { Server as NetServer, Socket } from 'node:net';
 import type { Server as TlsServer, TlsOptions } from 'node:tls';
 import type { SmppLog } from '../log.ts';
 import { EventEmitter } from 'node:events';
-import { Session } from '../session.ts';
+import { Session } from '../session/session.ts';
 import { bindTypeFromCommand } from '../protocol/bind.ts';
 import { checkSessionOptions, defaults } from '../options.ts';
 import { createServer as createNetServer } from 'node:net';
 import { createServer as createTlsServer } from 'node:tls';
 import { errorFrom } from '../result.ts';
-import { paramText } from '../codec/field-types.ts';
+import { paramText } from '../codec/types.ts';
 import { guardedLog } from '../log.ts';
 import { respNameFor } from '../codec/commands.ts';
 

@@ -7,8 +7,8 @@ import type { SmsIdFormat } from '../protocol/message-ids.ts';
 import type { Socket } from 'node:net';
 export type { BindType };
 
-import { ReconnectLoop } from '../reconnect-loop.ts';
-import { Session } from '../session.ts';
+import { ReconnectLoop } from '../session/reconnect-loop.ts';
+import { Session } from '../session/session.ts';
 import { checkSessionOptions, defaults } from '../options.ts';
 import { connect as netConnect } from 'node:net';
 import { connect as tlsConnect } from 'node:tls';

@@ -1,5 +1,5 @@
 import type { CommandName } from './commands.ts';
-import type { ErrorName } from './statuses.ts';
+import type { ErrorName } from './errors.ts';
 import { respNameFor } from './commands.ts';
 
 /** A hostile peer must not be able to make us allocate arbitrarily. */

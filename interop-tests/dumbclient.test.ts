@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { after, describe } from 'node:test';
-import type { Session } from '../src/session.ts';
-import type { Sms } from '../src/sms.ts';
+import type { Session } from '../src/session/session.ts';
+import type { Sms } from '../src/session/sms.ts';
 import type { LogMethod, SmppLog } from '../src/log.ts';
 import { server } from '../src/server/server.ts';
 
@@ -270,7 +270,7 @@ describe('S6 - idle peer, no enquire_link at all', () => {
 		assert.ok(bound, 'dumb-idle never submitted its one message');
 
 		// idleTimeout is 40s from the last byte the peer sent (its submit_sm), never from our own
-		// writes (session/keepalive.ts resets only on inbound data). This test may start running well
+		// writes (session/link-timers.ts resets only on inbound data). This test may start running well
 		// past that mark on its own (S9 above can take a minute) - statsFor(...).closed is set from
 		// a 'close' listener attached at session-creation time, so a close from before this test
 		// even started is still seen; budget is slack for a session that is still open, not a clock.
