@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import type { DestAddress, UnsuccessSme } from '../src/defs/types.ts';
-import { paramText, types } from '../src/defs/types.ts';
-import { tlvs } from '../src/defs/tlvs.ts';
+import type { DestAddress, UnsuccessSme } from '../src/codec/field-types.ts';
+import { paramText, types } from '../src/codec/field-types.ts';
+import { tlvs } from '../src/codec/tlvs.ts';
 
 describe('integers', () => {
 	test('int8 reads, sizes and writes one octet', () => {

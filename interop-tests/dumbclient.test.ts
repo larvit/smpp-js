@@ -3,7 +3,7 @@ import test, { after, describe } from 'node:test';
 import type { Session } from '../src/session.ts';
 import type { Sms } from '../src/sms.ts';
 import type { LogMethod, SmppLog } from '../src/log.ts';
-import { server } from '../src/server.ts';
+import { server } from '../src/server/server.ts';
 
 const SMPP_PORT = Number(process.env.SMPP_PORT ?? '2775');
 /** Slower than every scenario's submission rate (2000/s for the window runs), so a real backlog
@@ -206,7 +206,7 @@ after(async () => {
 
 // S9 (target 11) and the backpressure-at-server scenario: window 2000 at a high rate against a
 // handler slowed enough to build a real backlog. window500 is the same shape with a window below
-// maxHeldMessages (1000, session-options.ts defaults.maxHeldMessages), the bound past which a
+// maxHeldMessages (1000, options.ts defaults.maxHeldMessages), the bound past which a
 // peer's window is answered ESME_RTHROTTLED. smpp-dumb-client counts a throttled message as sent
 // and never resends it, so window 2000 accounts for 20,000 as answered plus throttled.
 const throttleMessage = 'session - unanswered messages at their bound, asking the peer to retry';
@@ -270,7 +270,7 @@ describe('S6 - idle peer, no enquire_link at all', () => {
 		assert.ok(bound, 'dumb-idle never submitted its one message');
 
 		// idleTimeout is 40s from the last byte the peer sent (its submit_sm), never from our own
-		// writes (link-timers.ts resets only on inbound data). This test may start running well
+		// writes (session/keepalive.ts resets only on inbound data). This test may start running well
 		// past that mark on its own (S9 above can take a minute) - statsFor(...).closed is set from
 		// a 'close' listener attached at session-creation time, so a close from before this test
 		// even started is still seen; budget is slack for a session that is still open, not a clock.

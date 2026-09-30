@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import type { EncodingName } from '../src/defs/encodings.ts';
+import type { EncodingName } from '../src/codec/encodings.ts';
 import {
 	bitCount,
 	decodeMessage,

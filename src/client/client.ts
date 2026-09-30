@@ -1,18 +1,18 @@
 import type { ConnectionOptions } from 'node:tls';
-import type { Result, VoidResult } from './result.ts';
-import type { BindType, ReconnectOptions } from './session-options.ts';
-import type { SmppLog } from './log.ts';
-import type { SmsIdFormat } from './sms-id.ts';
+import type { Result, VoidResult } from '../result.ts';
+import type { BindType } from '../protocol/bind.ts';
+import type { ReconnectOptions } from '../options.ts';
+import type { SmppLog } from '../log.ts';
+import type { SmsIdFormat } from '../protocol/message-ids.ts';
 import type { Socket } from 'node:net';
 export type { BindType };
 
-import { ReconnectLoop } from './reconnect-loop.ts';
-import { Session } from './session.ts';
-import { checkSessionOptions } from './session-options.ts';
+import { ReconnectLoop } from '../reconnect-loop.ts';
+import { Session } from '../session.ts';
+import { checkSessionOptions, defaults } from '../options.ts';
 import { connect as netConnect } from 'node:net';
 import { connect as tlsConnect } from 'node:tls';
-import { defaultInterfaceVersion } from './defs/constants.ts';
-import { guardedLog } from './log.ts';
+import { guardedLog } from '../log.ts';
 
 /** `fromStart` puts the very first connect and bind through the same backoff loop as a drop. */
 type ReconnectTuning = { fromStart?: boolean; maxDelay?: number; minDelay?: number };
@@ -41,18 +41,6 @@ export type ClientOptions = {
 	username?: string;
 };
 
-const defaults = {
-	bindType: 'transceiver',
-	connectTimeout: 10_000,
-	enquireLinkInterval: 20_000,
-	host: 'localhost',
-	/** The idle timeout is what notices a dead link, so it has to outlast one silent probe. */
-	idleTimeoutFactor: 2,
-	interfaceVersion: defaultInterfaceVersion,
-	password: 'pass',
-	port: 2775,
-	username: 'user',
-} as const;
 
 function armConnectTimeout(
 	sock: Socket,

@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import net from 'node:net';
 import type { Session } from '../src/session.ts';
 import type { TestContext } from 'node:test';
-import { PduFramer } from '../src/pdu-framer.ts';
-import { client } from '../src/client.ts';
+import { PduFramer } from '../src/codec/framer.ts';
+import { client } from '../src/client/client.ts';
 import { closeAfter, closeListenerAfter } from './teardown.ts';
-import { consts } from '../src/defs/constants.ts';
-import { objToPdu, pduReturn, pduToObj } from '../src/pdu.ts';
-import { uuidv7 } from '../src/uuid.ts';
+import { consts } from '../src/codec/constants.ts';
+import { objToPdu, pduReturn, pduToObj } from '../src/codec/pdu.ts';
+import { uuidv7 } from '../src/protocol/uuid.ts';
 
 export type DummySmsc = {
 	/** Writes a delivery receipt to the ESME, its body spelled as the test names it. */

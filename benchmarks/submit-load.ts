@@ -1,4 +1,4 @@
-import { client } from '../src/client.ts';
+import { client } from '../src/client/client.ts';
 
 /**
  * Pushes `count` single-segment messages and reports what the wire carried per second. Keeps

@@ -3,11 +3,11 @@ import test, { describe } from 'node:test';
 import reference from 'smpp';
 import type { ReferenceSession } from 'smpp';
 import type { Sms } from '../src/sms.ts';
-import { client } from '../src/client.ts';
+import { client } from '../src/client/client.ts';
 import { closeAfter } from './teardown.ts';
-import { concatInfo } from '../src/udh.ts';
-import { objToPdu, pduToObj } from '../src/pdu.ts';
-import { server } from '../src/server.ts';
+import { concatInfo } from '../src/protocol/udh.ts';
+import { objToPdu, pduToObj } from '../src/codec/pdu.ts';
+import { server } from '../src/server/server.ts';
 import { splitMessage } from '../src/message.ts';
 
 /**

@@ -1,11 +1,7 @@
 import type { Result, VoidResult } from './result.ts';
 import type { SmppLog } from './log.ts';
 import type { Socket } from 'node:net';
-
-export const backoffDefaults = {
-	maxDelay: 30_000,
-	minDelay: 1000,
-};
+import { defaults } from './options.ts';
 
 export type ReconnectLoopOptions = {
 	connect: () => Promise<Result<{ sock: Socket }>>;
@@ -32,8 +28,8 @@ export class ReconnectLoop {
 	private upAt: number | undefined;
 
 	constructor(options: ReconnectLoopOptions) {
-		this.maxDelay = options.maxDelay ?? backoffDefaults.maxDelay;
-		this.minDelay = options.minDelay ?? backoffDefaults.minDelay;
+		this.maxDelay = options.maxDelay ?? defaults.maxDelay;
+		this.minDelay = options.minDelay ?? defaults.minDelay;
 		this.now = options.now ?? Date.now;
 		this.options = options;
 		this.delay = this.minDelay;

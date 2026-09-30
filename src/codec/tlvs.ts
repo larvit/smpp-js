@@ -1,6 +1,6 @@
-import type { ParamValue, TlvValue, WireType } from './types.ts';
+import type { ParamValue, TlvValue, WireType } from './field-types.ts';
 import type { Result } from '../result.ts';
-import { tlv } from './types.ts';
+import { tlv } from './field-types.ts';
 
 /** Only a tag read as octets or as a number may repeat, since its occurrences are listed as one of those. */
 type Definition<Tag> = { id: number; multiple?: false; tag: Tag; type: WireType<Buffer | number | string> }

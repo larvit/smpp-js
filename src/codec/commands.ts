@@ -1,5 +1,5 @@
-import type { WireType } from './types.ts';
-import { buffer, cstring, dest_address_array, int8, unsuccess_sme_array } from './types.ts';
+import type { WireType } from './field-types.ts';
+import { buffer, cstring, dest_address_array, int8, unsuccess_sme_array } from './field-types.ts';
 
 type CommandSpec = {
 	id: number;

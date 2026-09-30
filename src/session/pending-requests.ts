@@ -1,7 +1,7 @@
-import type { PduObject } from './pdu.ts';
-import type { Result } from './result.ts';
-import type { SmppLog } from './log.ts';
-import { maxSeqNr } from './pdu.ts';
+import type { PduObject } from '../codec/pdu.ts';
+import type { Result } from '../result.ts';
+import type { SmppLog } from '../log.ts';
+import { maxSeqNr } from '../codec/pdu.ts';
 
 export type WaitOptions = {
 	signal?: AbortSignal | undefined;

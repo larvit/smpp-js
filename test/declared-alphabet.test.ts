@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
 import { bindToSmsc, dummySmsc } from './dummy-smsc.ts';
-import { client } from '../src/client.ts';
+import { client } from '../src/client/client.ts';
 import { closeAfter } from './teardown.ts';
-import { consts } from '../src/defs/constants.ts';
+import { consts } from '../src/codec/constants.ts';
 import { decodeMessage } from '../src/message.ts';
-import { dlrFromPdu } from '../src/dlr.ts';
-import { encodingByDataCoding, encodings } from '../src/defs/encodings.ts';
-import { objToPdu, pduToObj } from '../src/pdu.ts';
-import { paramNumber } from '../src/defs/types.ts';
-import { server } from '../src/server.ts';
-import type { PduObject } from '../src/pdu.ts';
+import { dlrFromPdu } from '../src/protocol/receipt.ts';
+import { encodingByDataCoding, encodings } from '../src/codec/encodings.ts';
+import { objToPdu, pduToObj } from '../src/codec/pdu.ts';
+import { paramNumber } from '../src/codec/field-types.ts';
+import { server } from '../src/server/server.ts';
+import type { PduObject } from '../src/codec/pdu.ts';
 
 const from = '46701113311';
 const to = '46709771337';

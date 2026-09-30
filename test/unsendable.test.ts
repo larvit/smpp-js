@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import type { PduObjectInput } from '../src/pdu.ts';
-import type { SendSmsDeps, SendSmsInput } from '../src/send-sms.ts';
+import type { PduObjectInput } from '../src/codec/pdu.ts';
+import type { SendSmsDeps, SendSmsInput } from '../src/messages/submit.ts';
 import { bindToSmsc, dummySmsc } from './dummy-smsc.ts';
 import { decodeMessage } from '../src/message.ts';
-import { messageOctets } from '../src/message-body.ts';
-import { objToPdu, pduToObj } from '../src/pdu.ts';
-import { paramNumber, paramText } from '../src/defs/types.ts';
+import { messageOctets } from '../src/protocol/message-body.ts';
+import { objToPdu, pduToObj } from '../src/codec/pdu.ts';
+import { paramNumber, paramText } from '../src/codec/field-types.ts';
 import { silentLog } from '../src/log.ts';
-import { submitSms } from '../src/send-sms.ts';
+import { submitSms } from '../src/messages/submit.ts';
 
 const from = '46701113311';
 const to = '46709771337';

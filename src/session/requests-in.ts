@@ -1,23 +1,24 @@
-import type { Concat } from './concat.ts';
-import type { DlrMerger } from './dlr-merger.ts';
-import type { ErrorName } from './defs/errors.ts';
+import type { Concat } from '../protocol/concat.ts';
+import type { DlrMerger } from '../messages/receipt-merge.ts';
+import type { ErrorName } from '../codec/statuses.ts';
 import type { HeldMessagesOptions } from './held-messages.ts';
-import type { LinkLife } from './link-life.ts';
-import type { LostGroup, Refusal } from './reassembly.ts';
-import type { OnRequest } from './session-options.ts';
-import type { PduObject } from './pdu.ts';
-import type { VoidResult } from './result.ts';
-import type { Session } from './session.ts';
-import type { SmppLog } from './log.ts';
-import type { SmsIdFormat } from './sms-id.ts';
+import type { LinkLife } from '../link-life.ts';
+import type { LostGroup, Refusal } from '../messages/reassembly.ts';
+import type { OnRequest } from '../options.ts';
+import type { PduObject } from '../codec/pdu.ts';
+import type { VoidResult } from '../result.ts';
+import type { Session } from '../session.ts';
+import type { SmppLog } from '../log.ts';
+import type { SmsIdFormat } from '../protocol/message-ids.ts';
 import { HeldMessages } from './held-messages.ts';
-import { Reassembler } from './reassembly.ts';
-import { bindCommands, defaults, standsInFor } from './session-options.ts';
-import { concatOf } from './concat.ts';
-import { detach } from './retained-pdu.ts';
-import { dlrFromPdu } from './dlr.ts';
-import { respIdParams, segmentId } from './sms-id.ts';
-import { respNameFor } from './defs/commands.ts';
+import { Reassembler } from '../messages/reassembly.ts';
+import { bindCommands, standsInFor } from '../protocol/bind.ts';
+import { defaults } from '../options.ts';
+import { concatOf } from '../protocol/concat.ts';
+import { detach } from '../codec/retained.ts';
+import { dlrFromPdu } from '../protocol/receipt.ts';
+import { respIdParams, segmentId } from '../protocol/message-ids.ts';
+import { respNameFor } from '../codec/commands.ts';
 
 /** Asks the peer to keep the message and retry. */
 function throttledStatus(carriedAs: string): ErrorName {

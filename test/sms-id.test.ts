@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import { normaliseSmsId, parseSegmentId, respIdParams, segmentId } from '../src/sms-id.ts';
+import { normaliseSmsId, parseSegmentId, respIdParams, segmentId } from '../src/protocol/message-ids.ts';
 
 describe('normaliseSmsId()', () => {
 	test('reads an id the length a message_id may be, and leaves a longer one alone', () => {

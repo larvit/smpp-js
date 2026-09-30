@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import type { Dlr } from '../src/dlr.ts';
-import type { EncodingName } from '../src/defs/encodings.ts';
-import type { MessageDlr } from '../src/dlr-merger.ts';
-import type { PduObject } from '../src/pdu.ts';
+import type { Dlr } from '../src/protocol/receipt.ts';
+import type { EncodingName } from '../src/codec/encodings.ts';
+import type { MessageDlr } from '../src/messages/receipt-merge.ts';
+import type { PduObject } from '../src/codec/pdu.ts';
 import type { Session } from '../src/session.ts';
 import type { Sms } from '../src/sms.ts';
-import { client } from '../src/client.ts';
+import { client } from '../src/client/client.ts';
 import { closeAfter } from '../test/teardown.ts';
-import { consts } from '../src/defs/constants.ts';
-import { paramText } from '../src/defs/types.ts';
-import { server } from '../src/server.ts';
+import { consts } from '../src/codec/constants.ts';
+import { paramText } from '../src/codec/field-types.ts';
+import { server } from '../src/server/server.ts';
 
 const PEER_HOST = process.env.PEER_HOST ?? 'smppsim';
 const PEER_PORT = Number(process.env.PEER_PORT ?? '2775');

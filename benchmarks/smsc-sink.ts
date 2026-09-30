@@ -1,4 +1,4 @@
-import { server } from '../src/server.ts';
+import { server } from '../src/server/server.ts';
 
 /**
  * Answers every submit_sm ESME_ROK and does nothing else, so a measurement against it reads this

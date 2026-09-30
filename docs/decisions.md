@@ -295,7 +295,7 @@ rule and an index of the titles below.
   a delivery receipt (0x04).** Appendix B makes a receipt's `stat` the message's final status, so
   0x04 over `ENROUTE` emits the two disagreeing spellings of finality the reading side above has to
   reconcile, and goal 3 has our own senders write the marker 3.4 defines. `sendDlr()` takes the list
-  from `transientStates` in `dlr.ts`, the same one the reader uses, so the two cannot drift.
+  from `transientStates` in `protocol/receipt.ts`, the same one the reader uses, so the two cannot drift.
   Rejected: 0x04 for every state, for the sake of a peer that classifies on the marker — the cost
   accepted here is that such a peer stops recognising a transient report as a report at all and hands
   its application receipt text as an inbound message, where under 0x04 it would have read the state
@@ -590,7 +590,7 @@ rule and an index of the titles below.
   deadlocked every multi-segment message against a production gateway
   ([interop-tests/findings/03-jasmin.md](../interop-tests/findings/03-jasmin.md)). Goal 1 has the answer
   a real SMSC gives — one `message_id` per `submit_sm`, immediately — so the group's id base is
-  generated when it opens and each segment is answered `<base>-<n>`, the notation `sms-id.ts` owns
+  generated when it opens and each segment is answered `<base>-<n>`, the notation `protocol/message-ids.ts` owns
   and `DlrMerger` reads back. The id is therefore fixed by the first segment, which is why an `smsId`
   or a refusing `status` passed to `sendResp()` on such a message is an error rather than a silent
   no-op. `answeredOnArrival` is on `Sms` because nothing the application can compute says it, and the
@@ -795,13 +795,7 @@ rule and an index of the titles below.
   fail on every developer machine, and a committed key leaks in a public repository. Valid while the
   dev image has no openssl.
 
-- **`src/` stays flat until a module has to move for another reason.** Architecture review,
-  2026-09-06: the grouping the [file map](../AGENTS.md#architecture) already implies — `wire/` for `pdu*` and `defs`,
-  `link/` for `link-*`, `reconnect-*`, `pdu-transport` and `send-window`, `messages/` for `sms*`,
-  `dlr*`, `message*`, `reassembly` and `udh` — rewrites every import for no change to
-  `dist/index.js`, the one published entry. Valid while that map is what a reader navigates by.
-
-- **`test/` stays flat too, and a file there is named for the question it answers rather than for the
+- **`test/` stays flat, and a file there is named for the question it answers rather than for the
   module it covers.** Architecture review, 2026-09-08, at 18 test files: what keeps that count honest
   is the naming rule rather than a tree — `operator-receipts.test.ts` holds a corpus defined by where
   it came from, cutting across four modules, where filing it by module would enter each new operator

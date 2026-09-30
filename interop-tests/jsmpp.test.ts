@@ -5,7 +5,7 @@ import type { Session } from '../src/session.ts';
 import type { Sms } from '../src/sms.ts';
 import { PduRefusedError } from '../src/index.ts';
 import { bareTlvHeader, pduBytes } from '../test/raw-pdus.ts';
-import { server } from '../src/server.ts';
+import { server } from '../src/server/server.ts';
 
 const JSMPP_HOST = process.env.JSMPP_HOST ?? 'jsmpp:8080';
 const SMPP_PORT = Number(process.env.SMPP_PORT ?? '2775');

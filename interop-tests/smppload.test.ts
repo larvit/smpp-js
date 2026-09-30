@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { after, describe } from 'node:test';
 import type { Session } from '../src/session.ts';
-import { server } from '../src/server.ts';
+import { server } from '../src/server/server.ts';
 
 const SMPP_PORT = Number(process.env.SMPP_PORT ?? '2775');
 
@@ -54,7 +54,7 @@ describe('smppload (blocked)', () => {
 		const refusal = await waitFor(() => sessionErr, 10_000);
 
 		assert.ok(refusal);
-		// maxPduLength (pdu-refusal.ts) is 1MiB; the corrupted command_length (0x2a shifted into the
+		// maxPduLength (codec/refusal.ts) is 1MiB; the corrupted command_length (0x2a shifted into the
 		// high bytes) reads as roughly 2.75M, so this is the "unreadable stream" teardown, not the
 		// "one bad PDU, link stays up" path - see AGENTS.md, "A stream this library cannot frame...".
 		assert.match(refusal.message, /Refusing a cmd_length of \d+/);

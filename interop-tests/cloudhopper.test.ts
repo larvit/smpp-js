@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import test, { after, describe } from 'node:test';
 import type { Session } from '../src/session.ts';
 import type { Sms } from '../src/sms.ts';
-import type { SmppServer } from '../src/server.ts';
-import { server } from '../src/server.ts';
+import type { SmppServer } from '../src/server/server.ts';
+import { server } from '../src/server/server.ts';
 
 const CLOUDHOPPER_HOST = process.env.CLOUDHOPPER_HOST ?? 'cloudhopper:8080';
 const SMPP_PORT = Number(process.env.SMPP_PORT ?? '2775');

@@ -1,4 +1,4 @@
-import type { PduObject } from './pdu.ts';
+import type { PduObject } from '../codec/pdu.ts';
 
 /**
  * The user data, wherever the peer put it. SMPP 3.4 5.3.2.32 carries up to 64 KB in

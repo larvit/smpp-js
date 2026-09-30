@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import type { Dlr } from '../src/dlr.ts';
+import type { Dlr } from '../src/protocol/receipt.ts';
 import type { Session } from '../src/session.ts';
 import type { Sms } from '../src/sms.ts';
-import { client } from '../src/client.ts';
+import { client } from '../src/client/client.ts';
 import { closeAfter } from '../test/teardown.ts';
 
 const PEER_HOST = process.env.PEER_HOST ?? 'smscsim';

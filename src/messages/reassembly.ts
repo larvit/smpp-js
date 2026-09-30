@@ -1,12 +1,13 @@
-import type { Concat } from './concat.ts';
-import type { PduObject } from './pdu.ts';
-import type { SmppLog } from './log.ts';
+import type { Concat } from '../protocol/concat.ts';
+import type { PduObject } from '../codec/pdu.ts';
+import type { SmppLog } from '../log.ts';
 import { ExpiringGroups } from './expiring-groups.ts';
-import { decodeMessage } from './message.ts';
-import { detach, retainedOctets } from './retained-pdu.ts';
-import { messageOctets } from './message-body.ts';
-import { paramNumber, paramText } from './defs/types.ts';
-import { uuidv7 } from './uuid.ts';
+import { decodeMessage } from '../message.ts';
+import { defaults } from '../options.ts';
+import { detach, retainedOctets } from '../codec/retained.ts';
+import { messageOctets } from '../protocol/message-body.ts';
+import { paramNumber, paramText } from '../codec/field-types.ts';
+import { uuidv7 } from '../protocol/uuid.ts';
 
 /** A concatenated message given up on, whose segments the peer has already been answered for. */
 export type LostGroup = {
@@ -41,8 +42,6 @@ export type Collected =
 		/** Every segment in order, on the one that completes the message. */
 		whole?: PduObject[] | undefined;
 	};
-
-export const defaultMaxOctets = 64 * 1024 * 1024;
 
 type Group = {
 	parts: Map<number, PduObject>;
@@ -89,7 +88,7 @@ export class Reassembler {
 	private readonly onLost: (lost: LostGroup) => void;
 
 	constructor(options: ReassemblerOptions) {
-		this.maxOctets = options.maxOctets ?? defaultMaxOctets;
+		this.maxOctets = options.maxOctets ?? defaults.maxOctets;
 		this.groups = new ExpiringGroups<Group>({
 			max: options.max,
 			maxWeight: this.maxOctets,

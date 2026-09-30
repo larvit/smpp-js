@@ -1,8 +1,8 @@
 import type { Result } from './result.ts';
-import type { EncodingName } from './defs/encodings.ts';
-import { dataCodingByEncoding, detect, encodingByDataCoding, encodings, unencodable, unencodableText } from './defs/encodings.ts';
-import { hasUdh } from './defs/constants.ts';
-import { udhLength } from './udh.ts';
+import type { EncodingName } from './codec/encodings.ts';
+import { dataCodingByEncoding, detect, encodingByDataCoding, encodings, unencodable, unencodableText } from './codec/encodings.ts';
+import { hasUdh } from './codec/constants.ts';
+import { udhLength } from './protocol/udh.ts';
 
 /** A single SMS carries 1120 bits, whatever the alphabet. */
 const singleMessageBits = 1120;

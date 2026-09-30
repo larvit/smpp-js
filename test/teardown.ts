@@ -1,4 +1,4 @@
-import type { CloseOptions } from '../src/session-options.ts';
+import type { CloseOptions } from '../src/options.ts';
 import type { Server, Socket } from 'node:net';
 import type { TestContext } from 'node:test';
 

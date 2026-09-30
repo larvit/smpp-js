@@ -1,14 +1,14 @@
-import type { LinkLife } from './link-life.ts';
-import type { PduObject, PduObjectInput } from './pdu.ts';
-import type { PduTransport } from './pdu-transport.ts';
-import type { Result, VoidResult } from './result.ts';
-import type { SendOptions } from './session-options.ts';
-import type { SmppLog } from './log.ts';
+import type { LinkLife } from '../link-life.ts';
+import type { PduObject, PduObjectInput } from '../codec/pdu.ts';
+import type { PduTransport } from './transport.ts';
+import type { Result, VoidResult } from '../result.ts';
+import type { SendOptions } from '../options.ts';
+import type { SmppLog } from '../log.ts';
 import { PendingRequests } from './pending-requests.ts';
 import { SendWindow } from './send-window.ts';
-import { UnansweredError } from './unanswered-error.ts';
-import { bindCommands } from './session-options.ts';
-import { objToPdu } from './pdu.ts';
+import { UnansweredError } from '../unanswered-error.ts';
+import { bindCommands } from '../protocol/bind.ts';
+import { objToPdu } from '../codec/pdu.ts';
 
 export type OutgoingRequestsOptions = {
 	link: LinkLife;

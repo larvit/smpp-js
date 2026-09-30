@@ -32,7 +32,7 @@ services:
       dumbclient-netns:
         condition: service_started
 
-  # S9's comparison run: window below maxHeldMessages (1000, session-options.ts), where nothing
+  # S9's comparison run: window below maxHeldMessages (1000, options.ts), where nothing
   # should ever be throttled - see findings/07-load.md.
   dumbclient-w500:
     build: ./interop-tests/peers/dumbclient

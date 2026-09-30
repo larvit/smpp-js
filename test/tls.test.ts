@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import net from 'node:net';
 import test, { describe } from 'node:test';
 import type { Sms } from '../src/sms.ts';
-import type { SmppServer } from '../src/server.ts';
+import type { SmppServer } from '../src/server/server.ts';
 import type { TestContext } from 'node:test';
 import { Log } from '@larvit/log';
 import { TLSSocket } from 'node:tls';
-import { client } from '../src/client.ts';
+import { client } from '../src/client/client.ts';
 import { closeAfter } from './teardown.ts';
 import { generateKeyPairSync, randomBytes, sign } from 'node:crypto';
-import { server } from '../src/server.ts';
+import { server } from '../src/server/server.ts';
 
 const host = 'localhost';
 

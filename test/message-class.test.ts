@@ -1,19 +1,19 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import type { PduObjectInput } from '../src/pdu.ts';
-import type { SendSmsDeps } from '../src/send-sms.ts';
+import type { PduObjectInput } from '../src/codec/pdu.ts';
+import type { SendSmsDeps } from '../src/messages/submit.ts';
 import type { Session } from '../src/session.ts';
 import type { Sms } from '../src/sms.ts';
 import type { TestContext } from 'node:test';
 import { bindToSmsc, dummySmsc } from './dummy-smsc.ts';
-import { client } from '../src/client.ts';
+import { client } from '../src/client/client.ts';
 import { closeAfter } from './teardown.ts';
-import { messageClassOf } from '../src/defs/encodings.ts';
-import { paramNumber } from '../src/defs/types.ts';
-import { pduToObj } from '../src/pdu.ts';
-import { server } from '../src/server.ts';
+import { messageClassOf } from '../src/codec/encodings.ts';
+import { paramNumber } from '../src/codec/field-types.ts';
+import { pduToObj } from '../src/codec/pdu.ts';
+import { server } from '../src/server/server.ts';
 import { silentLog } from '../src/log.ts';
-import { submitSms } from '../src/send-sms.ts';
+import { submitSms } from '../src/messages/submit.ts';
 
 const from = '46701113311';
 const to = '46709771337';

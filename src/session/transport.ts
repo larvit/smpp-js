@@ -1,10 +1,10 @@
-import type { PduObject } from './pdu.ts';
-import type { SmppLog } from './log.ts';
+import type { PduObject } from '../codec/pdu.ts';
+import type { SmppLog } from '../log.ts';
 import type { Socket } from 'node:net';
-import type { VoidResult } from './result.ts';
-import { PduFramer } from './pdu-framer.ts';
-import { PduRefusedError } from './pdu-refusal.ts';
-import { pduToObj } from './pdu.ts';
+import type { VoidResult } from '../result.ts';
+import { PduFramer } from '../codec/framer.ts';
+import { PduRefusedError } from '../codec/refusal.ts';
+import { pduToObj } from '../codec/pdu.ts';
 
 export type PduTransportOptions = {
 	log: SmppLog;

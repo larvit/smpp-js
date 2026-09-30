@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import test, { after, describe } from 'node:test';
-import type { MessageState } from '../src/defs/constants.ts';
-import type { Dlr } from '../src/dlr.ts';
+import type { MessageState } from '../src/codec/constants.ts';
+import type { Dlr } from '../src/protocol/receipt.ts';
 import type { Session } from '../src/session.ts';
 import type { Sms } from '../src/sms.ts';
-import { ConcatReference } from '../src/udh.ts';
-import { consts } from '../src/defs/constants.ts';
-import { detect, encodings } from '../src/defs/encodings.ts';
-import { paramText } from '../src/defs/types.ts';
-import { server } from '../src/server.ts';
+import { ConcatReference } from '../src/protocol/udh.ts';
+import { consts } from '../src/codec/constants.ts';
+import { detect, encodings } from '../src/codec/encodings.ts';
+import { paramText } from '../src/codec/field-types.ts';
+import { server } from '../src/server/server.ts';
 import { splitMessage } from '../src/message.ts';
-import { submitSmParams } from '../src/send-sms.ts';
+import { submitSmParams } from '../src/messages/submit.ts';
 
 // smsbox HTTP hosts, one per variant - all point at the same node:2775 SMPP server.
 const MAIN_SMSBOX = process.env.MAIN_SMSBOX ?? 'kannel-smsbox:13013';

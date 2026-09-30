@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import { dataCodingByEncoding, detect, encodingByDataCoding, encodings, isEncodingName, unencodable } from '../src/defs/encodings.ts';
+import { dataCodingByEncoding, detect, encodingByDataCoding, encodings, isEncodingName, unencodable } from '../src/codec/encodings.ts';
 
 describe('ASCII (GSM 03.38)', () => {
 	const samples: [string, number[]][] = [

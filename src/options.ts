@@ -1,77 +1,11 @@
-import type { Dlr } from './dlr.ts';
-import type { MessageDlr } from './dlr-merger.ts';
-import type { PduObject } from './pdu.ts';
-import type { PduRefusedError } from './pdu-refusal.ts';
+import type { PduObject } from './codec/pdu.ts';
 import type { Result, VoidResult } from './result.ts';
 import type { Session } from './session.ts';
 import type { SmppLog } from './log.ts';
-import type { SmsIdFormat } from './sms-id.ts';
-import type { Sms } from './sms.ts';
+import type { SmsIdFormat } from './protocol/message-ids.ts';
 import type { Socket } from 'node:net';
-import { backoffDefaults } from './reconnect-loop.ts';
-import { defaultMaxOctets } from './reassembly.ts';
-import { isSmsIdNotation, smsIdNotations, smsIdPlaces } from './sms-id.ts';
-import { namedValue } from './error-from.ts';
-
-export type SessionEvents = {
-	close: [];
-	data: [Buffer];
-	disconnected: [];
-	dlr: [Dlr, PduObject];
-	incomingPdu: [Buffer];
-	incomingPduObj: [PduObject];
-	messageDlr: [MessageDlr];
-	reconnected: [];
-	sessionError: [Error | PduRefusedError];
-	sms: [Sms];
-};
-
-export const bindCommands: readonly string[] = [
-	'bind_receiver',
-	'bind_transceiver',
-	'bind_transmitter',
-];
-
-export type BindType = 'receiver' | 'transceiver' | 'transmitter';
-
-/** Which end of the link a session is. Only `server()` is the SMSC; everything else is the ESME. */
-export type LinkEnd = 'esme' | 'smsc';
-
-export function bindTypeFromCommand(cmdName: string): BindType | undefined {
-	if (cmdName === 'bind_receiver') return 'receiver';
-	if (cmdName === 'bind_transceiver') return 'transceiver';
-	if (cmdName === 'bind_transmitter') return 'transmitter';
-
-	return undefined;
-}
-
-/**
- * Which message-carrying command an inbound one stands in for. Every command but `data_sm` names
- * its own direction; that one travels either way, so the end it arrived at is what says.
- */
-export function standsInFor(cmdName: string, linkEnd: LinkEnd): string {
-	if (cmdName !== 'data_sm') return cmdName;
-
-	return linkEnd === 'smsc' ? 'submit_sm' : 'deliver_sm';
-}
-
-/**
- * Whether a bind direction carries a command at all. A receiver-bound ESME submits nothing and a
- * transmitter-bound one is delivered nothing, whichever end of the link is looking. A session that
- * has not bound carries everything, since nothing has declared a direction yet.
- */
-export function bindCarries(
-	bindType: BindType | undefined,
-	cmdName: string,
-	linkEnd: LinkEnd,
-): boolean {
-	const carried = standsInFor(cmdName, linkEnd);
-
-	if (bindType === 'receiver') return carried !== 'submit_sm';
-	if (bindType === 'transmitter') return carried !== 'deliver_sm';
-
-	return true;
-}
+import { isSmsIdNotation, smsIdNotations, smsIdPlaces } from './protocol/message-ids.ts';
+import { namedValue, quoted } from './result.ts';
 
 export type SendOptions = { signal?: AbortSignal | undefined };
 
@@ -116,51 +50,36 @@ export type SessionOptions = {
 	systemId?: string | undefined;
 };
 
-export const defaultSystemId = '';
-
-/** SMPP 3.4: a peer that declares no version at all is one from before optional parameters. */
-export const undeclaredInterfaceVersion = 0x00;
-
-export type SessionBind = { as: BindType; peerVersion: number };
-
-function quoted(value: unknown): string {
-	return typeof value === 'string' ? JSON.stringify(value) : namedValue(value);
-}
-
-function isBindType(value: unknown): value is BindType {
-	return typeof value === 'string' && bindTypeFromCommand(`bind_${value}`) !== undefined;
-}
-
-/** A bind as `Session.bound()` records it: undefined declares no version, which is pre-3.4. */
-export function checkedBind(bindType: unknown, declaredVersion: unknown): Result<{ bind: SessionBind }> {
-	if (!isBindType(bindType)) {
-		return { err: new Error(`bindType must be receiver, transceiver or transmitter, the bind command's name without "bind_", got ${quoted(bindType)}`) };
-	}
-
-	if (declaredVersion === undefined) return { bind: { as: bindType, peerVersion: undeclaredInterfaceVersion } };
-
-	if (typeof declaredVersion !== 'number' || !Number.isInteger(declaredVersion) || declaredVersion < 0 || declaredVersion > 0xFF) {
-		return { err: new Error(`declaredVersion must be an integer 0-255, the interface_version param or the sc_interface_version TLV's tagValue, or undefined where the peer declared none, got ${quoted(declaredVersion)}`) };
-	}
-
-	return { bind: { as: bindType, peerVersion: declaredVersion } };
-}
-
 export const defaults = {
+	bindType: 'transceiver',
+	connectTimeout: 10_000,
 	/** Receipts of a multipart message can be a working day apart, so the cap does the bounding. */
 	dlrMergeTimeout: 86_400_000,
+	enquireLinkInterval: 20_000,
 	/** The peer gave up on an unanswered message long before this; the bound is against growth. */
 	heldMessageTimeout: 300_000,
+	host: 'localhost',
+	/** The idle timeout is what notices a dead link, so it has to outlast one silent probe. */
+	idleTimeoutFactor: 2,
+	/** The version declared on the wire. */
+	interfaceVersion: 0x34,
+	maxDelay: 30_000,
 	maxDlrMerges: 1000,
 	maxHeldMessages: 1000,
 	maxHeldOctets: 64 * 1024 * 1024,
+	maxOctets: 64 * 1024 * 1024,
 	maxOutstanding: 10,
 	maxReassembly: 1000,
+	minDelay: 1000,
+	password: 'pass',
+	port: 2775,
 	reassemblyTimeout: 300_000,
 	responseTimeout: 30_000,
+	serverIdleTimeout: 40_000,
 	shutdownTimeout: 5000,
-	systemId: defaultSystemId,
-};
+	systemId: '',
+	username: 'user',
+} as const;
 
 /**
  * A count below 1 does not fail loudly anywhere downstream: `maxOutstanding: 0` leaves every send
@@ -187,7 +106,7 @@ export function checkSessionOptions(options: CheckableOptions): VoidResult {
 function limitsOf(options: CheckableOptions): [string, number, number][] {
 	return [
 		['idleTimeout', options.idleTimeout ?? 0, 0],
-		['maxOctets', options.maxOctets ?? defaultMaxOctets, 1],
+		['maxOctets', options.maxOctets ?? defaults.maxOctets, 1],
 		['maxOutstanding', options.maxOutstanding ?? defaults.maxOutstanding, 1],
 		['maxReassembly', options.maxReassembly ?? defaults.maxReassembly, 1],
 		['reassemblyTimeout', options.reassemblyTimeout ?? defaults.reassemblyTimeout, 0],
@@ -243,8 +162,8 @@ function checkReconnect(reconnect: unknown): VoidResult {
 		return { err: new Error(`reconnect.fromStart must be true or false, got ${typeof reconnect.fromStart}`) };
 	}
 
-	const maxDelay = delayOr(reconnect.maxDelay, backoffDefaults.maxDelay);
-	const minDelay = delayOr(reconnect.minDelay, backoffDefaults.minDelay);
+	const maxDelay = delayOr(reconnect.maxDelay, defaults.maxDelay);
+	const minDelay = delayOr(reconnect.minDelay, defaults.minDelay);
 	// A delay of 0 never doubles, so the backoff never starts and every retry lands at once.
 	const checked = checkLimits([['maxDelay', maxDelay, 1], ['minDelay', minDelay, 1]]);
 

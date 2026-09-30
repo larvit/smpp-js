@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import test, { after, describe } from 'node:test';
-import type { Dlr } from '../src/dlr.ts';
-import type { EncodingName } from '../src/defs/encodings.ts';
-import type { PduObject } from '../src/pdu.ts';
+import type { Dlr } from '../src/protocol/receipt.ts';
+import type { EncodingName } from '../src/codec/encodings.ts';
+import type { PduObject } from '../src/codec/pdu.ts';
 import type { Session } from '../src/session.ts';
 import type { Sms } from '../src/sms.ts';
-import { ConcatReference } from '../src/udh.ts';
-import { client } from '../src/client.ts';
+import { ConcatReference } from '../src/protocol/udh.ts';
+import { client } from '../src/client/client.ts';
 import { closeAfter } from '../test/teardown.ts';
-import { paramText } from '../src/defs/types.ts';
-import { server } from '../src/server.ts';
+import { paramText } from '../src/codec/field-types.ts';
+import { server } from '../src/server/server.ts';
 import { encodeMessage, splitMessage } from '../src/message.ts';
-import { submitSmParams } from '../src/send-sms.ts';
+import { submitSmParams } from '../src/messages/submit.ts';
 
 const PEER_HOST = process.env.PEER_HOST ?? 'jasmin';
 const PEER_PORT = Number(process.env.PEER_PORT ?? '2775');

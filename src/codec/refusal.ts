@@ -1,6 +1,6 @@
-import type { CommandName } from './defs/commands.ts';
-import type { ErrorName } from './defs/errors.ts';
-import { respNameFor } from './defs/commands.ts';
+import type { CommandName } from './commands.ts';
+import type { ErrorName } from './statuses.ts';
+import { respNameFor } from './commands.ts';
 
 /** A hostile peer must not be able to make us allocate arbitrarily. */
 export const maxPduLength = 1024 * 1024;

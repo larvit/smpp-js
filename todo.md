@@ -215,7 +215,7 @@ comprehension-panel scoring run over the whole project. Each round:
 - let no dimension drop, and record the four scores and the overall in this paragraph.
 
 Each chunk also closes the items further down that it absorbs, and its PR names them: `hold` and
-`refusing`, the three `defaults`, `ASCII`, `session-options.ts`, the flat `src/`, and the link that
+`refusing`, `ASCII`, and the link that
 dropped mid-rebind.
 
 Every chunk that changes the public API updates README's examples, MIGRATION.md, CHANGELOG.md,
@@ -223,9 +223,6 @@ docs/decisions.md and the AGENTS.md map in its own PR, and deletes what it repla
 file stand side by side. The architecture review of 2026-09-30 (ALIGN) set this order; its amendments
 to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture-review-2026-09-30).
 
-- [ ] **Move without changing behaviour.** `defs/` becomes `codec/`, `options.ts` becomes one defaults
-      table, and `result.ts` absorbs `error-from.ts`. Every file with one target moves to its folder
-      now, and the "`src/` stays flat" decision is retired in the same PR.
 - [ ] **Build `protocol/`: every multi-fact octet read once into a named plain type.**
       - `vocabulary.ts`: the glossary as types with one-line TSDoc.
       - `data-coding.ts`: the `data_coding` table as rows, with a test that it equals today's function
@@ -277,7 +274,7 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
 
 - [ ] **Return an `err` where `message` is not a string, rather than throwing.**
       `sendSms({ message: undefined })` — a forgotten property — reaches `value.replace()` in
-      `defs/encodings.ts` through the alphabet detection `checkOptions()` runs, and the `TypeError`
+      `codec/encodings.ts` through the alphabet detection `checkOptions()` runs, and the `TypeError`
       escapes `submitSms()` into the caller's process; `NaN` and `12345` do the same. README promises
       "Never throws. Every fallible call resolves to `{ err?, … }`" and AGENTS.md hard rule 1 says it
       again, so the docs are false for the likeliest caller mistake there is. From the stability
@@ -300,7 +297,7 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
       Goals 2 then 3: `from: 1e21` is reported as sent to an address that reaches nobody, which is
       the wrong answer about what happened before it is laxness in what we send. That a number is
       accepted at all reaches a consumer in no sentence either: only the type comment at
-      `defs/commands.ts:239`, and one CHANGELOG line that stops being visible when
+      `codec/commands.ts`, and one CHANGELOG line that stops being visible when
       0.7.0 is cut, while README's Building bullet reads as the whole rule for a text field. Whether
       this is a supported spelling or 0.4.0 tolerance decides whether that sentence lands in
       README.md or in MIGRATION.md — write it in the same change as the rule, so it is worded once.
@@ -319,7 +316,7 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
       `responseTimeout`, `idleTimeout`, `shutdownTimeout` and `reassemblyTimeout` from below only,
       and Node fires a larger delay after 1 ms. From the 2026-09-28 scoring run.
 
-- [ ] **Keep a bare ESC out of GSM detection.** `gsmRegex` in `defs/encodings.ts` admits `\x1B`,
+- [ ] **Keep a bare ESC out of GSM detection.** `gsmRegex` in `codec/encodings.ts` admits `\x1B`,
       so `"\x1B("` is detected as GSM, goes out as 0x1B 0x28 and arrives as `{`. From the
       2026-09-28 scoring run.
 
@@ -340,30 +337,16 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
 ### Shape — 6 today, and the gate is 7
 
 - [ ] **Answer "is this a bind command" in one place.** `bindCommands` (read by
-      `incoming-requests.ts`, `outgoing-requests.ts` and `test/session.test.ts`) and
+      `session/requests-in.ts`, `session/outgoing-requests.ts` and `test/session.test.ts`) and
       `bindTypeFromCommand()` (read by `server.ts` and `checkedBind()`) each list the three bind
       commands, so a fourth added to one is missed by the other. Derive the list from the function,
       or the reverse. From the stability review of #42.
-
-- [ ] **Group `src/` into a second level, and retire whichever record loses.** 34 files on one
-      plane, where `src/defs/` at 7 proves the shape is known one level down. `docs/decisions.md`
-      says "`src/` stays flat until a module has to move for another reason. Valid while that map is
-      what a reader navigates by" — and both architects reported that the map is now AGENTS.md rather
-      than the tree, which is that premise failing. `todo.md` already carries the opposite
-      instruction under Worth doing. Two records, opposite answers; one has to go.
 
 - [ ] **Split `test/session-extras.test.ts` by the question each block answers.** 3,010 lines, 19
       unrelated `describe` blocks whose names are already the file names they should be. With
       `session.test.ts` it is 54% of all test code and 84% the size of `src/`. "extras" names neither
       a question nor a module — it names the rest — and AGENTS.md's own convention forbids exactly
       that. `max-lines` covers `src/**` only, so nothing has stopped it growing.
-
-- [ ] **Collapse the three objects named `defaults`.** `client.ts`, `server.ts` and
-      `session-options.ts` each export or hold one; `port: 2775` is written twice and the idle
-      timeout is derived two ways to the same 40 000, and 64 MiB is both `defaultMaxOctets` and
-      `defaults.maxHeldOctets`. "What is the default for X" has three answers
-      depending on the entrypoint, and nothing fails when they drift. Named by both architects as the
-      most likely first bug a new contributor ships.
 
 - [ ] **Give `hold` one meaning, and rename `IncomingRequests.refusing` for what it does.**
       `LinkLife.hold()` is a request's budget waiting for a link, `HeldMessages.hold()` a message the
@@ -376,12 +359,6 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
       for exactly this reason and left the option's own vocabulary carrying it. Pre-1.0 the minor is
       the breaking unit, so this is as cheap as it will ever be, and `todo.md` already requires the
       `consts.ENCODING` names settled before the custom-encoding registry — this is the other half.
-
-- [ ] **Split `session-options.ts` into the things it is.** Option types and their validator, the
-      `SessionEvents` map, and the bind-direction rules (`bindCommands`, `bindTypeFromCommand`,
-      `standsInFor`, `bindCarries`) are three questions in one file, and the `defaults` table mixes
-      option defaults with four hard bounds that are not options. Both architects named it as where
-      the codebase rots first: at 34-wide it is where anything session-shaped lands.
 
 - [ ] **Name the base-versus-segment distinction in the message id types.** `Sms.smsId` is a base,
       `sendSms().smsIds[]` are segment ids, `Dlr.smsId` is a segment id and `MessageDlr.smsId` is a
@@ -464,9 +441,9 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
       the fenced blocks at test time and assert each appears verbatim in the executed source, so an
       edit to either fails the gate.
 
-- [ ] **Narrow the `src/defs/*` lint exemption to the four table files.** Its stated reason — "the
+- [ ] **Narrow the `src/codec/` table lint exemption to the four table files.** Its stated reason — "the
       spec tables are data: their length tracks the specification, not any complexity" — is false for
-      `defs/types.ts`, which is 595 lines of wire codec with 25 functions and is the file that parses
+      `codec/field-types.ts`, which is 595 lines of wire codec with 25 functions and is the file that parses
       hostile input from the network. It carries more over-budget methods than any other file in the
       repo, under a suppression written for something else.
 
@@ -524,7 +501,7 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
       `idleTimeout: '5000'` is refused with `got 5000` — a value the reader reads as correct — where
       `connectTimeout` quotes it. `namedValue()`'s four sites — `messagingMode`, `encoding`, the time
       options and `smsIdFormat` — are the same defect once more: there `true` and `'true'` both print
-      as `true`. One fix closes all three, and `valueText()` in `defs/types.ts` is the quoted
+      as `true`. One fix closes all three, and `valueText()` in `codec/field-types.ts` is the quoted
       spelling to take it from. Raised by review, 2026-09-20.
 
 - [ ] **Refuse a send the codec cannot build before it waits for a link and a window slot.** Today
@@ -685,7 +662,7 @@ Each lands under goal 7: an option or a hook, with the call that passes none unc
 ### Encodings
 
 - [ ] **Register a custom encoding.** Maintainer's ask, 2026-09-14. `EncodingName` is a closed union
-      of three (`defs/encodings.ts`). An entry needs a name, a `data_coding`, `encode`, `decode`,
+      of three (`codec/encodings.ts`). An entry needs a name, a `data_coding`, `encode`, `decode`,
       `match`, whether `detect()` may pick it, and enough for `splitMessage()` to budget a segment
       without halving a character. Take encodings as a client or server option rather than mutating a
       module table as `smpp` does, so two sessions in one process cannot disagree about a name. A taken

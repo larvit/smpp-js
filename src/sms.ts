@@ -1,17 +1,17 @@
-import type { ErrorName } from './defs/errors.ts';
-import type { MessageState } from './defs/constants.ts';
-import type { PduObject, PduObjectInput, TlvInputs } from './pdu.ts';
+import type { ErrorName } from './codec/statuses.ts';
+import type { MessageState } from './codec/constants.ts';
+import type { PduObject, PduObjectInput, TlvInputs } from './codec/pdu.ts';
 import type { Result, VoidResult } from './result.ts';
 import type { Session } from './session.ts';
 import { UnansweredError } from './unanswered-error.ts';
-import { consts } from './defs/constants.ts';
-import { decodeSegments } from './reassembly.ts';
-import { messageClassOf } from './defs/encodings.ts';
-import { paramText } from './defs/types.ts';
-import { receiptCodes, transientStates } from './dlr.ts';
+import { consts } from './codec/constants.ts';
+import { decodeSegments } from './messages/reassembly.ts';
+import { messageClassOf } from './codec/encodings.ts';
+import { paramText } from './codec/field-types.ts';
+import { receiptCodes, transientStates } from './protocol/receipt.ts';
 import { smppDate } from './message.ts';
-import { respIdParams, segmentId } from './sms-id.ts';
-import { uuidv7 } from './uuid.ts';
+import { respIdParams, segmentId } from './protocol/message-ids.ts';
+import { uuidv7 } from './protocol/uuid.ts';
 
 /** `pduObjs` holds what the peer took, so a partial failure names what is already receipted. */
 export type SendDlrResult = {

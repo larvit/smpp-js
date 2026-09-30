@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import type { Dlr } from '../src/dlr.ts';
+import type { Dlr } from '../src/protocol/receipt.ts';
 import type { Session } from '../src/session.ts';
 import type { Sms } from '../src/sms.ts';
 import type { SmppLog } from '../src/log.ts';
-import type { SmppServer } from '../src/server.ts';
+import type { SmppServer } from '../src/server/server.ts';
 import type { TestContext } from 'node:test';
-import { PduRefusedError } from '../src/pdu-refusal.ts';
-import { client } from '../src/client.ts';
+import { PduRefusedError } from '../src/codec/refusal.ts';
+import { client } from '../src/client/client.ts';
 import { closeAfter } from './teardown.ts';
-import { isCommand, objToPdu } from '../src/pdu.ts';
-import { server } from '../src/server.ts';
+import { isCommand, objToPdu } from '../src/codec/pdu.ts';
+import { server } from '../src/server/server.ts';
 
 function once<T>(register: (resolve: (value: T) => void) => void): Promise<T> {
 	return new Promise<T>((resolve, reject) => {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import type { PduParams, PduParamsInput } from '../src/defs/commands.ts';
-import { cmds, cmdsById, commandNameById, isCommandName } from '../src/defs/commands.ts';
+import type { PduParams, PduParamsInput } from '../src/codec/commands.ts';
+import { cmds, cmdsById, commandNameById, isCommandName } from '../src/codec/commands.ts';
 
 describe('command table', () => {
 	test('every command is reachable by name and by id', () => {

@@ -1,13 +1,13 @@
-import type { LinkLife } from './link-life.ts';
-import type { PduObject, PduObjectInput } from './pdu.ts';
-import type { Result } from './result.ts';
-import type { Session } from './session.ts';
-import type { SmsHandlers } from './sms.ts';
-import type { SmppLog } from './log.ts';
-import { ExpiringGroups } from './expiring-groups.ts';
-import { IdleWaiters } from './idle-waiters.ts';
-import { createSms } from './sms.ts';
-import { retainedOctets } from './retained-pdu.ts';
+import type { LinkLife } from '../link-life.ts';
+import type { PduObject, PduObjectInput } from '../codec/pdu.ts';
+import type { Result } from '../result.ts';
+import type { Session } from '../session.ts';
+import type { SmsHandlers } from '../sms.ts';
+import type { SmppLog } from '../log.ts';
+import { ExpiringGroups } from '../messages/expiring-groups.ts';
+import { IdleWaiters } from './waiting.ts';
+import { createSms } from '../sms.ts';
+import { retainedOctets } from '../codec/retained.ts';
 
 export type HeldMessagesOptions = {
 	link: LinkLife;

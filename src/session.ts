@@ -1,30 +1,34 @@
-import type { ErrorName } from './defs/errors.ts';
-import type { MessageDlr } from './dlr-merger.ts';
-import type { ParamValue } from './defs/types.ts';
-import type { PduObject, PduObjectInput, TlvInputs } from './pdu.ts';
-import type { PduRefusedError } from './pdu-refusal.ts';
-import type { BindType, CloseOptions, LinkEnd, ReconnectOptions, SendOptions, SessionBind, SessionEvents, SessionOptions } from './session-options.ts';
+import type { Dlr } from './protocol/receipt.ts';
+import type { ErrorName } from './codec/statuses.ts';
+import type { MessageDlr } from './messages/receipt-merge.ts';
+import type { ParamValue } from './codec/field-types.ts';
+import type { PduObject, PduObjectInput, TlvInputs } from './codec/pdu.ts';
+import type { PduRefusedError } from './codec/refusal.ts';
+import type { BindType, LinkEnd, SessionBind } from './protocol/bind.ts';
+import type { CloseOptions, ReconnectOptions, SendOptions, SessionOptions } from './options.ts';
 import type { Result, VoidResult } from './result.ts';
-import type { SendSmsOptions, SendSmsResult } from './send-sms.ts';
+import type { SendSmsOptions, SendSmsResult } from './messages/submit.ts';
 import type { SmppLog } from './log.ts';
+import type { Sms } from './sms.ts';
 import type { Socket } from 'node:net';
-import { DlrMerger } from './dlr-merger.ts';
+import { DlrMerger } from './messages/receipt-merge.ts';
 import { EventEmitter } from 'node:events';
-import { IncomingRequests } from './incoming-requests.ts';
+import { IncomingRequests } from './session/requests-in.ts';
 import { LinkLife } from './link-life.ts';
-import { LinkTimers } from './link-timers.ts';
-import { OutgoingRequests } from './outgoing-requests.ts';
-import { PduTransport } from './pdu-transport.ts';
+import { LinkTimers } from './session/keepalive.ts';
+import { OutgoingRequests } from './session/outgoing-requests.ts';
+import { PduTransport } from './session/transport.ts';
 import { ReconnectLoop } from './reconnect-loop.ts';
-import { leftOf } from './idle-waiters.ts';
-import { errorFrom } from './error-from.ts';
-import { optionalParamsMinVersion } from './defs/constants.ts';
-import { bindCarries, bindCommands, checkedBind, defaultSystemId, defaults } from './session-options.ts';
-import { isResp, objToPdu, pduReturn } from './pdu.ts';
-import { refusalAnswer } from './pdu-refusal.ts';
+import { leftOf } from './session/waiting.ts';
+import { errorFrom } from './result.ts';
+import { optionalParamsMinVersion } from './codec/constants.ts';
+import { bindCarries, checkedBind } from './protocol/bind.ts';
+import { defaults } from './options.ts';
+import { isResp, objToPdu, pduReturn } from './codec/pdu.ts';
+import { refusalAnswer } from './codec/refusal.ts';
 import { guardedLog } from './log.ts';
-import { submitSms, unsent } from './send-sms.ts';
-import { ConcatReference } from './udh.ts';
+import { submitSms, unsent } from './messages/submit.ts';
+import { ConcatReference } from './protocol/udh.ts';
 
 export type {
 	CloseOptions,
@@ -33,11 +37,22 @@ export type {
 	SendOptions,
 	SendSmsOptions,
 	SendSmsResult,
-	SessionEvents,
 	SessionOptions,
 };
 export type { BindType };
-export { bindCommands, defaultSystemId };
+
+export type SessionEvents = {
+	close: [];
+	data: [Buffer];
+	disconnected: [];
+	dlr: [Dlr, PduObject];
+	incomingPdu: [Buffer];
+	incomingPduObj: [PduObject];
+	messageDlr: [MessageDlr];
+	reconnected: [];
+	sessionError: [Error | PduRefusedError];
+	sms: [Sms];
+};
 
 /** A listener may return a promise: an `async` one that rejects is routed like one that throws. */
 type SessionListener<K extends keyof SessionEvents> = (...args: SessionEvents[K]) => unknown;

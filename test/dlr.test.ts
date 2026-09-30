@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import { consts } from '../src/defs/constants.ts';
-import { dlrFromPdu, parseReceipt, receiptCodes } from '../src/dlr.ts';
+import { consts } from '../src/codec/constants.ts';
+import { dlrFromPdu, parseReceipt, receiptCodes } from '../src/protocol/receipt.ts';
 import { encodeMessage } from '../src/message.ts';
-import { objToPdu, pduToObj } from '../src/pdu.ts';
-import type { PduObject, TlvInputs } from '../src/pdu.ts';
+import { objToPdu, pduToObj } from '../src/codec/pdu.ts';
+import type { PduObject, TlvInputs } from '../src/codec/pdu.ts';
 
 const receiptText = 'id:0195f0c7 sub:001 dlvrd:001 submit date:2508251430 done date:2508251431 stat:DELIVRD err:000 text:hello there';
 

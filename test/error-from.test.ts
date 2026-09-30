@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { errorFrom } from '../src/error-from.ts';
+import { errorFrom } from '../src/result.ts';
 
 test('carries an Error through and describes anything else, including what String() refuses', () => {
 	const original = new Error('the original');

@@ -35,17 +35,17 @@ export default tseslint.config(
 	},
 	{
 		// The spec tables are data: their length tracks the specification, not any complexity.
-		files: ['src/defs/*.ts'],
+		files: ['src/codec/{commands,constants,encodings,field-types,statuses,tlvs}.ts'],
 		rules: { 'max-lines': 'off' },
 	},
 	{
 		// ESLint counts every ?. and ?? in dlrFromPdu as a branch; the 19 is 26 lines of flat field resolution.
-		files: ['src/dlr.ts'],
+		files: ['src/protocol/receipt.ts'],
 		rules: { complexity: ['error', 19] },
 	},
 	{
 		// ESC (0x1B) is the GSM 03.38 escape character, so it belongs in these patterns.
-		files: ['src/defs/encodings.ts'],
+		files: ['src/codec/encodings.ts'],
 		rules: { 'no-control-regex': 'off' },
 	},
 	{

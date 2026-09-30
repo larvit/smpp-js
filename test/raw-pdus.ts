@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import type { PduObjectInput } from '../src/pdu.ts';
-import { objToPdu } from '../src/pdu.ts';
+import type { PduObjectInput } from '../src/codec/pdu.ts';
+import { objToPdu } from '../src/codec/pdu.ts';
 
 /** The octets a test writes straight to a socket, which objToPdu builds for every valid PDU. */
 export function pduBytes(input: PduObjectInput): Buffer {

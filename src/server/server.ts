@@ -1,19 +1,20 @@
-import type { BindType, CloseOptions, OnRequest } from './session-options.ts';
-import type { PduObject, TlvInputs } from './pdu.ts';
-import type { Result, VoidResult } from './result.ts';
+import type { BindType } from '../protocol/bind.ts';
+import type { CloseOptions, OnRequest } from '../options.ts';
+import type { PduObject, TlvInputs } from '../codec/pdu.ts';
+import type { Result, VoidResult } from '../result.ts';
 import type { Server as NetServer, Socket } from 'node:net';
 import type { Server as TlsServer, TlsOptions } from 'node:tls';
-import type { SmppLog } from './log.ts';
+import type { SmppLog } from '../log.ts';
 import { EventEmitter } from 'node:events';
-import { Session, defaultSystemId } from './session.ts';
-import { bindTypeFromCommand, checkSessionOptions } from './session-options.ts';
+import { Session } from '../session.ts';
+import { bindTypeFromCommand } from '../protocol/bind.ts';
+import { checkSessionOptions, defaults } from '../options.ts';
 import { createServer as createNetServer } from 'node:net';
 import { createServer as createTlsServer } from 'node:tls';
-import { defaultInterfaceVersion } from './defs/constants.ts';
-import { errorFrom } from './error-from.ts';
-import { paramText } from './defs/types.ts';
-import { guardedLog } from './log.ts';
-import { respNameFor } from './defs/commands.ts';
+import { errorFrom } from '../result.ts';
+import { paramText } from '../codec/field-types.ts';
+import { guardedLog } from '../log.ts';
+import { respNameFor } from '../codec/commands.ts';
 
 export type AuthenticateResult = { userData?: unknown } | boolean;
 
@@ -49,12 +50,6 @@ export type ServerEvents = {
 	session: [Session];
 };
 
-const defaults = {
-	idleTimeout: 40_000,
-	interfaceVersion: defaultInterfaceVersion,
-	port: 2775,
-	systemId: defaultSystemId,
-};
 
 /** A listener may return a promise: an `async` one that rejects is routed like one that throws. */
 type ServerListener<K extends keyof ServerEvents> = (...args: ServerEvents[K]) => unknown;
@@ -233,7 +228,7 @@ async function handleRequest(
 function onConnection(sock: Socket, options: ServerOptions, server: SmppServer): void {
 	const log = guardedLog(options.log);
 	const session = new Session({
-		idleTimeout: options.idleTimeout ?? defaults.idleTimeout,
+		idleTimeout: options.idleTimeout ?? defaults.serverIdleTimeout,
 		log,
 		maxOutstanding: options.maxOutstanding,
 		maxOctets: options.maxOctets,

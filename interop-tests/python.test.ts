@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test, { after, describe } from 'node:test';
 import type { Session } from '../src/session.ts';
 import type { Sms } from '../src/sms.ts';
-import { encodings } from '../src/defs/encodings.ts';
-import { paramText } from '../src/defs/types.ts';
+import { encodings } from '../src/codec/encodings.ts';
+import { paramText } from '../src/codec/field-types.ts';
 import { isCommand, server } from '../src/index.ts';
 
 const DRIVER = process.env.PYTHON_DRIVER ?? 'python:8080';

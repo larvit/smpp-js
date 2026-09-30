@@ -1,9 +1,9 @@
 import type { ConcatInfo } from './udh.ts';
-import type { PduObject } from './pdu.ts';
+import type { PduObject } from '../codec/pdu.ts';
 import { concatInfo } from './udh.ts';
-import { hasUdh } from './defs/constants.ts';
+import { hasUdh } from '../codec/constants.ts';
 import { messageOctets } from './message-body.ts';
-import { paramNumber } from './defs/types.ts';
+import { paramNumber } from '../codec/field-types.ts';
 
 /** Where a segment sits in its message, and what ties it to the rest of that message. */
 export type Concat = ConcatInfo & {

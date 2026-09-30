@@ -1,4 +1,4 @@
-import type { SmppLog } from './log.ts';
+import type { SmppLog } from '../log.ts';
 
 export type LinkTimersOptions = {
 	/** How long between enquire_link probes. Undefined or 0 never probes. */

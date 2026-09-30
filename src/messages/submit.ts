@@ -1,17 +1,17 @@
-import type { EncodingName, Unencodable } from './defs/encodings.ts';
-import type { ParamValue } from './defs/types.ts';
-import type { SubmitMessagingMode } from './defs/constants.ts';
-import type { PduObject, PduObjectInput } from './pdu.ts';
-import type { Result } from './result.ts';
-import type { SmppLog } from './log.ts';
-import type { SmsIdNotation } from './sms-id.ts';
-import { UnansweredError } from './unanswered-error.ts';
-import { consts, defaultMessagingMode, isMessagingMode, isSubmitMessagingMode, submitMessagingModes } from './defs/constants.ts';
-import { cstring, paramText } from './defs/types.ts';
-import { dataCodingByEncoding, detect, encodingNames, isEncodingName, unencodable, unencodableText } from './defs/encodings.ts';
-import { namedValue } from './error-from.ts';
-import { normaliseSmsId } from './sms-id.ts';
-import { maxSegments, smppTime, splitMessage } from './message.ts';
+import type { EncodingName, Unencodable } from '../codec/encodings.ts';
+import type { ParamValue } from '../codec/field-types.ts';
+import type { SubmitMessagingMode } from '../codec/constants.ts';
+import type { PduObject, PduObjectInput } from '../codec/pdu.ts';
+import type { Result } from '../result.ts';
+import type { SmppLog } from '../log.ts';
+import type { SmsIdNotation } from '../protocol/message-ids.ts';
+import { UnansweredError } from '../unanswered-error.ts';
+import { consts, defaultMessagingMode, isMessagingMode, isSubmitMessagingMode, submitMessagingModes } from '../codec/constants.ts';
+import { cstring, paramText } from '../codec/field-types.ts';
+import { dataCodingByEncoding, detect, encodingNames, isEncodingName, unencodable, unencodableText } from '../codec/encodings.ts';
+import { namedValue } from '../result.ts';
+import { normaliseSmsId } from '../protocol/message-ids.ts';
+import { maxSegments, smppTime, splitMessage } from '../message.ts';
 
 export type SendSmsOptions = {
 	dlr?: boolean;

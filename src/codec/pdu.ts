@@ -1,16 +1,16 @@
-import type { CommandDefinition, CommandName, PduParams, PduParamsInput } from './defs/commands.ts';
-import type { ErrorName } from './defs/errors.ts';
-import type { ParamValue } from './defs/types.ts';
-import type { PduHeader } from './pdu-refusal.ts';
-import type { Result, VoidResult } from './result.ts';
-import type { TlvInputs, Tlvs } from './defs/tlvs.ts';
-import { PduRefusedError, framingRefusal } from './pdu-refusal.ts';
-import { cmds, commandNameById, respNameFor } from './defs/commands.ts';
-import { hasUdh } from './defs/constants.ts';
-import { decodeMessage, encodeBody } from './message.ts';
-import { errorNameById, errors, isErrorName } from './defs/errors.ts';
-import { paramNumber, valueText } from './defs/types.ts';
-import { parseTlvs, writeTlvs } from './defs/tlvs.ts';
+import type { CommandDefinition, CommandName, PduParams, PduParamsInput } from './commands.ts';
+import type { ErrorName } from './statuses.ts';
+import type { ParamValue } from './field-types.ts';
+import type { PduHeader } from './refusal.ts';
+import type { Result, VoidResult } from '../result.ts';
+import type { TlvInputs, Tlvs } from './tlvs.ts';
+import { PduRefusedError, framingRefusal } from './refusal.ts';
+import { cmds, commandNameById, respNameFor } from './commands.ts';
+import { hasUdh } from './constants.ts';
+import { decodeMessage, encodeBody } from '../message.ts';
+import { errorNameById, errors, isErrorName } from './statuses.ts';
+import { paramNumber, valueText } from './field-types.ts';
+import { parseTlvs, writeTlvs } from './tlvs.ts';
 
 /** The highest sequence number this library hands out; SMPP 3.4 4.7.1 reserves 0x7fffffff. */
 export const maxSeqNr = 2147483646;

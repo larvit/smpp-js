@@ -1,8 +1,8 @@
-import type { Dlr } from './dlr.ts';
-import type { MessageState } from './defs/constants.ts';
-import type { SmppLog } from './log.ts';
+import type { Dlr } from '../protocol/receipt.ts';
+import type { MessageState } from '../codec/constants.ts';
+import type { SmppLog } from '../log.ts';
 import { ExpiringGroups } from './expiring-groups.ts';
-import { parseSegmentId } from './sms-id.ts';
+import { parseSegmentId } from '../protocol/message-ids.ts';
 
 export type MessageDlr = Dlr & { segments: Dlr[]; smsId: string };
 

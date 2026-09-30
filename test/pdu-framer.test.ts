@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
-import { PduFramer } from '../src/pdu-framer.ts';
-import { objToPdu } from '../src/pdu.ts';
+import { PduFramer } from '../src/codec/framer.ts';
+import { objToPdu } from '../src/codec/pdu.ts';
 
 function pdu(seqNr: number): Buffer {
 	const { buffer } = objToPdu({ cmdName: 'enquire_link', seqNr });

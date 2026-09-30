@@ -37,55 +37,58 @@ These are not preferences. Breaking one is a defect.
 
 ```
 src/
-	index.ts             Public surface. Named exports only, no default export.
-	client.ts            client() -> { err, session }
-	server.ts            server() -> { err, server }, server owns the listener + close()
-	session.ts           Session: the socket's life, dispatch, events, and the collaborators below
-	sms.ts               The live handle emitted as the 'sms' event (sendResp/sendDlr)
-	concat.ts            How a PDU says it is a segment: its UDH, or the sar_* TLVs
-	dlr.ts               Delivery receipts: text and TLV parsing, receipt status codes
-	dlr-merger.ts        DlrMerger: per-segment receipts counted into one MessageDlr
-	error-from.ts        An untyped value as error material: errorFrom() an Error, namedValue() a name
-	expiring-groups.ts   ExpiringGroups: the capped, weighed, expiring store DlrMerger, HeldMessages and Reassembler share
-	held-messages.ts     HeldMessages: a message from its `sms` event to its answer, capped and expiring, one MessageHold each
-	idle-waiters.ts      IdleWaiters: waiting for a count to fall to zero, and what is left of a budget
-	incoming-requests.ts Every request the peer sends: messages, receipts, links, unknown commands
+	index.ts             Public surface. Named exports only, no default export; assembles `defs`.
 	link-life.ts         LinkLife: whether the link lives, and where a request waits for the next one
-	link-timers.ts       LinkTimers: the enquire_link heartbeat and the idle timeout
 	log.ts               SmppLog, the logger contract, and silentLog — the default
 	message.ts           Encoding detection, splitting, bit counting, SMPP date formatting
-	message-body.ts      Where an inbound body is: short_message, or the message_payload TLV
-	outgoing-requests.ts OutgoingRequests: the window, the pending map and the retry
-	pdu.ts               pduToObj / objToPdu / pduReturn — synchronous, result-returning
-	pdu-framer.ts        PduFramer: a byte stream cut into complete PDUs
-	pdu-refusal.ts       A PDU the codec would not read, and the answer SMPP names for it
-	pdu-transport.ts     PduTransport: the socket a session reads complete PDUs off
-	pending-requests.ts  PendingRequests: sequence numbers, correlation, timeout, abort
-	reassembly.ts        Reassembler: capped, expiring multipart groups
+	options.ts           SessionOptions, ReconnectOptions, their checks, and `defaults`: every default and internal cap
 	reconnect-loop.ts    ReconnectLoop: backoff, retry timer, stopped-ness
-	result.ts            Result<T> — the shape every fallible call returns
-	retained-pdu.ts      A PDU copied off the wire so holding it pins nothing else, and what holding it costs
-	send-sms.ts          submitSms composition and the submitSmParams builder
-	send-window.ts       SendWindow: the maxOutstanding semaphore
-	session-options.ts   SessionOptions, ReconnectOptions, bind direction and the session defaults
-	sms-id.ts            Message ids: the peer's notation, the <base>-<n> a segment gets, which response carries one
-	udh.ts               User data header: its length, the concatenation fields of a long SMS and their reference
+	result.ts            Result<T>, and an untyped value as error material: errorFrom(), namedValue(), quoted()
+	session.ts           Session: the socket's life, dispatch, events, and the collaborators in session/
+	sms.ts               The live handle emitted as the 'sms' event (sendResp/sendDlr)
 	unanswered-error.ts  UnansweredError: it went out and no answer came back
-	uuid.ts              uuidv7() — the ids the library generates for messages
-	defs/
+	codec/               Bytes <-> PduObject
 		commands.ts      The 33 commands, their ids and ordered parameter lists
 		constants.ts     consts + constsById, and the SMPP version constants
 		encodings.ts     GSM 03.38, LATIN1, UCS2, detection, data_coding resolution
-		errors.ts        errors + errorsById (ESME_*)
-		index.ts         defs: every table as one group
+		field-types.ts   Wire types: int8/int16/int32/string/cstring/buffer/arrays
+		framer.ts        PduFramer: a byte stream cut into complete PDUs
+		pdu.ts           pduToObj / objToPdu / pduReturn — synchronous, result-returning
+		refusal.ts       A PDU the codec would not read, and the answer SMPP names for it
+		retained.ts      A PDU copied off the wire so holding it pins nothing else, and what holding it costs
+		statuses.ts      errors + errorsById (ESME_*)
 		tlvs.ts          TLV definitions, tlvsById, the typed read and input shapes, and reading and writing a TLV stream
-		types.ts         Wire types: int8/int16/int32/string/cstring/buffer/arrays
+	protocol/            What the fields mean
+		bind.ts          Bind directions: which commands bind, what a direction carries, data_sm's stand-in, checkedBind()
+		concat.ts        How a PDU says it is a segment: its UDH, or the sar_* TLVs
+		message-body.ts  Where an inbound body is: short_message, or the message_payload TLV
+		message-ids.ts   Message ids: the peer's notation, the <base>-<n> a segment gets, which response carries one
+		receipt.ts       Delivery receipts: text and TLV parsing, receipt status codes
+		udh.ts           User data header: its length, the concatenation fields of a long SMS and their reference
+		uuid.ts          uuidv7() — the ids the library generates for messages
+	messages/            Whole messages across segments and time
+		expiring-groups.ts ExpiringGroups: the capped, weighed, expiring store DlrMerger, HeldMessages and Reassembler share
+		reassembly.ts    Reassembler: capped, expiring multipart groups
+		receipt-merge.ts DlrMerger: per-segment receipts counted into one MessageDlr
+		submit.ts        submitSms composition and the submitSmParams builder
+	session/             One socket's collaborators
+		held-messages.ts HeldMessages: a message from its `sms` event to its answer, capped and expiring, one MessageHold each
+		keepalive.ts     LinkTimers: the enquire_link heartbeat and the idle timeout
+		outgoing-requests.ts OutgoingRequests: the window, the pending map and the retry
+		pending-requests.ts  PendingRequests: sequence numbers, correlation, timeout, abort
+		requests-in.ts   IncomingRequests: every request the peer sends: messages, receipts, links, unknown commands
+		send-window.ts   SendWindow: the maxOutstanding semaphore
+		transport.ts     PduTransport: the socket a session reads complete PDUs off
+		waiting.ts       IdleWaiters: waiting for a count to fall to zero, and what is left of a budget
+	client/client.ts     client() -> { err, session }
+	server/server.ts     server() -> { err, server }, server owns the listener + close()
 ```
 
-Imports point one way: `defs` knows nothing above it but `result.ts`, `pdu` uses `defs`, `session`
-uses `pdu`, and `client`/`server` use `session`. The ways back up are the `Session` handed to
-`createSms()`, `HeldMessages` and `IncomingRequests`, which call back into it, and to `OnRequest`
-and `onConnected` in `session-options.ts`, all imported as a type only.
+Imports point one way: `codec` ← `protocol` ← `messages` ← `session/` ← `client`/`server`, and
+the root files sit beside that order; `codec` reaches outside itself only for `result.ts` and, from
+`pdu.ts`, `message.ts`. The ways back up are the `Session` handed to `createSms()`, `HeldMessages`
+and `IncomingRequests`, which call back into it, and to `OnRequest` and `onConnected` in
+`options.ts`, all imported as a type only.
 
 **Parameter order is wire order.** The key order inside `cmds.*.params` is the order the fields are
 written to and read from the buffer. Never sort those alphabetically — the alphabetical-ordering
@@ -314,8 +317,7 @@ this is not a changelog.
   `SendWindow` rather than extracted.
 - `SmppLog` is a five-method contract this library declares, not a dependency.
 - The TLS tests build their own self-signed certificate in DER
-- `src/` stays flat until a module has to move for another reason.
-- `test/` stays flat too, and a file there is named for the question it answers rather than for the
+- `test/` stays flat, and a file there is named for the question it answers rather than for the
   module it covers.
 - CI tests on Linux only; `src/` keeps off what is known to break on macOS or Windows.
 - GitHub mirrors Gitea without pruning, and a ref deleted on Gitea is deleted on GitHub by a run of
