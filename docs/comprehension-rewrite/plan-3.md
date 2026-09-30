@@ -260,6 +260,9 @@ overturned recorded decisions without naming them. todo.md carries the reordered
    Reassembly refuses at its bound: an evicted group is answered segments lost, goal 2 outranks goal 4,
    and the store is per session. The spent set expires by age.
 8. **`retained.ts` goes to `codec/`**; `options.ts` joins AGENTS.md's type-only ways back up.
+9. **A file keeps its export's name until the chunk that renames the export.** The scoring run of
+   2026-09-30 read §2's names on unrenamed classes (`keepalive.ts` holding `LinkTimers`) as lies, so
+   §2 and §4 name where a file ends, not what it is called before its export changes.
 
 Public API questions, answered as the review recommends. Maintainer's call, 2026-09-30; each
 lands in docs/decisions.md with the chunk that builds it:
