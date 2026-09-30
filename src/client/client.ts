@@ -41,7 +41,6 @@ export type ClientOptions = {
 	username?: string;
 };
 
-
 function armConnectTimeout(
 	sock: Socket,
 	connectTimeout: number | false,

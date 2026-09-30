@@ -49,7 +49,7 @@ src/
 	unanswered-error.ts  UnansweredError: it went out and no answer came back
 	codec/               Bytes <-> PduObject
 		commands.ts      The 33 commands, their ids and ordered parameter lists
-		constants.ts     consts + constsById, and the SMPP version constants
+		constants.ts     consts + constsById, and the version that allows optional parameters
 		encodings.ts     GSM 03.38, LATIN1, UCS2, detection, data_coding resolution
 		field-types.ts   Wire types: int8/int16/int32/string/cstring/buffer/arrays
 		framer.ts        PduFramer: a byte stream cut into complete PDUs
@@ -84,11 +84,12 @@ src/
 	server/server.ts     server() -> { err, server }, server owns the listener + close()
 ```
 
-Imports point one way: `codec` ← `protocol` ← `messages` ← `session/` ← `client`/`server`, and
-the root files sit beside that order; `codec` reaches outside itself only for `result.ts` and, from
-`pdu.ts`, `message.ts`. The ways back up are the `Session` handed to `createSms()`, `HeldMessages`
-and `IncomingRequests`, which call back into it, and to `OnRequest` and `onConnected` in
-`options.ts`, all imported as a type only.
+Imports point one way: `codec` ← `protocol` ← `messages` ← `session/` ← `client`/`server`, and the
+root files sit beside that order. One edge runs against it: `codec/pdu.ts` reads `message.ts`, which
+reads `protocol/udh.ts`, so moving `message.ts` into `protocol/` needs `pdu.ts` off it first. The
+ways back up are the `Session` handed to `createSms()`, `HeldMessages` and `IncomingRequests`, which
+call back into it, and to `OnRequest` and `onConnected` in `options.ts`, all imported as a type
+only.
 
 **Parameter order is wire order.** The key order inside `cmds.*.params` is the order the fields are
 written to and read from the buffer. Never sort those alphabetically — the alphabetical-ordering
@@ -317,6 +318,7 @@ this is not a changelog.
   `SendWindow` rather than extracted.
 - `SmppLog` is a five-method contract this library declares, not a dependency.
 - The TLS tests build their own self-signed certificate in DER
+- `src/` is grouped by layer, and imports point down the layers.
 - `test/` stays flat, and a file there is named for the question it answers rather than for the
   module it covers.
 - CI tests on Linux only; `src/` keeps off what is known to break on macOS or Windows.

@@ -215,8 +215,7 @@ comprehension-panel scoring run over the whole project. Each round:
 - let no dimension drop, and record the four scores and the overall in this paragraph.
 
 Each chunk also closes the items further down that it absorbs, and its PR names them: `hold` and
-`refusing`, `ASCII`, and the link that
-dropped mid-rebind.
+`refusing`, `ASCII`, and the link that dropped mid-rebind.
 
 Every chunk that changes the public API updates README's examples, MIGRATION.md, CHANGELOG.md,
 docs/decisions.md and the AGENTS.md map in its own PR, and deletes what it replaces; no old and new
@@ -538,7 +537,7 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
       Maintainer's ask, 2026-09-14; not started until asked.
 
 - [ ] **Count what is left of a budget one way in `leftOf()` and `LinkLife`.** Today they are one
-      concept counted twice. `idle-waiters.ts` reads what is left of a budget as `Math.max(1,
+      concept counted twice. `session/waiting.ts` reads what is left of a budget as `Math.max(1,
       deadline - now)`, because 0 means "forever" there; `link-life.ts` runs the same subtraction
       and calls `<= 0` expired. Neither is reachable from the other, so nothing can disagree today,
       but a reader who learns one and applies it to the other is wrong. A budget type both take

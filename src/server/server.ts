@@ -50,7 +50,6 @@ export type ServerEvents = {
 	session: [Session];
 };
 
-
 /** A listener may return a promise: an `async` one that rejects is routed like one that throws. */
 type ServerListener<K extends keyof ServerEvents> = (...args: ServerEvents[K]) => unknown;
 
