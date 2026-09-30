@@ -207,6 +207,10 @@ not SMPP's difficulty. Maintainer's call, 2026-09-30: build plan 3. The backgrou
 [docs/comprehension-rewrite/](docs/comprehension-rewrite/): the plans, the board, every panel report,
 the lessons and the six drafts as patches. Delete that directory once this milestone ships.
 
+The move chunk (#53) read 6, 6, 6 and 6, Navigation 7 at every seat, Locality 5, 5, 5 and 6, Shape 6
+at every seat, Self-sufficiency 5, 6, 7 and 8. Every seat's Locality cause is the lifecycle cluster
+the split below rewrites.
+
 Every chunk below ships through `/larv-review`, and before it merges it also runs the
 comprehension-panel scoring run over the whole project. Each round:
 
@@ -347,6 +351,19 @@ to the plan are [plan 3 §8](docs/comprehension-rewrite/plan-3.md#8-architecture
       `benchmarks/` reproduces all three. Goal 6.
 
 ### Shape — 6 today, and the gate is 7
+
+- [ ] **Give each meaning of "refusal" its own name.** `PduRefusedError`/`codec/refusal.ts` (a PDU
+      the codec would not read), reassembly's `Refusal` (a segment not kept), `LinkLife.refusal()`
+      (the session is closed), `OutgoingRequests.refuse()` (bad input) and `Session.refuse()`
+      (answering an unreadable PDU) are five things under one word. From the 2026-09-30 scoring run.
+
+- [ ] **Collect a batch of sent PDUs in one function.** `collectReceipt()` in `session/sms.ts` and
+      `collectSent()` in `messages/submit.ts` are the same loop over `Result<{ pduObj }>[]`, counting
+      `UnansweredError`s and keeping the first failure. From the 2026-09-30 scoring run.
+
+- [ ] **Say at `readParams()` that only `short_message` reads the length it is handed.** Every field's
+      `read` gets `sm_length`, and that is sound only because `sm_length` precedes `short_message` in
+      wire order and `buffer` is the one type that uses it. From the 2026-09-30 scoring run.
 
 - [ ] **Answer "is this a bind command" in one place.** `bindCommands` (read by
       `session/incoming-requests.ts`, `session/outgoing-requests.ts` and `test/session.test.ts`) and
